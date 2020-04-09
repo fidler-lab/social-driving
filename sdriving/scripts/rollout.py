@@ -91,7 +91,7 @@ if __name__ == "__main__":
             ep_ret += sum([rwd for _, rwd in r.items()])
             ep_len += 1
             done = d["__all__"]
-            if args.verbose:   
+            if args.verbose:
                 print(f"Reward: {sum(r.values())}")
         total_ret += ep_ret
         print(
