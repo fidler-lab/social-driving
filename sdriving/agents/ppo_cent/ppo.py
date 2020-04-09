@@ -115,9 +115,13 @@ class PPO_Centralized_Critic:
         self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
         self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
         if load_path is not None:
-            ckpt = torch.load(load_path)
+            ckpt = torch.load(load_path, map_location="cpu")
             self.ac.pi.load_state_dict(ckpt["actor"])
             self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
+            for state in self.pi_optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        state[k] = v.to(device)
             if ckpt["nagents"] == self.nagents:
                 self.ac.v.load_state_dict(ckpt["critic"])
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
@@ -126,6 +130,10 @@ class PPO_Centralized_Critic:
                     "The agent was trained with a different nagents",
                     color="red",
                 )
+            for state in self.vf_optimizer.state.values():
+                for k, v in state.items():
+                    if torch.is_tensor(v):
+                        state[k] = v.to(device)
 
         # Sync params across processes
         sync_params(self.ac)
