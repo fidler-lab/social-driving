@@ -3,9 +3,10 @@ from typing import List, Optional, Tuple, Union
 import torch
 from gym.spaces import Discrete
 from gym.spaces import Tuple as GSTuple
-from sdriving.agents.ppo_cent.utils import mlp
 from torch import nn
 from torch.distributions.categorical import Categorical
+
+from sdriving.agents.ppo_cent.utils import mlp
 
 
 class PPOCategoricalActor(nn.Module):

@@ -2,9 +2,9 @@ from typing import Optional, Union
 
 import numpy as np
 import scipy.signal
-
 import torch
 import torch.nn as nn
+
 from spinup.utils.mpi_tools import mpi_avg, mpi_statistics_scalar, num_procs
 
 

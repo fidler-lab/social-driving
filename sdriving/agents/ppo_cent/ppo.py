@@ -3,10 +3,12 @@ import time
 import warnings
 from typing import Optional
 
-import numpy as np
-
 import gym
+import numpy as np
 import torch
+from torch.optim import Adam
+from torch.utils.tensorboard import SummaryWriter
+
 from sdriving.agents.ppo_cent.model import ActorCritic
 from sdriving.agents.ppo_cent.utils import (
     PPOBuffer,
@@ -23,8 +25,6 @@ from spinup.utils.mpi_tools import (
     num_procs,
     proc_id,
 )
-from torch.optim import Adam
-from torch.utils.tensorboard import SummaryWriter
 
 
 class PPO_Centralized_Critic:
