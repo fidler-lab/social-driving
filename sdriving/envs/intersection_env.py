@@ -282,7 +282,6 @@ class RoadIntersectionEnv(BaseEnv):
                 torch.as_tensor([x, y, v, t]),
                 goal_state,
                 agent,
-                timesteps,
                 self.agents[a_id]["dynamics"],
                 {"v_lim": self.agents[a_id]["v_lim"]},
             )
@@ -366,8 +365,8 @@ class RoadIntersectionEnv(BaseEnv):
         erd = f"traffic_signal_world_{erd}"
         eroad = self.world.road_network.roads[erd]
 
-        orientation = sroad.orientation.item()
-        dest_orientation = angle_normalize(eroad.orientation + math.pi).item()
+        orientation = angle_normalize(sroad.orientation + math.pi).item()
+        dest_orientation = eroad.orientation.item()
 
         end_pos = torch.zeros(2)
         if erd[-1] in ("1", "3"):

@@ -5,7 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from sdriving.trafficsim.utils import angle_normalize, transform_2d_coordinates
+from sdriving.trafficsim.utils import (
+    angle_normalize,
+    circle_area_overlap,
+    transform_2d_coordinates,
+)
 
 
 class Vehicle:
@@ -147,6 +151,16 @@ class Vehicle:
     @staticmethod
     def to_numpy(x: torch.Tensor):
         return x.detach().cpu().numpy()
+
+    def safety_circle_overlap(self, obj):
+        if isinstance(obj, Vehicle):
+            return circle_area_overlap(
+                self.position,
+                obj.position,
+                self.safety_circle,
+                obj.safety_circle,
+            )
+        raise NotImplementedError
 
     def render(
         self,

@@ -67,7 +67,7 @@ class HybridController:
         npoints: int = 100,
         **kwargs,
     ):
-        self.world = World
+        self.world = world
         self.timesteps_meta_controller = timesteps_meta_controller
         self.tolerance = -np.inf if tolerance == 0.0 else tolerance
 
@@ -112,7 +112,7 @@ class HybridController:
             torch.as_tensor(
                 [
                     (goal_state[2] - start_state[2]) / (2 * v_lim),
-                    vehicle.optimal_heading_to_pt(dest) / math.pi,
+                    vehicle.optimal_heading_to_point(dest) / math.pi,
                     inv_dist if torch.isfinite(inv_dist) else 0.0,
                 ]
             ).to(self.device),
