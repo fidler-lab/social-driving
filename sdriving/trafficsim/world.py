@@ -300,8 +300,8 @@ class World:
             p1,
             p2,
             npoints,
-            ventity.vehicle.min_range,
-            ventity.vehicle.max_range,
+            ventity.vehicle.min_lidar_range,
+            ventity.vehicle.max_lidar_range,
         )
 
     def update_world_state(self, tstep=1):

@@ -37,7 +37,7 @@ sys.stdout = CustomPrint()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--save-dir", type=str)
+    parser.add_argument("-s", "--save-dir", type=str, required=True)
     parser.add_argument("-m", "--model-save-path", type=str)
     parser.add_argument("-tep", "--num-test-episodes", type=int, default=1)
     parser.add_argument("--env", type=str, required=True)

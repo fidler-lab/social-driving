@@ -428,7 +428,7 @@ class RoadNetwork:
             # TODO: What to do in case of end points being closed
             nopt = np.inf
             for pt in self.roads[ventity.road].end_coordinates.values():
-                opt = torch.abs(ventity.vehicle.optimal_heading_to_pt(pt))
+                opt = torch.abs(ventity.vehicle.optimal_heading_to_point(pt))
                 if opt < nopt:
                     nopt = opt
                     start_node = self.maps[self.point_to_node[pt]]
