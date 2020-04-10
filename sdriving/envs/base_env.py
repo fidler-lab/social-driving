@@ -253,17 +253,12 @@ class BaseEnv:
             if val is not None:
                 intermediates[k] = val
 
-        # TODO: Test if this is indeed doing the right thing
-        # All the results have a length of timesteps
-        local_terminals = {id: False for id in id_list}
-
         for i in range(0, timesteps):
             no_updates = True
             for a_id in id_list:
-                if not self.is_agent_done(a_id) and not local_terminals[a_id]:
+                if not self.is_agent_done(a_id):
                     state = intermediates[a_id][0][i, :]
                     no_updates = False
-
                     if self.astar_nav and self.agents[a_id][
                         "prev_point"
                     ] < len(self.agents[a_id]["intermediate_goals"]):
@@ -284,7 +279,6 @@ class BaseEnv:
                     if (
                         (state[:2] - actions[a_id][:2]) ** 2
                     ).sum().sqrt() < tolerance:
-                        local_terminals[a_id] = True
                         self.world.update_state(
                             a_id, state, change_road_association=True,
                         )

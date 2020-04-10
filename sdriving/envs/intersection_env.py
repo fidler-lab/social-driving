@@ -373,13 +373,13 @@ class RoadIntersectionEnv(BaseEnv):
             end_pos[1] = (
                 (self.length / 1.5 + self.width)
                 / 2
-                * (1 if erd[-1] == "1" else -1)
+                * (1 if erd[-1] == "3" else -1)
             )
         else:
             end_pos[0] = (
                 (self.length / 1.5 + self.width)
                 / 2
-                * (1 if erd[-1] == "2" else -1)
+                * (1 if erd[-1] == "0" else -1)
             )
 
         if spos is None:
