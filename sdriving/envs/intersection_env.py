@@ -358,7 +358,13 @@ class RoadIntersectionEnv(BaseEnv):
         )
 
     def add_vehicle_path(
-        self, a_id: str, srd: int, erd: int, sample: bool, spos=None
+        self,
+        a_id: str,
+        srd: int,
+        erd: int,
+        sample: bool,
+        spos=None,
+        place: bool = True,
     ):
         srd = f"traffic_signal_world_{srd}"
         sroad = self.world.road_network.roads[srd]
@@ -388,15 +394,26 @@ class RoadIntersectionEnv(BaseEnv):
             else:
                 spos = sroad.offset.clone()
 
-        self.add_vehicle(
-            a_id,
-            srd,
-            spos,
-            torch.as_tensor(8.0),
-            orientation,
-            end_pos,
-            dest_orientation,
-        )
+        if place:
+            self.add_vehicle(
+                a_id,
+                srd,
+                spos,
+                torch.as_tensor(8.0),
+                orientation,
+                end_pos,
+                dest_orientation,
+            )
+        else:
+            return (
+                a_id,
+                srd,
+                spos,
+                torch.as_tensor(8.0),
+                orientation,
+                end_pos,
+                dest_orientation,
+            )
 
     def setup_nagents_1(self):
         # Start at the road "traffic_signal_0" as the state space is
@@ -446,6 +463,51 @@ class RoadIntersectionEnv(BaseEnv):
         self.add_vehicle_path(self.get_agent_ids_list()[2], 1, 3, sample)
         self.add_vehicle_path(self.get_agent_ids_list()[3], 3, 1, sample)
 
+    def setup_nagents(self, n: int):
+        # First place the 4 agents in all roads
+        self.setup_nagents_4()
+
+        # Try to place the agent without any overlap
+        sample = False if self.mode == 1 else True
+        if self.mode not in [1, 2]:
+            raise NotImplementedError
+
+        placed = 4
+        while placed < n:
+            srd = np.random.choice([0, 1, 2, 3])
+            erd = (srd + 2) % 2
+
+            free = False
+            while not free:
+                (
+                    a_id,
+                    rd,
+                    spos,
+                    vlim,
+                    orientation,
+                    end_pos,
+                    dest_orientation,
+                ) = self.add_vehicle_path(
+                    self.get_agent_ids_list()[placed],
+                    srd,
+                    erd,
+                    sample,
+                    place=False,
+                )
+                vehicle = Vehicle(
+                    spos,
+                    orientation,
+                    destination=end_pos,
+                    dest_orientation=dest_orientation,
+                    name=a_id,
+                    max_lidar_range=self.lidar_range,
+                )
+                free = not self.check_collision(vehicle)
+            self.add_vehicle(
+                a_id, rd, spos, vlim, orientation, end_pos, dest_orientation,
+            )
+            placed += 1
+
     def setup_nagents_8(self):
         raise NotImplementedError
 
@@ -468,8 +530,8 @@ class RoadIntersectionEnv(BaseEnv):
             self.setup_nagents_2()
         elif self.nagents == 4:
             self.setup_nagents_4()
-        elif self.nagents == 8:
-            self.setup_nagents_8()
+        elif self.nagents > 4:
+            self.setup_nagents(self.nagents)
         else:
             raise NotImplementedError
 

@@ -80,7 +80,9 @@ if __name__ == "__main__":
                 else:
                     a[key] = torch.as_tensor(test_env.action_space.sample())
                 if args.verbose:
-                    print(f"Agent: {key} || Observation: {obs[0][-4:]} || Action: {test_env.actions_list[a[key]]}")
+                    print(
+                        f"Agent: {key} || Observation: {obs[0][-4:]} || Action: {a[key]}"
+                    )
             pts = {}
             o, r, d, _ = test_env.step(
                 a,

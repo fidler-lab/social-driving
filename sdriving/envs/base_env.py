@@ -214,6 +214,28 @@ class BaseEnv:
                 self.col_matrix[i1][i2] = True
                 self.col_matrix[i2][i1] = True
 
+    def check_collision(self, vehicle):
+        collided = False
+        for a_id in self.get_agent_ids_list():
+            overlap = vehicle.safety_circle_overlap(
+                self.agents[a_id]["vehicle"]
+            )
+            if (
+                overlap
+                >= min(vehicle.area, self.agents[a_id]["vehicle"].area) / 8
+            ):
+                p1_a1, p2_a1 = vehicle.get_edges()
+                p1_a2, p2_a2 = self.agents[a_id]["vehicle"].get_edges()
+                for i in range(4):
+                    if check_intersection_lines(
+                        p1_a1, p2_a1, p1_a2[i], p2_a2[i], p2_a1 - p1_a1
+                    ):
+                        collided = True
+                        break
+            if collided:
+                return True
+        return False
+
     def is_done(self):
         all_done = True
         dones = {}
