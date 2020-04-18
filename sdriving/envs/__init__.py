@@ -3,6 +3,7 @@ import sys
 
 from sdriving.envs.base_env import BaseEnv
 from sdriving.envs.intersection_env import (
+    RoadIntersectionControlAccelerationEnv,
     RoadIntersectionControlEnv,
     RoadIntersectionEnv,
 )
