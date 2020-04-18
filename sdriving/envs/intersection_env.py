@@ -391,8 +391,14 @@ class RoadIntersectionEnv(BaseEnv):
         if spos is None:
             if sample:
                 spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
+                if hasattr(self, "lane_side"):
+                    side = self.lane_side * (1 if int(srd[-1]) < 2 else -1)
+                    spos[(int(srd[-1]) + 1) % 2] = side * torch.rand(1) * 0.3 * self.width
             else:
                 spos = sroad.offset.clone()
+
+            if hasattr(self, "lane_side") and sample:
+                spos
 
         if place:
             self.add_vehicle(
@@ -578,3 +584,14 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         ex = (nominal_states, nominal_actions)
 
         return na, ns, ex
+
+
+class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
+    def configure_action_list(self):
+        self.actions_list = [
+            torch.as_tensor([[0.0, ac]]) for ac in range(-1.5, 1.75, 0.25)
+        ]
+
+    def reset(self):
+        self.lane_side = np.random.choice([-1.0, 1.0])
+        return super().reset()
