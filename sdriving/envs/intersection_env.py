@@ -481,7 +481,7 @@ class RoadIntersectionEnv(BaseEnv):
         placed = 4
         while placed < n:
             srd = np.random.choice([0, 1, 2, 3])
-            erd = (srd + 2) % 2
+            erd = (srd + 2) % 4
 
             free = False
             while not free:

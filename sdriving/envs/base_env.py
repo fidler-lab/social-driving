@@ -217,6 +217,8 @@ class BaseEnv:
     def check_collision(self, vehicle):
         collided = False
         for a_id in self.get_agent_ids_list():
+            if self.agents[a_id] is None:
+                continue
             overlap = vehicle.safety_circle_overlap(
                 self.agents[a_id]["vehicle"]
             )
