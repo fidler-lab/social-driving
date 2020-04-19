@@ -169,9 +169,7 @@ class BaseEnv:
                 self.intervehicle_collision(
                     i1, i2, rewards, now_done, self.agents_collision_penalty
                 )
-
         self.post_process_rewards(rewards, now_done)
-
         return rewards
 
     def reset(self):

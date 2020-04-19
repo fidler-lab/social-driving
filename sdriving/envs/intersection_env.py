@@ -65,6 +65,8 @@ class RoadIntersectionEnv(BaseEnv):
         self.lidar_range = lidar_range
         self.lidar_noise = lidar_noise
         self.mode = mode
+        self.prev_actions = {a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()}
+        self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
 
     def get_next_two_goals(
         self, a_id=None, prev_point=None, intermediate_nodes=None
@@ -558,6 +560,16 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
     def get_action_space(self):
         return Discrete(len(self.actions_list))
 
+    def post_process_rewards(self, rewards, now_dones):
+        # Encourage the agents to make smoother transitions
+        for a_id, rew in rewards.items():
+            pac = self.prev_actions[a_id]
+            cac = self.curr_actions[a_id]
+            diff_sq = torch.abs(pac - cac)
+            penalty = (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (2 * self.horizon)
+            rewards[a_id] = rew - penalty
+            self.curr_actions[a_id] = pac
+
     def transform_state_action_single_agent(
         self, a_id, action, state, timesteps
     ):
@@ -584,6 +596,8 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         na = torch.zeros(4).to(self.agents[a_id]["controller"].device)
         ns = torch.zeros(4).to(self.agents[a_id]["controller"].device)
         ex = (nominal_states, nominal_actions)
+
+        self.curr_actions[a_id] = action[0]
 
         return na, ns, ex
 
