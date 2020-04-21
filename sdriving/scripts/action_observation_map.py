@@ -66,7 +66,11 @@ if __name__ == "__main__":
     df = dict()
     # FIXME: Generalize for other gym spaces
     # Right now only handle Tuple
-    if args.env == "RoadIntersectionControlEnv":
+    if args.env in (
+        "RoadIntersectionControlEnv",
+        "RoadIntersectionControlAccelerationEnv",
+        "RoadIntersectionControlImitateEnv",
+    ):
         df["Traffic Signal"] = []
         df["Velocity"] = []
         # This is the distance from signal only when signal is visible
