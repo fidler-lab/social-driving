@@ -96,10 +96,16 @@ if __name__ == "__main__":
                     a[key] = ac.act(obs, True)
                 else:
                     a[key] = torch.as_tensor(test_env.action_space.sample())
-                df["Steering Angle"].append(test_env.actions_list[a[key]][0, 0].item())
-                df["Acceleration"].append(test_env.actions_list[a[key]][0, 1].item())
+                df["Steering Angle"].append(
+                    test_env.actions_list[a[key]][0, 0].item()
+                )
+                df["Acceleration"].append(
+                    test_env.actions_list[a[key]][0, 1].item()
+                )
                 if args.verbose:
-                    print(f"Agent: {key} || Observation: {obs[0][:-4]} || Action: {a[key]}")
+                    print(
+                        f"Agent: {key} || Observation: {obs[0][:-4]} || Action: {a[key]}"
+                    )
             pts = {}
             o, r, d, _ = test_env.step(
                 a,
@@ -119,14 +125,18 @@ if __name__ == "__main__":
         if ep_ret < 0.0:
             count += 1
         if not args.no_render:
-            path = os.path.join(os.path.dirname(args.save_path), f"test_{ep}.mp4")
+            path = os.path.join(
+                os.path.dirname(args.save_path), f"test_{ep}.mp4"
+            )
             test_env.render(path=path)
             print(f"Episode saved at {path}")
     print(
         f"Mean Return over {args.num_test_episodes} episodes: "
         + f"{total_ret / args.num_test_episodes}"
     )
-    print(f"Crashes = {count} | Success Rate = {(1 - count / args.num_test_episodes) * 100}")
+    print(
+        f"Crashes = {count} | Success Rate = {(1 - count / args.num_test_episodes) * 100}"
+    )
 
     df = pd.DataFrame.from_dict(df)
     df.to_csv(args.save_path)

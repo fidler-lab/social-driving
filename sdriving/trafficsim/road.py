@@ -331,7 +331,7 @@ class RoadNetwork:
             ((projection - pt2) ** 2).sum()
         )
 
-    def get_neighbouring_edges(self, name, vname=None, type="road"):
+    def get_neighbouring_edges(self, name, vname=None, type="road", cars=True):
         pt1s = []
         pt2s = []
         if type == "road":
@@ -340,23 +340,25 @@ class RoadNetwork:
                 roads += val
         else:
             roads = self.gareas[name].roads
-            for _, vehicle in self.gareas[name].vehicles.items():
-                if vname is not None and vname is vehicle.name:
-                    continue
-                pt1, pt2 = vehicle.get_edges()
-                pt1s.append(pt1)
-                pt2s.append(pt2)
+            if cars:
+                for _, vehicle in self.gareas[name].vehicles.items():
+                    if vname is not None and vname is vehicle.name:
+                        continue
+                    pt1, pt2 = vehicle.get_edges()
+                    pt1s.append(pt1)
+                    pt2s.append(pt2)
         for rname in roads:
             road = self.roads[rname]
             pt1, pt2 = road.get_edges()
             pt1s.append(pt1)
             pt2s.append(pt2)
-            for _, vehicle in road.vehicles.items():
-                if vname is not None and vname is vehicle.name:
-                    continue
-                pt1, pt2 = vehicle.get_edges()
-                pt1s.append(pt1)
-                pt2s.append(pt2)
+            if cars:
+                for _, vehicle in road.vehicles.items():
+                    if vname is not None and vname is vehicle.name:
+                        continue
+                    pt1, pt2 = vehicle.get_edges()
+                    pt1s.append(pt1)
+                    pt2s.append(pt2)
         return torch.cat(pt1s), torch.cat(pt2s)
 
     def add_vehicle(self, rname: str, vehicle: Vehicle):

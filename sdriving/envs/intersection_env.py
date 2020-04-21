@@ -65,7 +65,9 @@ class RoadIntersectionEnv(BaseEnv):
         self.lidar_range = lidar_range
         self.lidar_noise = lidar_noise
         self.mode = mode
-        self.prev_actions = {a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()}
+        self.prev_actions = {
+            a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
+        }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
 
     def get_next_two_goals(
@@ -155,9 +157,13 @@ class RoadIntersectionEnv(BaseEnv):
         dynamics = VehicleDynamics(
             dim=[vehicle.dimensions[0]], v_lim=[v_lim.item()]
         )
-        controller = HybridController(
-            self.world, self.hybrid_controller, npoints=self.npoints
-        )
+
+        if hasattr(self, "hybrid_controller"):
+            controller = HybridController(
+                self.world, self.hybrid_controller, npoints=self.npoints
+            )
+        else:
+            controller = None
 
         # Register the vehicle with the world
         self.world.add_vehicle(vehicle, rname, v_lim=v_lim.item())
@@ -395,9 +401,9 @@ class RoadIntersectionEnv(BaseEnv):
                 spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
                 if hasattr(self, "lane_side"):
                     side = self.lane_side * (1 if int(srd[-1]) < 2 else -1)
-                    spos[(int(srd[-1]) + 1) % 2] = side * (
-                        torch.rand(1) * 0.15 + 0.15
-                    ) * self.width
+                    spos[(int(srd[-1]) + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
             else:
                 spos = sroad.offset.clone()
 
@@ -549,6 +555,53 @@ class RoadIntersectionEnv(BaseEnv):
 
 
 class RoadIntersectionControlEnv(RoadIntersectionEnv):
+    def __init__(
+        self,
+        npoints: int = 100,
+        horizon: int = 200,
+        tolerance: float = 0.0,
+        object_collision_penalty: float = 1.0,
+        agents_collision_penalty: float = 1.0,
+        goal_reach_bonus: float = 1.0,
+        simple: bool = True,
+        history_len: int = 5,
+        time_green: int = 75,
+        nagents: int = 4,
+        device=torch.device("cpu"),
+        lidar_range: float = 50.0,
+        lidar_noise: float = 0.0,
+        mode: int = 1,
+        has_lane_distance: bool = False,
+    ):
+        self.npoints = npoints
+        self.goal_reach_bonus = goal_reach_bonus
+        self.simple = simple
+        self.history_len = history_len
+        self.time_green = time_green
+        self.device = device
+        self.has_lane_distance = has_lane_distance
+        world = self.generate_world_without_agents()
+        super(RoadIntersectionEnv, self).__init__(
+            world,
+            nagents,
+            horizon,
+            tolerance,
+            object_collision_penalty,
+            agents_collision_penalty,
+            True,
+        )
+        # We need to store the history to stack them. 1 queue stores the
+        # observation and the other stores the lidar data
+        self.queue1 = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.queue2 = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.lidar_range = lidar_range
+        self.lidar_noise = lidar_noise
+        self.mode = mode
+        self.prev_actions = {
+            a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
+        }
+        self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
+
     def configure_action_list(self):
         self.actions_list = [
             torch.as_tensor(ac).unsqueeze(0)
@@ -564,11 +617,19 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         # Encourage the agents to make smoother transitions
         for a_id, rew in rewards.items():
             pac = self.prev_actions[a_id]
+            if now_dones is None:
+                # The penalty should be lasting for all the
+                # timesteps the action was taken. None is passed
+                # when the intermediate timesteps have been
+                # processed, so swap the actions here
+                self.curr_actions[a_id] = pac
+                return
             cac = self.curr_actions[a_id]
             diff_sq = torch.abs(pac - cac)
-            penalty = (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (2 * self.horizon)
+            penalty = (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (
+                2 * self.horizon
+            )
             rewards[a_id] = rew - penalty
-            self.curr_actions[a_id] = pac
 
     def transform_state_action_single_agent(
         self, a_id, action, state, timesteps
@@ -601,6 +662,121 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
 
         return na, ns, ex
 
+
+class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
+    def __init__(self, base_model: str, *args, lam: float = 2.0, **kwargs):
+        super().__init__(*args, **kwargs)
+        device = kwargs.get("device", torch.device("cpu"))
+        ckpt = torch.load(base_model, map_location="cpu")
+        if "model" not in ckpt or ckpt["model"] == "centralized_critic":
+            from sdriving.agents.ppo_cent.model import ActorCritic
+        ac = ActorCritic(**ckpt["ac_kwargs"])
+        ac.v = None
+        ac.pi.load_state_dict(ckpt["actor"])
+        ac = ac.to(device)
+        self.base_model = ac
+        # We need to store the history to stack them. 1 queue stores the
+        # observation and the other stores the lidar data
+        self.queue1_bm = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.queue2_bm = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.recompute_base_model_actions = True
+        self.base_model_actions = None
+        self.lam = lam
+
+    def post_process_rewards(self, rewards, now_dones):
+        super().post_process_rewards(rewards, now_dones)
+        if now_dones is None:
+            self.recompute_base_model_actions = True
+            return
+
+        if self.recompute_base_model_actions:
+            base_model_state = self._get_state_base_model()
+            for key, obs in base_model_state.items():
+                base_model_state[key] = [t.to(self.device) for t in obs]
+            # Get the deterministic actions from the base model
+            self.base_model_actions = self.base_model.act(
+                base_model_state,
+                True
+            )
+
+        # Try to imitate the behavior of an agent as if it is driving
+        # in an empty environment
+        for a_id, rew in rewards.items():
+            bac = self.base_model_actions[a_id]
+            cac = self.curr_actions[a_id]
+            diff_sq = torch.abs(bac - cac)
+            # TODO: Tune the weight on this penalty.
+            penalty = self.lam * (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (
+                2 * self.horizon
+            )
+            rewards[a_id] = rew - penalty
+
+    def _get_state_base_model(self):
+        return {
+            a_id: self._get_state_single_agent_base_model(a_id)
+            for a_id in self.get_agent_ids_list()
+        }
+
+    def _get_state_single_agent_base_model(self, a_id):
+        agent = self.agents[a_id]["vehicle"]
+        v_lim = self.agents[a_id]["v_lim"]
+
+        if self.agents[a_id]["prev_point"] < len(
+            self.agents[a_id]["intermediate_goals"]
+        ):
+            xg, yg, vg, _ = self.agents[a_id]["intermediate_goals"][
+                self.agents[a_id]["prev_point"]
+            ]
+            dest = torch.as_tensor([xg, yg])
+        else:
+            dest = agent.destination
+            vg = 0.0
+
+        inv_dist = 1 / agent.distance_from_point(dest)
+        pt1, pt2 = self.get_next_two_goals(a_id)
+        if self.has_lane_distance:
+            obs = [
+                self.world.get_distance_from_road_axis(
+                    a_id, pt1, self.agents[a_id]["original_destination"]
+                ),
+                self.world.get_traffic_signal(
+                    pt1, pt2, agent.position, agent.vision_range
+                ),
+                (vg - agent.speed) / (2 * v_lim),
+                agent.optimal_heading_to_point(dest) / math.pi,
+                inv_dist if torch.isfinite(inv_dist) else 0.0,
+            ]
+        else:
+            obs = [
+                self.world.get_traffic_signal(
+                    pt1, pt2, agent.position, agent.vision_range
+                ),
+                (vg - agent.speed) / (2 * v_lim),
+                agent.optimal_heading_to_point(dest) / math.pi,
+                inv_dist if torch.isfinite(inv_dist) else 0.0,
+            ]
+        cur_state = [
+            torch.as_tensor(obs),
+            1 / self.world.get_lidar_data(
+                agent.name,
+                self.npoints,
+                cars=False
+            ),
+        ]
+
+        if self.lidar_noise != 0.0:
+            cur_state[1] *= torch.rand(self.npoints) > self.lidar_noise
+
+        while len(self.queue1_bm[a_id]) <= self.history_len - 1:
+            self.queue1_bm[a_id].append(cur_state[0])
+            self.queue2_bm[a_id].append(cur_state[1])
+        self.queue1_bm[a_id].append(cur_state[0])
+        self.queue2_bm[a_id].append(cur_state[1])
+
+        return (
+            torch.cat(list(self.queue1_bm[a_id])),
+            torch.cat(list(self.queue2_bm[a_id])),
+        )
 
 class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
     def configure_action_list(self):

@@ -5,6 +5,7 @@ from sdriving.envs.base_env import BaseEnv
 from sdriving.envs.intersection_env import (
     RoadIntersectionControlAccelerationEnv,
     RoadIntersectionControlEnv,
+    RoadIntersectionControlImitateEnv,
     RoadIntersectionEnv,
 )
 from sdriving.envs.meta_control import MetaControlEnv

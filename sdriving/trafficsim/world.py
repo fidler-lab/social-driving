@@ -276,7 +276,7 @@ class World:
             for (i, a_id) in enumerate(self.vehicles)
         }
 
-    def get_lidar_data(self, vname: str, npoints: int):
+    def get_lidar_data(self, vname: str, npoints: int, cars: bool = True):
         ventity = self.vehicles[vname]
 
         return self.get_lidar_data_from_state(
@@ -289,14 +289,15 @@ class World:
             ),
             vname,
             npoints,
+            cars
         )
 
     def get_lidar_data_from_state(
-        self, state: torch.Tensor, vname: str, npoints: int,
+        self, state: torch.Tensor, vname: str, npoints: int, cars: bool = True
     ):
         ventity = self.vehicles[vname]
         p1, p2 = self.road_network.get_neighbouring_edges(
-            ventity.road, vname, "garea" if ventity.grayarea else "road"
+            ventity.road, vname, "garea" if ventity.grayarea else "road", cars
         )
         return generate_lidar_data(
             state[:2],

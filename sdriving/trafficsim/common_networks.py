@@ -107,8 +107,6 @@ def generate_intersection_world_4signals(
 
     world = World(net)
 
-    # FIXME: Using a terrible routing which sequentially switches for all the
-    # possible lanes
     world.add_traffic_signal(
         f"{name}_0",
         f"{name}_2",
