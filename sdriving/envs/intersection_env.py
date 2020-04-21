@@ -695,8 +695,7 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
                 base_model_state[key] = [t.to(self.device) for t in obs]
             # Get the deterministic actions from the base model
             self.base_model_actions = self.base_model.act(
-                base_model_state,
-                True
+                base_model_state, True
             )
 
         # Try to imitate the behavior of an agent as if it is driving
@@ -706,8 +705,10 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             cac = self.curr_actions[a_id]
             diff_sq = torch.abs(bac - cac)
             # TODO: Tune the weight on this penalty.
-            penalty = self.lam * (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (
-                2 * self.horizon
+            penalty = (
+                self.lam
+                * (diff_sq[0] / 0.2 + diff_sq[1] / 3.0)
+                / (2 * self.horizon)
             )
             rewards[a_id] = rew - penalty
 
@@ -757,11 +758,8 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             ]
         cur_state = [
             torch.as_tensor(obs),
-            1 / self.world.get_lidar_data(
-                agent.name,
-                self.npoints,
-                cars=False
-            ),
+            1
+            / self.world.get_lidar_data(agent.name, self.npoints, cars=False),
         ]
 
         if self.lidar_noise != 0.0:
@@ -777,6 +775,7 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             torch.cat(list(self.queue1_bm[a_id])),
             torch.cat(list(self.queue2_bm[a_id])),
         )
+
 
 class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
     def configure_action_list(self):

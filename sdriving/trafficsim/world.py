@@ -289,7 +289,7 @@ class World:
             ),
             vname,
             npoints,
-            cars
+            cars,
         )
 
     def get_lidar_data_from_state(
