@@ -39,6 +39,7 @@ class RoadIntersectionEnv(BaseEnv):
         lidar_noise: float = 0.0,
         mode: int = 1,
         has_lane_distance: bool = False,
+        balance_cars: bool = False,
     ):
         self.npoints = npoints
         self.goal_reach_bonus = goal_reach_bonus
@@ -69,6 +70,7 @@ class RoadIntersectionEnv(BaseEnv):
             a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
         }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.balance_cars = balance_cars
 
     def get_next_two_goals(
         self, a_id=None, prev_point=None, intermediate_nodes=None
@@ -407,9 +409,6 @@ class RoadIntersectionEnv(BaseEnv):
             else:
                 spos = sroad.offset.clone()
 
-            if hasattr(self, "lane_side") and sample:
-                spos
-
         if place:
             self.add_vehicle(
                 a_id,
@@ -481,7 +480,24 @@ class RoadIntersectionEnv(BaseEnv):
 
     def setup_nagents(self, n: int):
         # First place the 4 agents in all roads
-        self.setup_nagents_4()
+        sample = False if self.mode == 1 else True
+
+        if self.mode not in [1, 2]:
+            raise NotImplementedError
+        self.add_vehicle_path(self.get_agent_ids_list()[0], 0, 2, sample)
+        self.add_vehicle_path(self.get_agent_ids_list()[1], 2, 0, sample)
+        if self.nagents == 3:
+            if torch.rand(1) > 0.5:
+                self.add_vehicle_path(
+                    self.get_agent_ids_list()[2], 1, 3, sample
+                )
+            else:
+                self.add_vehicle_path(
+                    self.get_agent_ids_list()[2], 3, 1, sample
+                )
+            return
+        self.add_vehicle_path(self.get_agent_ids_list()[2], 1, 3, sample)
+        self.add_vehicle_path(self.get_agent_ids_list()[3], 3, 1, sample)
 
         # Try to place the agent without any overlap
         sample = False if self.mode == 1 else True
@@ -489,8 +505,12 @@ class RoadIntersectionEnv(BaseEnv):
             raise NotImplementedError
 
         placed = 4
+        srd = 0
         while placed < n:
-            srd = np.random.choice([0, 1, 2, 3])
+            if self.balance_cars:
+                srd = (srd + 1) % 4
+            else:
+                srd = np.random.choice([0, 1, 2, 3])
             erd = (srd + 2) % 4
 
             free = False
@@ -524,9 +544,6 @@ class RoadIntersectionEnv(BaseEnv):
             )
             placed += 1
 
-    def setup_nagents_8(self):
-        raise NotImplementedError
-
     def reset(self):
         # Keep the environment fixed for now
         self.world = self.generate_world_without_agents()
@@ -546,10 +563,8 @@ class RoadIntersectionEnv(BaseEnv):
             self.setup_nagents_2()
         elif self.nagents == 4:
             self.setup_nagents_4()
-        elif self.nagents > 4:
-            self.setup_nagents(self.nagents)
         else:
-            raise NotImplementedError
+            self.setup_nagents(self.nagents)
 
         return super().reset()
 
@@ -572,6 +587,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         lidar_noise: float = 0.0,
         mode: int = 1,
         has_lane_distance: bool = False,
+        balance_cars: bool = False,
     ):
         self.npoints = npoints
         self.goal_reach_bonus = goal_reach_bonus
@@ -601,6 +617,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
             a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
         }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.balance_cars = balance_cars
 
     def configure_action_list(self):
         self.actions_list = [
