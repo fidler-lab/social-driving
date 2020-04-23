@@ -642,8 +642,8 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
                 self.curr_actions[a_id] = pac
                 return
             cac = self.curr_actions[a_id]
-            diff_sq = torch.abs(pac - cac)
-            penalty = (diff_sq[0] / 0.2 + diff_sq[1] / 3.0) / (
+            diff = torch.abs(pac - cac)
+            penalty = (diff[0] / 0.2 + diff[1] / 3.0) / (
                 2 * self.horizon
             )
             rewards[a_id] = rew - penalty
@@ -671,8 +671,8 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
             torch.cat(nominal_states),
             torch.cat(nominal_actions),
         )
-        na = torch.zeros(4).to(self.agents[a_id]["controller"].device)
-        ns = torch.zeros(4).to(self.agents[a_id]["controller"].device)
+        na = torch.zeros(4).to(self.device)
+        ns = torch.zeros(4).to(self.device)
         ex = (nominal_states, nominal_actions)
 
         self.curr_actions[a_id] = action[0]
@@ -708,26 +708,40 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
 
         if self.recompute_base_model_actions:
             base_model_state = self._get_state_base_model()
+            self.base_model_actions = dict()
             for key, obs in base_model_state.items():
                 base_model_state[key] = [t.to(self.device) for t in obs]
-            # Get the deterministic actions from the base model
-            self.base_model_actions = self.base_model.act(
-                base_model_state, True
-            )
+                # Get the deterministic actions from the base model
+                self.base_model_actions[key] = self.actions_list[
+                    self.base_model.act(
+                        base_model_state[key], True
+                    ).item()
+                ][0]
 
         # Try to imitate the behavior of an agent as if it is driving
         # in an empty environment
         for a_id, rew in rewards.items():
             bac = self.base_model_actions[a_id]
             cac = self.curr_actions[a_id]
-            diff_sq = torch.abs(bac - cac)
+            diff = torch.abs(bac - cac)
             # TODO: Tune the weight on this penalty.
             penalty = (
                 self.lam
-                * (diff_sq[0] / 0.2 + diff_sq[1] / 3.0)
+                * (diff[0] / 0.2 + diff[1] / 3.0)
                 / (2 * self.horizon)
             )
             rewards[a_id] = rew - penalty
+
+    def reset(self):
+        self.queue1_bm = {
+            a_id: deque(maxlen=self.history_len)
+            for a_id in self.get_agent_ids_list()
+        }
+        self.queue2_bm = {
+            a_id: deque(maxlen=self.history_len)
+            for a_id in self.get_agent_ids_list()
+        }
+        return super().reset()
 
     def _get_state_base_model(self):
         return {
