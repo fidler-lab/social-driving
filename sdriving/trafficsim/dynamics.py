@@ -1,4 +1,5 @@
-from typing import List, Union
+import math
+from typing import Dict, List, Tuple, Union
 
 import torch
 from torch import nn
@@ -178,3 +179,107 @@ class BicycleKinematicsModel(nn.Module):
         do_du = torch.cat([do_dst, do_da], dim=1).permute(0, 2, 1)  # N x 4 x 2
 
         return do_ds, do_du
+
+
+class FixedTrackAccelerationModel(nn.Module):
+    """
+    A fixed track is provided for the agent during instantiation. The agent
+    only controls the acceleration and the path is controlled by the track.
+    """
+
+    def __init__(
+        self,
+        track,
+        dt: float = 0.10,
+        dim: Union[float, List[float]] = 4.48,
+        v_lim: Union[float, List[float]] = 5.0,
+    ):
+        if isinstance(dim, float):
+            dim = [dim]
+        if isinstance(v_lim, float):
+            v_lim = [v_lim]
+
+        assert len(dim) == len(v_lim)
+
+        super().__init__()
+        # track stores a map from x-range, y-range to a circle center and
+        # radius. If the agent is in that part of the map it needs to
+        # adhere to that track, which essentially changes its orientation.
+        self.track = track
+
+        self.dt = dt
+        self.dim = torch.as_tensor(dim).unsqueeze(1)
+        self.v_lim = torch.as_tensor(v_lim).unsqueeze(1)
+
+        self.device = torch.device("cpu")
+        self.nbatch = len(dim)
+
+    def _get_track(self, x, y):
+        for key in self.track.keys():
+            x_range, y_range = key
+            if (x >= x_range[0] and x <= x_range[1]) and (
+                y >= y_range[0] and y <= y_range[1]
+            ):
+                return self.track[key]
+        return None
+
+    def to(self, device):
+        if device == self.device:
+            return
+        self.dim = self.dim.to(device)
+        self.v_lim = self.v_lim.to(device)
+        self.device = device
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
+        """
+        Args:
+            state: N x 4 Dimensional Tensor, where N is the batch size, and
+                   the second dimension represents
+                   {x coordinate, y coordinate, velocity, orientation}
+            action: N x 1 Dimensional Tensor, where N is the batch size, and
+                    the second dimension represents
+                    {acceleration}
+        """
+        assert state.size(0) == 1
+
+        dt = self.dt
+        x = state[:, 0:1]
+        y = state[:, 1:2]
+        v = state[:, 2:3]
+        theta = state[:, 3:4]
+        acceleration = action[:, 0:1]
+
+        # FIXME: This wont work for batched data
+        track = self._get_track(x.item(), y.item())
+        if track is not None and not track["turn"]:
+            theta = torch.as_tensor([[track["theta"]]]).to(self.device)
+        x = x + v * torch.cos(theta) * dt
+        y = y + v * torch.sin(theta) * dt
+
+        if state.size(0) == self.nbatch:
+            v_lim = self.v_lim
+        elif state.size(0) > self.nbatch:
+            v_lim = (
+                self.v_lim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+
+        v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
+
+        if track is not None and track["turn"]:
+            # Project the updated position to the nearest point on the circle
+            # For now the curve can only be a circle
+            x_c, y_c = track["center"]
+            x_ref = x - x_c
+            y_ref = y - y_c
+            phi = torch.atan2(y_ref, x_ref)
+            r = track["radius"]
+            x = r * torch.cos(phi) + x_c
+            y = r * torch.sin(phi) + y_c
+            if track["clockwise"]:
+                theta = angle_normalize(phi - math.pi / 2)
+            else:
+                theta = angle_normalize(math.pi / 2 + phi)
+
+        return torch.cat([x, y, v, theta], dim=1)

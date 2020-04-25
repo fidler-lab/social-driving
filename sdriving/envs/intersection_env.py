@@ -10,6 +10,7 @@ from gym.spaces import Box, Discrete, Tuple
 from sdriving.envs.base_env import BaseEnv
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
+    generate_intersection_world_12signals,
 )
 from sdriving.trafficsim.controller import HybridController
 from sdriving.trafficsim.dynamics import (
@@ -146,7 +147,16 @@ class RoadIntersectionEnv(BaseEnv):
             )
 
     def add_vehicle(
-        self, a_id, rname, pos, v_lim, orientation, dest, dest_orientation
+        self,
+        a_id,
+        rname,
+        pos,
+        v_lim,
+        orientation,
+        dest,
+        dest_orientation,
+        dynamics_model=VehicleDynamics,
+        dynamics_kwargs={},
     ):
         vehicle = Vehicle(
             pos,
@@ -156,8 +166,10 @@ class RoadIntersectionEnv(BaseEnv):
             name=a_id,
             max_lidar_range=self.lidar_range,
         )
-        dynamics = VehicleDynamics(
-            dim=[vehicle.dimensions[0]], v_lim=[v_lim.item()]
+        dynamics = dynamics_model(
+            dim=[vehicle.dimensions[0]],
+            v_lim=[v_lim.item()],
+            **dynamics_kwargs,
         )
 
         if hasattr(self, "hybrid_controller"):
@@ -418,6 +430,8 @@ class RoadIntersectionEnv(BaseEnv):
                 orientation,
                 end_pos,
                 dest_orientation,
+                dynamics_model,
+                dynamics_kwargs,
             )
         else:
             return (
@@ -428,6 +442,8 @@ class RoadIntersectionEnv(BaseEnv):
                 orientation,
                 end_pos,
                 dest_orientation,
+                dynamics_model,
+                dynamics_kwargs,
             )
 
     def setup_nagents_1(self):
@@ -468,50 +484,24 @@ class RoadIntersectionEnv(BaseEnv):
                 bypass_mode=np.random.choice([1, 2]), sample=sample
             )
 
-    def setup_nagents_4(self):
-        sample = False if self.mode == 1 else True
-
-        if self.mode not in [1, 2]:
-            raise NotImplementedError
-        self.add_vehicle_path(self.get_agent_ids_list()[0], 0, 2, sample)
-        self.add_vehicle_path(self.get_agent_ids_list()[1], 2, 0, sample)
-        self.add_vehicle_path(self.get_agent_ids_list()[2], 1, 3, sample)
-        self.add_vehicle_path(self.get_agent_ids_list()[3], 3, 1, sample)
+    @staticmethod
+    def end_road_sampler(n: int):
+        return (n + 2) % 4
 
     def setup_nagents(self, n: int):
-        # First place the 4 agents in all roads
-        sample = False if self.mode == 1 else True
-
-        if self.mode not in [1, 2]:
-            raise NotImplementedError
-        self.add_vehicle_path(self.get_agent_ids_list()[0], 0, 2, sample)
-        self.add_vehicle_path(self.get_agent_ids_list()[1], 2, 0, sample)
-        if self.nagents == 3:
-            if torch.rand(1) > 0.5:
-                self.add_vehicle_path(
-                    self.get_agent_ids_list()[2], 1, 3, sample
-                )
-            else:
-                self.add_vehicle_path(
-                    self.get_agent_ids_list()[2], 3, 1, sample
-                )
-            return
-        self.add_vehicle_path(self.get_agent_ids_list()[2], 1, 3, sample)
-        self.add_vehicle_path(self.get_agent_ids_list()[3], 3, 1, sample)
-
         # Try to place the agent without any overlap
         sample = False if self.mode == 1 else True
         if self.mode not in [1, 2]:
             raise NotImplementedError
 
-        placed = 4
-        srd = 0
+        placed = 0
+        srd = np.random.choice([0, 1, 2, 3])
         while placed < n:
             if self.balance_cars:
                 srd = (srd + 1) % 4
             else:
                 srd = np.random.choice([0, 1, 2, 3])
-            erd = (srd + 2) % 4
+            erd = self.end_road_sampler(srd)
 
             free = False
             while not free:
@@ -523,6 +513,8 @@ class RoadIntersectionEnv(BaseEnv):
                     orientation,
                     end_pos,
                     dest_orientation,
+                    dynamics_model,
+                    dynamics_kwargs,
                 ) = self.add_vehicle_path(
                     self.get_agent_ids_list()[placed],
                     srd,
@@ -540,7 +532,15 @@ class RoadIntersectionEnv(BaseEnv):
                 )
                 free = not self.check_collision(vehicle)
             self.add_vehicle(
-                a_id, rd, spos, vlim, orientation, end_pos, dest_orientation,
+                a_id,
+                rd,
+                spos,
+                vlim,
+                orientation,
+                end_pos,
+                dest_orientation,
+                dynamics_model,
+                dynamics_kwargs,
             )
             placed += 1
 
@@ -561,8 +561,6 @@ class RoadIntersectionEnv(BaseEnv):
             self.setup_nagents_1()
         elif self.nagents == 2:
             self.setup_nagents_2()
-        elif self.nagents == 4:
-            self.setup_nagents_4()
         else:
             self.setup_nagents(self.nagents)
 
@@ -643,9 +641,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
                 return
             cac = self.curr_actions[a_id]
             diff = torch.abs(pac - cac)
-            penalty = (diff[0] / 0.2 + diff[1] / 3.0) / (
-                2 * self.horizon
-            )
+            penalty = (diff[0] / 0.2 + diff[1] / 3.0) / (2 * self.horizon)
             rewards[a_id] = rew - penalty
 
     def transform_state_action_single_agent(
@@ -713,9 +709,7 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
                 base_model_state[key] = [t.to(self.device) for t in obs]
                 # Get the deterministic actions from the base model
                 self.base_model_actions[key] = self.actions_list[
-                    self.base_model.act(
-                        base_model_state[key], True
-                    ).item()
+                    self.base_model.act(base_model_state[key], True).item()
                 ][0]
 
         # Try to imitate the behavior of an agent as if it is driving
@@ -726,9 +720,7 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             diff = torch.abs(bac - cac)
             # TODO: Tune the weight on this penalty.
             penalty = (
-                self.lam
-                * (diff[0] / 0.2 + diff[1] / 3.0)
-                / (2 * self.horizon)
+                self.lam * (diff[0] / 0.2 + diff[1] / 3.0) / (2 * self.horizon)
             )
             rewards[a_id] = rew - penalty
 
@@ -806,14 +798,3 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             torch.cat(list(self.queue1_bm[a_id])),
             torch.cat(list(self.queue2_bm[a_id])),
         )
-
-
-class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
-    def configure_action_list(self):
-        self.actions_list = [
-            torch.as_tensor([[0.0, ac]]) for ac in np.arange(-1.5, 1.75, 0.25)
-        ]
-
-    def reset(self):
-        self.lane_side = np.random.choice([-1.0, 1.0])
-        return super().reset()

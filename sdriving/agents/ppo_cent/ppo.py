@@ -420,6 +420,7 @@ class PPO_Centralized_Critic:
                     "pi_optimizer": self.pi_optimizer.state_dict(),
                     "vf_optimizer": self.vf_optimizer.state_dict(),
                     "ac_kwargs": self.ac_params,
+                    "model": "centralized_critic",
                 }
                 filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
                 torch.save(ckpt, filename)

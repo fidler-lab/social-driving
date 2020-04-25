@@ -127,3 +127,85 @@ def generate_intersection_world_4signals(
     )
 
     return world
+
+
+def generate_intersection_world_12signals(
+    closed: List[bool] = [True] * 4,
+    length: float = 40.0,
+    road_width: float = 20.0,
+    name: str = "intersection",
+    center: Tuple[float] = (0.0, 0.0),
+    orientation: float = 0.0,
+    has_endpoints: List[bool] = [False] * 4,
+    time_green: int = 100,
+    ordering: int = 0,
+) -> World:
+    net = generate_nway_intersection_block(
+        4, closed, length, road_width, name, center, orientation, has_endpoints
+    )
+    net.construct_graph()
+
+    world = World(net)
+
+    world.add_traffic_signal(
+        f"{name}_0",
+        f"{name}_2",
+        val=[0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5],
+        start_signal=ordering,
+        times=[time_green - 10, 10] * 4,
+        colors=["g", "y", "r", "r", "r", "r", "r", "y"],
+        add_reverse=True,
+    )
+    world.add_traffic_signal(
+        f"{name}_1",
+        f"{name}_3",
+        val=[1.0, 0.5, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0],
+        start_signal=ordering,
+        times=[time_green - 10, 10] * 4,
+        colors=["r", "y", "g", "y", "r", "r", "r", "r"],
+        add_reverse=True,
+    )
+
+    orientation = torch.as_tensor(orientation)
+    center = torch.as_tensor(center)
+    for i, loc in enumerate(
+        [
+            (-road_width / 2, road_width / 5),
+            (road_width / 5, road_width / 2),
+            (road_width / 2, -road_width / 5),
+            (-road_width / 5, -road_width / 2),
+        ]
+    ):
+        world.add_traffic_signal(
+            f"{name}_{i}",
+            f"{name}_{(i + 1)% 4}",
+            val=[1.0, 1.0, 1.0, 0.5, 0.0, 0.5, 1.0, 1.0],
+            start_signal=ordering,
+            times=[time_green - 10, 10] * 4,
+            colors=["r", "r", "r", "y", "g", "y", "r", "r"],
+            location=transform_2d_coordinates(
+                torch.as_tensor(loc), orientation, center
+            ),
+        )
+
+    for i, loc in enumerate(
+        [
+            (-road_width / 5, road_width / 2),
+            (road_width / 2, road_width / 5),
+            (road_width / 5, -road_width / 2),
+            (-road_width / 2, -road_width / 5),
+        ]
+    ):
+        world.add_traffic_signal(
+            f"{name}_{(i + 1)% 4}",
+            f"{name}_{i}",
+            val=[1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0, 0.5],
+            start_signal=ordering,
+            times=[time_green - 10, 10] * 4,
+            colors=["r", "r", "r", "r", "r", "y", "g", "y"],
+            location=transform_2d_coordinates(
+                torch.as_tensor(loc), orientation, center
+            ),
+        )
+
+    return world

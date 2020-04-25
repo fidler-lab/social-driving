@@ -2,8 +2,10 @@ import inspect
 import sys
 
 from sdriving.envs.base_env import BaseEnv
-from sdriving.envs.intersection_env import (
+from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,
+)
+from sdriving.envs.intersection_env import (
     RoadIntersectionControlEnv,
     RoadIntersectionControlImitateEnv,
     RoadIntersectionEnv,
