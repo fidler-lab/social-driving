@@ -30,10 +30,10 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         time_green = int((torch.rand(1) / 2 + 1) * self.time_green)
         if self.has_turns:
             gen = generate_intersection_world_12signals
-            ordering = random.choice(range(8))
+            ordering = random.choice(range(4))
         else:
             gen = generate_intersection_world_4signals
-            ordering = random.choice(range(2))
+            ordering = random.choice(range(12))
         return gen(
             length=self.length,
             road_width=self.width,
@@ -48,7 +48,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         ]
 
     def reset(self):
-        self.lane_side = np.random.choice([-1.0, 1.0])
+        self.lane_side = 1.0  # np.random.choice([-1.0, 1.0])
         return super().reset()
 
     @staticmethod
@@ -142,7 +142,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             if sample:
                 spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
                 if hasattr(self, "lane_side"):
-                    side = self.lane_side * (1 if int(srd[-1]) < 2 else -1)
+                    side = self.lane_side * (1 if srd[-1] in ("1", "2") else -1)
                     spos[(int(srd[-1]) + 1) % 2] = (
                         side * (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
@@ -185,13 +185,20 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             )
 
     def setup_nagents_1(self):
+        if not self.has_turns:
+            super().setup_nagents_1()
+            return
         self.setup_nagents(1)
 
     def setup_nagents_2(self, **kwargs):
+        if not self.has_turns:
+            super().setup_nagents_2()
+            return
         self.setup_nagents(2)
 
-    @staticmethod
-    def end_road_sampler(n: int):
+    def end_road_sampler(self, n: int):
+        if not self.has_turns:
+            return super().end_road_sampler(n)
         return np.random.choice(list(set(range(4)) - set([n])))
 
     def post_process_rewards(self, rewards, now_dones):
