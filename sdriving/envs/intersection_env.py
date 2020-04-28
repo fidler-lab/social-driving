@@ -585,7 +585,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         lidar_noise: float = 0.0,
         mode: int = 1,
         has_lane_distance: bool = False,
-        balance_cars: bool = False,
+        balance_cars: bool = True,
     ):
         self.npoints = npoints
         self.goal_reach_bonus = goal_reach_bonus
