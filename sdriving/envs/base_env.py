@@ -124,7 +124,12 @@ class BaseEnv:
         return ret
 
     def construct_collision_matrix(self):
-        return torch.zeros(self.nagents, self.nagents).bool()
+        col_matrix = torch.zeros(self.nagents, self.nagents).bool()
+        if hasattr(self, "col_matrix") and self.col_matrix is not None:
+            for i in range(self.col_matrix.size(0)):
+                for j in range(self.col_matrix.size(1)):
+                    col_matrix[i, j] = self.col_matrix[i, j].item()
+        return col_matrix
 
     def distance_reward_function(self, agent):
         return agent["vehicle"].distance_from_destination() / (
@@ -259,7 +264,7 @@ class BaseEnv:
             actions, states, timesteps
         )
 
-        id_list = self.get_agent_ids_list()
+        id_list = actions.keys()  # self.get_agent_ids_list()
         rewards = {id: 0.0 for id in id_list}
 
         no_mpc = True

@@ -22,7 +22,13 @@ from sdriving.trafficsim.world import World
 
 
 class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
-    def __init__(self, max_agents: int = 4, *args, **kwargs):
+    def __init__(
+        self,
+        start_agents: int = 4,
+        max_agents: int = 4,
+        *args,
+        **kwargs
+    ):
         if "nagents" in kwargs:
             raise Exception(
                 "nagents cannot be assigned for"
@@ -38,6 +44,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
         }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.start_agents = start_agents
         self.max_agents = max_agents
 
     def configure_action_list(self):
@@ -77,6 +84,18 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             if not agent["goal_reach_bonus"]:
                 agent["goal_reach_bonus"] = True
                 rew = self.goal_reach_bonus
+                a_id = agent["vehicle"].name
+                srd = int(self.agents[a_id]["road name"][-1])
+                # FIXME: No turns for now
+                erd = (srd + 2) % 4
+                if self.nagents < self.max_agents:
+                    self._add_vehicle_with_collision_check(
+                        f"agent_{self.nagents}",
+                        srd,
+                        erd,
+                        self.mode == 2
+                    )
+                    self.col_matrix = self.construct_collision_matrix()
             else:
                 rew = -torch.abs(
                     (
@@ -86,21 +105,29 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                 ).item()
 
             # Remove the agent which has completed the task
-            a_id = agent["vehicle"].name
-            srd = int(self.agents[a_id]["road name"][-1])
+            # a_id = agent["vehicle"].name
+            # srd = int(self.agents[a_id]["road name"][-1])
             # FIXME: No turns for now
-            erd = (srd + 2) % 4
-            self.world.dynamic_environment(a_id)
-            self.nagents -= 1
-            self.agent_ids.remove(a_id)
-            del self.agents[a_id]
-            del self.queue1[a_id]
-            del self.queue2[a_id]
-            del self.prev_actions[a_id]
-            del self.curr_actions[a_id]
+            # erd = (srd + 2) % 4
+            # self.world.dynamic_environment(a_id)
+            # self.nagents -= 1
+            # self.agent_ids.remove(a_id)
+            # del self.agents[a_id]
+            # del self.queue1[a_id]
+            # del self.queue2[a_id]
+            # del self.prev_actions[a_id]
+            # del self.curr_actions[a_id]
 
             # Add a new agent in its place
-            self._add_vehicle_with_collision_check(a_id, srd, erd, self.mode == 2)
+            # if self.nagents < self.max_agents:
+            #     self._add_vehicle_with_collision_check(
+            #         f"agent_{self.nagents}",
+            #         srd,
+            #         erd,
+            #         self.mode == 2
+            #     )
+            #     self.col_matrix = self.construct_collision_matrix()
+            #     print(self.col_matrix)
         return rew
 
     def setup_nagents_1(self):
@@ -142,11 +169,11 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
     def reset(self):
         self.world = self.generate_world_without_agents()
 
-        if self.max_agents == 1:
+        if self.start_agents == 1:
             self.setup_nagents_1()
-        elif self.max_agents == 2:
+        elif self.start_agents == 2:
             self.setup_nagents_2()
         else:
-            self.setup_nagents(self.max_agents)
+            self.setup_nagents(self.start_agents)
 
         return super(RoadIntersectionControlEnv, self).reset()
