@@ -10,6 +10,9 @@ from sdriving.envs.intersection_env import (
     RoadIntersectionControlImitateEnv,
     RoadIntersectionEnv,
 )
+from sdriving.envs.continuous_cars import (
+    RoadIntersectionContinuousFlowControlEnv
+)
 from sdriving.envs.meta_control import MetaControlEnv
 
 REGISTRY = {}

@@ -193,6 +193,7 @@ class RoadIntersectionEnv(BaseEnv):
             "v_lim": v_lim.item(),
             "dynamics": dynamics,
             "controller": controller,
+            "road name": rname,
             "original_destination": dest,
             "dest_orientation": dest_orientation,
             "original_distance": vehicle.distance_from_destination(),
@@ -488,6 +489,53 @@ class RoadIntersectionEnv(BaseEnv):
     def end_road_sampler(n: int):
         return (n + 2) % 4
 
+    def _add_vehicle_with_collision_check(
+        self,
+        a_id: str,
+        srd: int,
+        erd: int,
+        sample: bool
+    ):
+        free = False
+        while not free:
+            (
+                a_id,
+                rd,
+                spos,
+                vlim,
+                orientation,
+                end_pos,
+                dest_orientation,
+                dynamics_model,
+                dynamics_kwargs,
+            ) = self.add_vehicle_path(
+                a_id,
+                srd,
+                erd,
+                sample,
+                place=False,
+            )
+            vehicle = Vehicle(
+                spos,
+                orientation,
+                destination=end_pos,
+                dest_orientation=dest_orientation,
+                name=a_id,
+                max_lidar_range=self.lidar_range,
+            )
+            free = not self.check_collision(vehicle)
+        self.add_vehicle(
+            a_id,
+            rd,
+            spos,
+            vlim,
+            orientation,
+            end_pos,
+            dest_orientation,
+            dynamics_model,
+            dynamics_kwargs,
+        )
+
     def setup_nagents(self, n: int):
         # Try to place the agent without any overlap
         sample = False if self.mode == 1 else True
@@ -502,51 +550,13 @@ class RoadIntersectionEnv(BaseEnv):
             else:
                 srd = np.random.choice([0, 1, 2, 3])
             erd = self.end_road_sampler(srd)
-
-            free = False
-            while not free:
-                (
-                    a_id,
-                    rd,
-                    spos,
-                    vlim,
-                    orientation,
-                    end_pos,
-                    dest_orientation,
-                    dynamics_model,
-                    dynamics_kwargs,
-                ) = self.add_vehicle_path(
-                    self.get_agent_ids_list()[placed],
-                    srd,
-                    erd,
-                    sample,
-                    place=False,
-                )
-                vehicle = Vehicle(
-                    spos,
-                    orientation,
-                    destination=end_pos,
-                    dest_orientation=dest_orientation,
-                    name=a_id,
-                    max_lidar_range=self.lidar_range,
-                )
-                free = not self.check_collision(vehicle)
-            self.add_vehicle(
-                a_id,
-                rd,
-                spos,
-                vlim,
-                orientation,
-                end_pos,
-                dest_orientation,
-                dynamics_model,
-                dynamics_kwargs,
-            )
+            self._add_vehicle_with_collision_check(f"agent_{placed}", srd, erd, sample)
             placed += 1
 
     def reset(self):
         # Keep the environment fixed for now
         self.world = self.generate_world_without_agents()
+        self.world.compile()
 
         self.queue1 = {
             a_id: deque(maxlen=self.history_len)
@@ -640,6 +650,9 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
                 self.curr_actions[a_id] = pac
                 return
             cac = self.curr_actions[a_id]
+            if a_id not in self.prev_actions or a_id not in self.curr_actions:
+                # Agents are removed in case of Continuous Flow Environments
+                continue
             diff = torch.abs(pac - cac)
             penalty = (diff[0] / 0.2 + diff[1] / 3.0) / (2 * self.horizon)
             rewards[a_id] = rew - penalty

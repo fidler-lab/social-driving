@@ -173,7 +173,6 @@ class BaseEnv:
         return rewards
 
     def reset(self):
-        self.world.compile()
         self.col_matrix = self.construct_collision_matrix()
         self.nsteps = 0
         self.nepisodes += 1
