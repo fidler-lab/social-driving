@@ -8,9 +8,10 @@ import numpy as np
 import torch
 from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
-from sdriving.agents.ppo_cent.model import ActorCritic
-from sdriving.agents.ppo_cent.utils import (
+from sdriving.agents.ppo_indiv.model import ActorCritic
+from sdriving.agents.ppo_indiv.utils import (
     PPOBuffer,
     count_vars,
     mpi_avg_grads,
@@ -27,7 +28,7 @@ from spinup.utils.mpi_tools import (
 )
 
 
-class PPO_Centralized_Critic:
+class PPO_Decentralized_Critic:
     def __init__(
         self,
         env,
@@ -75,7 +76,6 @@ class PPO_Centralized_Critic:
             {
                 "observation_space": self.env.observation_space,
                 "action_space": self.env.action_space,
-                "nagents": self.env.nagents,
             }
         )
 
@@ -105,12 +105,8 @@ class PPO_Centralized_Critic:
                 "Rendering the training is not implemented", color="red"
             )
 
-        self.nagents = self.env.nagents
         self.ac = ActorCritic(
-            self.env.observation_space,
-            self.env.action_space,
-            nagents=self.nagents,
-            **ac_kwargs,
+            self.env.observation_space, self.env.action_space, **ac_kwargs,
         )
         self.pi_optimizer = SGD(trainable_parameters(self.ac.pi), lr=pi_lr)
         self.vf_optimizer = SGD(trainable_parameters(self.ac.v), lr=vf_lr)
@@ -122,14 +118,8 @@ class PPO_Centralized_Critic:
                 for k, v in state.items():
                     if torch.is_tensor(v):
                         state[k] = v.to(device)
-            if ckpt["nagents"] == self.nagents:
-                self.ac.v.load_state_dict(ckpt["critic"])
-                self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
-            else:
-                self.logger.log(
-                    "The agent was trained with a different nagents",
-                    color="red",
-                )
+            self.ac.v.load_state_dict(ckpt["critic"])
+            self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
             for state in self.vf_optimizer.state.values():
                 for k, v in state.items():
                     if torch.is_tensor(v):
@@ -159,7 +149,7 @@ class PPO_Centralized_Critic:
             self.local_steps_per_epoch,
             gamma,
             lam,
-            self.env.nagents,
+            self.env.max_agents,
         )
 
         self.gamma = gamma
@@ -203,43 +193,21 @@ class PPO_Centralized_Critic:
     def compute_loss_v(self, data):
         device = self.device
 
-        obs_list = []
-        ret = sum(d["ret"] for d in data.values()).to(device) / len(
-            data.keys()
-        )
-        for data_val in data.values():
-            obs_list.append(
-                (data_val["obs"].to(device), data_val["lidar"].to(device))
-            )
+        obs, lidar, ret = [data[x].to(device) for x in ["obs", "lidar", "ret"]]
 
-        value_est = self.ac.v(obs_list)
+        value_est = self.ac.v((obs, lidar))
 
         return (
             ((value_est - ret) ** 2).mean(),
             dict(value_est=value_est.mean().item()),
         )
 
-    @staticmethod
-    def make_entry(d: dict, k: str, val: torch.Tensor):
-        if k not in d:
-            d[k] = val
-        else:
-            d[k] = torch.cat([d[k], val], dim=0)
-
     def update(self, epoch, t):
         data = self.buf.get()
         local_steps_per_epoch = self.local_steps_per_epoch
 
-        data_pi = {}
-        for d in data.values():
-            self.make_entry(data_pi, "obs", d["obs"])
-            self.make_entry(data_pi, "lidar", d["lidar"])
-            self.make_entry(data_pi, "act", d["act"])
-            self.make_entry(data_pi, "adv", d["adv"])
-            self.make_entry(data_pi, "logp", d["logp"])
-
         with torch.no_grad():
-            pi_l_old, pi_info_old = self.compute_loss_pi(data_pi)
+            pi_l_old, pi_info_old = self.compute_loss_pi(data)
             pi_l_old = pi_l_old.item()
             v_l_old, v_est = self.compute_loss_v(data)
             v_l_old = v_l_old.item()
@@ -248,7 +216,7 @@ class PPO_Centralized_Critic:
         # Train policy with multiple steps of gradient descent
         for i in range(self.train_pi_iters):
             self.pi_optimizer.zero_grad()
-            loss_pi, pi_info = self.compute_loss_pi(data_pi)
+            loss_pi, pi_info = self.compute_loss_pi(data)
             kl = mpi_avg(pi_info["kl"])
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
@@ -326,21 +294,23 @@ class PPO_Centralized_Critic:
         o, ep_ret, ep_len = env.reset(), 0, 0
 
         for epoch in range(self.epochs):
+            if proc_id() == 0:
+                pbar = tqdm(total=self.local_steps_per_epoch)
             for t in range(self.local_steps_per_epoch):
+                if proc_id() == 0:
+                    pbar.update(1)
                 a = {}
                 v = {}
                 logp = {}
-                o_list = []
                 for key, obs in o.items():
                     obs = tuple([t.detach().to(self.device) for t in obs])
                     o[key] = obs
-                    o_list.append(obs)
 
-                actions, val_f, log_probs = ac.step(o_list)
-                for i, key in enumerate(o.keys()):
-                    a[key] = actions[i]
+                    action, val_f, log_prob = ac.step(obs)
+                    a[key] = action
                     v[key] = val_f
-                    logp[key] = log_probs[i]
+                    logp[key] = log_prob
+
                 next_o, r, d, info = env.step(a)
                 ret = sum(
                     [
@@ -357,7 +327,6 @@ class PPO_Centralized_Critic:
                 # Store experience to replay buffer
                 for key, obs in o.items():
                     self.buf.store(
-                        key,
                         obs[0].cpu(),
                         obs[1].cpu(),
                         a[key].cpu(),
@@ -384,13 +353,12 @@ class PPO_Centralized_Critic:
                     # if trajectory didn't reach terminal state,
                     # bootstrap value target
                     if timeout or epoch_ended:
-                        o_list = []
+                        v_list = []
                         for _, obs in o.items():
-                            o_list.append(
-                                tuple([t.to(self.device) for t in obs])
-                            )
-                        _, v, _ = ac.step(o_list)
-                        v = v.cpu()
+                            obs = tuple([t.to(self.device) for t in obs])
+                            _, v, _ = ac.step(obs)
+                            v_list.append(v)
+                        v = (sum(v_list) / len(v_list)).cpu()
                     else:
                         v = 0
                     self.buf.finish_path(v)
@@ -416,11 +384,10 @@ class PPO_Centralized_Critic:
                 ckpt = {
                     "actor": self.ac.pi.state_dict(),
                     "critic": self.ac.v.state_dict(),
-                    "nagents": self.nagents,
                     "pi_optimizer": self.pi_optimizer.state_dict(),
                     "vf_optimizer": self.vf_optimizer.state_dict(),
                     "ac_kwargs": self.ac_params,
-                    "model": "centralized_critic",
+                    "model": "decentralized_critic",
                 }
                 filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
                 torch.save(ckpt, filename)

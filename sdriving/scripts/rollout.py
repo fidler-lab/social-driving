@@ -54,6 +54,8 @@ if __name__ == "__main__":
         ckpt = torch.load(args.model_save_path, map_location="cpu")
         if "model" not in ckpt or ckpt["model"] == "centralized_critic":
             from sdriving.agents.ppo_cent.model import ActorCritic
+        elif ckpt["model"] == "decentralized_critic":
+            from sdriving.agents.ppo_indiv.model import ActorCritic
         ac = ActorCritic(**ckpt["ac_kwargs"])
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
@@ -78,9 +80,7 @@ if __name__ == "__main__":
                 if not args.dummy_run:
                     a[key] = ac.act(obs, True)
                 else:
-                    a[key] = torch.as_tensor(
-                        12
-                    )  # test_env.action_space.sample())
+                    a[key] = torch.as_tensor(test_env.action_space.sample())
                 if args.verbose:
                     print(
                         f"Agent: {key} || Observation: {obs[0]} || Action: {a[key]}"

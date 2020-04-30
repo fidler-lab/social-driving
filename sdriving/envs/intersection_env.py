@@ -415,7 +415,9 @@ class RoadIntersectionEnv(BaseEnv):
             if sample:
                 spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
                 if hasattr(self, "lane_side"):
-                    side = self.lane_side * (1 if srd[-1] in ("1", "2") else -1)
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
                     spos[(int(srd[-1]) + 1) % 2] = (
                         side * (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
@@ -490,11 +492,7 @@ class RoadIntersectionEnv(BaseEnv):
         return (n + 2) % 4
 
     def _add_vehicle_with_collision_check(
-        self,
-        a_id: str,
-        srd: int,
-        erd: int,
-        sample: bool
+        self, a_id: str, srd: int, erd: int, sample: bool
     ):
         free = False
         while not free:
@@ -508,13 +506,7 @@ class RoadIntersectionEnv(BaseEnv):
                 dest_orientation,
                 dynamics_model,
                 dynamics_kwargs,
-            ) = self.add_vehicle_path(
-                a_id,
-                srd,
-                erd,
-                sample,
-                place=False,
-            )
+            ) = self.add_vehicle_path(a_id, srd, erd, sample, place=False,)
             vehicle = Vehicle(
                 spos,
                 orientation,
@@ -550,7 +542,9 @@ class RoadIntersectionEnv(BaseEnv):
             else:
                 srd = np.random.choice([0, 1, 2, 3])
             erd = self.end_road_sampler(srd)
-            self._add_vehicle_with_collision_check(f"agent_{placed}", srd, erd, sample)
+            self._add_vehicle_with_collision_check(
+                f"agent_{placed}", srd, erd, sample
+            )
             placed += 1
 
     def reset(self):

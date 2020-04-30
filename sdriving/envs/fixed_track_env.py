@@ -142,7 +142,9 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             if sample:
                 spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
                 if hasattr(self, "lane_side"):
-                    side = self.lane_side * (1 if srd[-1] in ("1", "2") else -1)
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
                     spos[(int(srd[-1]) + 1) % 2] = (
                         side * (torch.rand(1) * 0.15 + 0.15) * self.width
                     )

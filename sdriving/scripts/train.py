@@ -85,6 +85,10 @@ if __name__ == "__main__":
             from sdriving.agents.ppo_cent.ppo import (
                 PPO_Centralized_Critic as PPO,
             )
+        else:
+            from sdriving.agents.ppo_indiv.ppo import (
+                PPO_Decentralized_Critic as PPO,
+            )
     del test_observation_space
 
     ppo = PPO(

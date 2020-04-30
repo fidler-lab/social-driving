@@ -23,11 +23,7 @@ from sdriving.trafficsim.world import World
 
 class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
     def __init__(
-        self,
-        start_agents: int = 4,
-        max_agents: int = 4,
-        *args,
-        **kwargs
+        self, start_agents: int = 4, max_agents: int = 4, *args, **kwargs
     ):
         if "nagents" in kwargs:
             raise Exception(
@@ -90,10 +86,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                 erd = (srd + 2) % 4
                 if self.nagents < self.max_agents:
                     self._add_vehicle_with_collision_check(
-                        f"agent_{self.nagents}",
-                        srd,
-                        erd,
-                        self.mode == 2
+                        f"agent_{self.nagents}", srd, erd, self.mode == 2
                     )
                     self.col_matrix = self.construct_collision_matrix()
             else:
@@ -103,31 +96,6 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                         / (agent["dynamics"].v_lim * self.horizon)
                     )
                 ).item()
-
-            # Remove the agent which has completed the task
-            # a_id = agent["vehicle"].name
-            # srd = int(self.agents[a_id]["road name"][-1])
-            # FIXME: No turns for now
-            # erd = (srd + 2) % 4
-            # self.world.dynamic_environment(a_id)
-            # self.nagents -= 1
-            # self.agent_ids.remove(a_id)
-            # del self.agents[a_id]
-            # del self.queue1[a_id]
-            # del self.queue2[a_id]
-            # del self.prev_actions[a_id]
-            # del self.curr_actions[a_id]
-
-            # Add a new agent in its place
-            # if self.nagents < self.max_agents:
-            #     self._add_vehicle_with_collision_check(
-            #         f"agent_{self.nagents}",
-            #         srd,
-            #         erd,
-            #         self.mode == 2
-            #     )
-            #     self.col_matrix = self.construct_collision_matrix()
-            #     print(self.col_matrix)
         return rew
 
     def setup_nagents_1(self):

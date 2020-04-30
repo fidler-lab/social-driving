@@ -54,6 +54,8 @@ if __name__ == "__main__":
         ckpt = torch.load(args.model_save_path, map_location="cpu")
         if "model" not in ckpt or ckpt["model"] == "centralized_critic":
             from sdriving.agents.ppo_cent.model import ActorCritic
+        elif ckpt["model"] == "decentralized_critic":
+            from sdriving.agents.ppo_indiv.model import ActorCritic
         ac = ActorCritic(**ckpt["ac_kwargs"])
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
@@ -70,6 +72,7 @@ if __name__ == "__main__":
         "RoadIntersectionControlEnv",
         "RoadIntersectionControlAccelerationEnv",
         "RoadIntersectionControlImitateEnv",
+        "RoadIntersectionContinuousFlowControlEnv",
     ):
         df["Traffic Signal"] = []
         df["Velocity"] = []
@@ -77,7 +80,8 @@ if __name__ == "__main__":
         df["Distance from Signal"] = []
         df["Agent ID"] = []
         df["Acceleration"] = []
-        df["Steering Angle"] = []
+        if args.env != "RoadIntersectionControlAccelerationEnv":
+            df["Steering Angle"] = []
 
     total_ret = 0.0
     count = 0
@@ -100,12 +104,17 @@ if __name__ == "__main__":
                     a[key] = ac.act(obs, True)
                 else:
                     a[key] = torch.as_tensor(test_env.action_space.sample())
-                df["Steering Angle"].append(
-                    test_env.actions_list[a[key]][0, 0].item()
-                )
-                df["Acceleration"].append(
-                    test_env.actions_list[a[key]][0, 1].item()
-                )
+                if args.env == "RoadIntersectionControlAccelerationEnv":
+                    df["Acceleration"].append(
+                        test_env.actions_list[a[key]][0, 0].item()
+                    )
+                else:
+                    df["Steering Angle"].append(
+                        test_env.actions_list[a[key]][0, 0].item()
+                    )
+                    df["Acceleration"].append(
+                        test_env.actions_list[a[key]][0, 1].item()
+                    )
                 if args.verbose:
                     print(
                         f"Agent: {key} || Observation: {obs[0][:-4]} || Action: {a[key]}"
