@@ -6,7 +6,7 @@ from typing import Optional
 import gym
 import numpy as np
 import torch
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.utils.tensorboard import SummaryWriter
 
 from sdriving.agents.ppo_cent.model import ActorCritic
@@ -112,8 +112,8 @@ class PPO_Centralized_Critic:
             nagents=self.nagents,
             **ac_kwargs,
         )
-        self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
-        self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
+        self.pi_optimizer = SGD(trainable_parameters(self.ac.pi), lr=pi_lr)
+        self.vf_optimizer = SGD(trainable_parameters(self.ac.v), lr=vf_lr)
         if load_path is not None:
             ckpt = torch.load(load_path, map_location="cpu")
             self.ac.pi.load_state_dict(ckpt["actor"])
