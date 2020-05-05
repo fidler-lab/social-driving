@@ -20,7 +20,14 @@ from sdriving.trafficsim.world import World
 
 
 class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
-    def __init__(self, *args, has_turns: bool = False, **kwargs):
+    def __init__(
+        self,
+        *args,
+        fast_model: bool = False,
+        has_turns: bool = False,
+        **kwargs
+    ):
+        self.fast_model = fast_model
         self.has_turns = has_turns
         super().__init__(*args, **kwargs)
 
@@ -43,9 +50,16 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         )
 
     def configure_action_list(self):
-        self.actions_list = [
-            torch.as_tensor([[ac]]) for ac in np.arange(-1.5, 1.75, 0.25)
-        ]
+        if not self.fast_model:
+            self.actions_list = [
+                torch.as_tensor([[ac]]) for ac in np.arange(-1.5, 1.75, 0.25)
+            ]
+            self.max_accln = 1.5
+        else:
+            self.actions_list = [
+                torch.as_tensor([[ac]]) for ac in np.arange(-3.0, 3.01, 0.25)
+            ]
+            self.max_accln = 3.0
 
     def reset(self):
         self.lane_side = 1.0  # np.random.choice([-1.0, 1.0])
@@ -166,7 +180,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                 a_id,
                 srd,
                 spos,
-                torch.as_tensor(8.0),
+                torch.as_tensor(20.0 if self.fast_model else 8.0),
                 orientation,
                 end_pos,
                 dest_orientation,
@@ -178,7 +192,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                 a_id,
                 srd,
                 spos,
-                torch.as_tensor(8.0),
+                torch.as_tensor(20.0 if self.fast_model else 8.0),
                 orientation,
                 end_pos,
                 dest_orientation,
@@ -216,5 +230,5 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                 return
             cac = self.curr_actions[a_id]
             diff = torch.abs(pac - cac)
-            penalty = (diff[0] / 3.0) / (2 * self.horizon)
+            penalty = diff[0] / (4 * self.max_accln * self.horizon)
             rewards[a_id] = rew - penalty

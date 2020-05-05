@@ -48,7 +48,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
         self.actions_list = [
             torch.as_tensor(ac).unsqueeze(0)
             for ac in itertools.product(
-                np.arange(-0.1, 0.101, 0.05), np.arange(-1.5, 1.51, 0.25),
+                np.arange(-0.1, 0.101, 0.05), np.arange(-1.5, 1.51, 0.75),
             )
         ]
 
@@ -84,9 +84,18 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                 srd = int(self.agents[a_id]["road name"][-1])
                 # FIXME: No turns for now
                 erd = (srd + 2) % 4
+                spos = self.world.road_network.roads[
+                    self.agents[a_id]["road name"]
+                ].sample(x_bound=0.6, y_bound=0.6)[0]
+                side = torch.sign(
+                    agent["vehicle"].position[(srd + 1) % 2]
+                )
+                spos[(srd + 1) % 2] = (
+                    side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                )
                 if self.nagents < self.max_agents:
                     self._add_vehicle_with_collision_check(
-                        f"agent_{self.nagents}", srd, erd, self.mode == 2
+                        f"agent_{self.nagents}", srd, erd, self.mode == 2, pos=spos
                     )
                     self.col_matrix = self.construct_collision_matrix()
             else:
@@ -135,6 +144,15 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             )
 
     def reset(self):
+        self.nagents = 0
+        self.agent_ids = []
+        self.agents = {a_id: None for a_id in self.agent_ids}
+        self.queue1 = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.queue2 = {a_id: None for a_id in self.get_agent_ids_list()}
+        self.prev_actions = {
+            a_id: torch.zeros(2) for a_id in self.get_agent_ids_list()
+        }
+        self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
         self.world = self.generate_world_without_agents()
 
         if self.start_agents == 1:

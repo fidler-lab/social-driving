@@ -492,7 +492,7 @@ class RoadIntersectionEnv(BaseEnv):
         return (n + 2) % 4
 
     def _add_vehicle_with_collision_check(
-        self, a_id: str, srd: int, erd: int, sample: bool
+        self, a_id: str, srd: int, erd: int, sample: bool, pos=None
     ):
         free = False
         while not free:
@@ -506,7 +506,14 @@ class RoadIntersectionEnv(BaseEnv):
                 dest_orientation,
                 dynamics_model,
                 dynamics_kwargs,
-            ) = self.add_vehicle_path(a_id, srd, erd, sample, place=False,)
+            ) = self.add_vehicle_path(
+                a_id,
+                srd,
+                erd,
+                sample,
+                spos=pos,
+                place=False,
+            )
             vehicle = Vehicle(
                 spos,
                 orientation,

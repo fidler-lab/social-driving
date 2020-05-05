@@ -25,6 +25,9 @@ from spinup.utils.mpi_tools import (
     num_procs,
     proc_id,
 )
+from spinup.utils.serialization_utils import convert_json
+
+import wandb
 
 
 class PPO_Centralized_Critic:
@@ -57,6 +60,7 @@ class PPO_Centralized_Critic:
 
         # Set up logger and save configuration
         self.log_dir = os.path.join(log_dir, str(proc_id()))
+        hparams = convert_json(locals())
         self.logger = EpochLogger(log_dir, **logger_kwargs)
         self.render_dir = os.path.join(log_dir, "renders")
         os.makedirs(self.render_dir, exist_ok=True)
@@ -80,8 +84,8 @@ class PPO_Centralized_Critic:
         )
 
         if torch.cuda.is_available():
-            # From emperical results, 16 tasks can use a single gpu
-            device_id = proc_id() // 16
+            # From emperical results, 8 tasks can use a single gpu
+            device_id = proc_id() // 8
             device = torch.device(f"cuda:{device_id}")
         else:
             device = torch.device("cpu")
@@ -92,8 +96,8 @@ class PPO_Centralized_Critic:
             self.logger.log("Restarting from latest checkpoint", color="red")
             load_path = self.softlink
 
-        if tboard and proc_id() == 0:
-            self.writer = SummaryWriter(log_dir)
+        # if tboard and proc_id() == 0:
+        #     self.writer = SummaryWriter(log_dir)
 
         # Random seed
         seed += 10000 * proc_id()
@@ -112,11 +116,10 @@ class PPO_Centralized_Critic:
             nagents=self.nagents,
             **ac_kwargs,
         )
-        self.pi_optimizer = SGD(trainable_parameters(self.ac.pi), lr=pi_lr)
-        self.vf_optimizer = SGD(trainable_parameters(self.ac.v), lr=vf_lr)
         if load_path is not None:
             ckpt = torch.load(load_path, map_location="cpu")
             self.ac.pi.load_state_dict(ckpt["actor"])
+            self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
             self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
             for state in self.pi_optimizer.state.values():
                 for k, v in state.items():
@@ -124,8 +127,10 @@ class PPO_Centralized_Critic:
                         state[k] = v.to(device)
             if ckpt["nagents"] == self.nagents:
                 self.ac.v.load_state_dict(ckpt["critic"])
+                self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
             else:
+                self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
                 self.logger.log(
                     "The agent was trained with a different nagents",
                     color="red",
@@ -134,10 +139,32 @@ class PPO_Centralized_Critic:
                 for k, v in state.items():
                     if torch.is_tensor(v):
                         state[k] = v.to(device)
+        else:
+            self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
+            self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
 
         # Sync params across processes
         sync_params(self.ac)
         self.ac = self.ac.to(device)
+        
+        if proc_id() == 0:
+            eid = log_dir.split('/')[-2] if load_path is None else load_path.split('/')[-4]
+            wandb.init(
+                name=eid,
+                id=eid,
+                project="Social Driving",
+                resume=load_path is not None,
+                allow_val_change=True
+            )
+            wandb.watch_called = False
+
+            if "self" in hparams:
+                del hparams["self"]
+            wandb.config.update(hparams, allow_val_change=True)
+
+            wandb.watch(self.ac.pi.lidar_features, log="all")
+            wandb.watch(self.ac.pi.logits_net, log="all")
+            wandb.watch(self.ac.v, log="all")
 
         self.device = device
 
@@ -287,34 +314,16 @@ class PPO_Centralized_Critic:
             DeltaLossV=(loss_v.item() - v_l_old),
             ValueEstimate=v_est,
         )
-        if self.tboard and proc_id() == 0:
-            self.writer.add_scalar(
-                "stats/loss_pi", pi_l_old, epoch * local_steps_per_epoch + t
-            )
-            self.writer.add_scalar(
-                "stats/loss_v", v_l_old, epoch * local_steps_per_epoch + t
-            )
-            self.writer.add_scalar(
-                "stats/kl_divergence", kl, epoch * local_steps_per_epoch + t
-            )
-            self.writer.add_scalar(
-                "stats/ent", ent, epoch * local_steps_per_epoch + t
-            )
-            self.writer.add_scalar(
-                "stats/clip_factor", cf, epoch * local_steps_per_epoch + t
-            )
-            self.writer.add_scalar(
-                "stats/delta_loss_pi",
-                loss_pi.item() - pi_l_old,
-                epoch * local_steps_per_epoch + t,
-            )
-            self.writer.add_scalar(
-                "stats/delta_loss_v",
-                loss_v.item() - v_l_old,
-                epoch * local_steps_per_epoch + t,
-            )
-            self.writer.add_scalar(
-                "stats/value_est", v_est, epoch * local_steps_per_epoch + t
+        if proc_id() == 0:
+            wandb.log(
+                {
+                    "Loss Actor": pi_l_old,
+                    "Loss Value Function": v_l_old,
+                    "KL Divergence": kl,
+                    "Entropy": ent,
+                    "Clip Factor": cf,
+                    "Value Estimate": v_est
+                }
             )
 
     def train(self):
@@ -342,13 +351,13 @@ class PPO_Centralized_Critic:
                     v[key] = val_f
                     logp[key] = log_probs[i]
                 next_o, r, d, info = env.step(a)
-                ret = sum(
-                    [
-                        torch.as_tensor(rwd).detach().cpu()
-                        for _, rwd in r.items()
-                    ]
-                )
-                ep_ret += ret
+                rlist = [
+                    torch.as_tensor(rwd).detach().cpu()
+                    for _, rwd in r.items()
+                ]
+                ret = sum(rlist)
+                rlen = len(rlist)
+                ep_ret += ret / rlen
                 ep_len += 1
 
                 # save and log
@@ -366,12 +375,6 @@ class PPO_Centralized_Critic:
                         logp[key].cpu(),
                     )
                     self.logger.store(VVals=v[key])
-                    if self.tboard and proc_id() == 0:
-                        self.writer.add_scalar(
-                            "stats/vval",
-                            v[key],
-                            epoch * self.local_steps_per_epoch + t,
-                        )
 
                 # Update obs (critical!)
                 o = next_o
@@ -397,17 +400,11 @@ class PPO_Centralized_Critic:
                     # only save EpRet / EpLen if trajectory finished
                     self.logger.store(EpRet=ep_ret, EpLen=ep_len)
                     if terminal:
-                        if self.tboard and proc_id() == 0:
-                            self.writer.add_scalar(
-                                "return/train",
-                                ep_ret,
-                                epoch * self.local_steps_per_epoch + t,
-                            )
-                            self.writer.add_scalar(
-                                "episode_length/train",
-                                ep_len,
-                                epoch * self.local_steps_per_epoch + t,
-                            )
+                        if proc_id() == 0:
+                            wandb.log({
+                                "Episode Return (Train)": ep_ret,
+                                "Episode Length (Train)": ep_len
+                            })
                     o, ep_ret, ep_len = env.reset(), 0, 0
 
             if (
@@ -425,6 +422,7 @@ class PPO_Centralized_Critic:
                 filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
                 torch.save(ckpt, filename)
                 torch.save(ckpt, self.softlink)
+                wandb.save(self.softlink)
 
             self.update(epoch, t)
 
