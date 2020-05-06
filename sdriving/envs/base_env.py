@@ -149,7 +149,6 @@ class BaseEnv:
         reward -= self.distance_reward_function(agent)
 
         if self.world.check_collision(a_id):
-            # print("Collision")
             agent["done"] = True
             reward -= self.object_collision_penalty
             return reward, True

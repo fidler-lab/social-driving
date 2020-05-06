@@ -423,6 +423,19 @@ class RoadIntersectionEnv(BaseEnv):
                     )
             else:
                 spos = sroad.offset.clone()
+        else:
+            if sample:
+                s_pos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
+                if hasattr(self, "lane_side"):
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
+                    s_pos[(int(srd[-1]) + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
+            else:
+                s_pos = sroad.offset.clone()
+            spos[int(srd[-1]) % 2] = s_pos[int(srd[-1]) % 2]
 
         if place:
             self.add_vehicle(
