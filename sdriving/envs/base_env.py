@@ -124,11 +124,15 @@ class BaseEnv:
         return ret
 
     def construct_collision_matrix(self):
-        col_matrix = torch.zeros(self.nagents, self.nagents).bool()
+        col_matrix_prev = {}
         if hasattr(self, "col_matrix") and self.col_matrix is not None:
-            for i in range(self.col_matrix.size(0)):
-                for j in range(self.col_matrix.size(1)):
-                    col_matrix[i, j] = self.col_matrix[i, j].item()
+            col_matrix_prev = self.col_matrix
+        col_matrix = {}
+        for key in combinations(self.get_agent_ids_list(), 2):
+            if key in col_matrix_prev:
+                col_matrix[key] = col_matrix_prev[key]
+            else:
+                col_matrix[key] = False
         return col_matrix
 
     def distance_reward_function(self, agent):
@@ -168,10 +172,12 @@ class BaseEnv:
                 a_id
             )
 
-        for i1, i2 in combinations(range(self.nagents), 2):
-            if not (self.col_matrix[i1][i2] or self.col_matrix[i2][i1]):
+        for key in combinations(self.get_agent_ids_list(), 2):
+            if key not in self.col_matrix:
+                key = (key[1], key[0])
+            if not self.col_matrix[key]:
                 self.intervehicle_collision(
-                    i1, i2, rewards, now_done, self.agents_collision_penalty
+                    key, rewards, now_done, self.agents_collision_penalty
                 )
         self.post_process_rewards(rewards, now_done)
         return rewards
@@ -187,10 +193,10 @@ class BaseEnv:
         self.ax = None
         return self.get_state()
 
-    def intervehicle_collision(self, i1, i2, rewards, now_done, penalty):
+    def intervehicle_collision(self, key, rewards, now_done, penalty):
         id_list = self.get_agent_ids_list()
-        id1 = id_list[i1]
-        id2 = id_list[i2]
+        id1 = key[0]
+        id2 = key[1]
         agent1 = self.agents[id1]
         agent2 = self.agents[id2]
         overlap = agent1["vehicle"].safety_circle_overlap(agent2["vehicle"])
@@ -213,8 +219,7 @@ class BaseEnv:
                 agent2["done"] = True
                 now_done[id1] = True
                 now_done[id2] = True
-                self.col_matrix[i1][i2] = True
-                self.col_matrix[i2][i1] = True
+                self.col_matrix[key] = True
 
     def check_collision(self, vehicle):
         collided = False
@@ -264,7 +269,7 @@ class BaseEnv:
             actions, states, timesteps
         )
 
-        id_list = actions.keys()  # self.get_agent_ids_list()
+        id_list = self.get_agent_ids_list()
         rewards = {id: 0.0 for id in id_list}
 
         no_mpc = True
@@ -281,7 +286,9 @@ class BaseEnv:
 
         for i in range(0, timesteps):
             no_updates = True
-            for a_id in id_list:
+            for a_id in self.get_agent_ids_list():
+                if a_id not in intermediates:
+                    continue
                 if not self.is_agent_done(a_id):
                     state = intermediates[a_id][0][i, :]
                     no_updates = False
@@ -321,6 +328,8 @@ class BaseEnv:
                 self.world.render(**kwargs)
             intermediate_rewards = self.get_reward()
             for a_id in id_list:
+                if a_id not in rewards or a_id not in intermediate_rewards:
+                    continue
                 rewards[a_id] += intermediate_rewards[a_id]
 
         self.nsteps += i + 1

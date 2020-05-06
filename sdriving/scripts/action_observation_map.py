@@ -139,7 +139,8 @@ if __name__ == "__main__":
             count += 1
         if not args.no_render:
             path = os.path.join(
-                os.path.dirname(args.save_path), f"test_{ep}.mp4"
+                os.path.dirname(args.save_path),
+                f"{args.save_path.split('/')[-1].split('.')[0]}_{ep}.mp4"
             )
             test_env.render(path=path)
             print(f"Episode saved at {path}")

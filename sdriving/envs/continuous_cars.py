@@ -23,7 +23,12 @@ from sdriving.trafficsim.world import World
 
 class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
     def __init__(
-        self, start_agents: int = 4, max_agents: int = 4, *args, **kwargs
+        self,
+        start_agents: int = 4,
+        max_agents: int = 4,
+        remove_done: int = np.inf,
+        *args,
+        **kwargs
     ):
         if "nagents" in kwargs:
             raise Exception(
@@ -32,6 +37,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             )
         super().__init__(*args, **kwargs)
         self.nagents = 0
+        self.agent_num = 0
         self.agent_ids = []
         self.agents = {a_id: None for a_id in self.agent_ids}
         self.queue1 = {a_id: None for a_id in self.get_agent_ids_list()}
@@ -42,6 +48,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
         self.start_agents = start_agents
         self.max_agents = max_agents
+        self.remove_done = remove_done
 
     def configure_action_list(self):
         # For this env I am adding smoother actions
@@ -58,6 +65,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             self.agent_ids.append(a_id)
             self.agents[a_id] = None
             self.nagents += 1
+            self.agent_num += 1
             self.queue1[a_id] = deque(maxlen=self.history_len)
             self.queue2[a_id] = deque(maxlen=self.history_len)
             self.prev_actions[a_id] = torch.zeros(2)
@@ -79,6 +87,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
             agent["vehicle"].dest_orientation = agent["vehicle"].orientation
             if not agent["goal_reach_bonus"]:
                 agent["goal_reach_bonus"] = True
+                agent["completed_time"] = 0
                 rew = self.goal_reach_bonus
                 a_id = agent["vehicle"].name
                 srd = int(self.agents[a_id]["road name"][-1])
@@ -95,10 +104,22 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                 )
                 if self.nagents < self.max_agents:
                     self._add_vehicle_with_collision_check(
-                        f"agent_{self.nagents}", srd, erd, self.mode == 2, pos=spos
+                        f"agent_{self.agent_num}", srd, erd, self.mode == 2, pos=spos
                     )
                     self.col_matrix = self.construct_collision_matrix()
             else:
+                agent["completed_time"] = agent["completed_time"] + 1
+                if agent["completed_time"] >= self.remove_done:
+                    a_id = agent["vehicle"].name
+                    self.world.dynamic_environment(a_id)
+                    self.nagents -= 1
+                    self.agent_ids.remove(a_id)
+                    # del self.agents[a_id]
+                    del self.queue1[a_id]
+                    del self.queue2[a_id]
+                    del self.prev_actions[a_id]
+                    del self.curr_actions[a_id]
+                
                 rew = -torch.abs(
                     (
                         agent["vehicle"].speed
@@ -145,6 +166,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
 
     def reset(self):
         self.nagents = 0
+        self.agent_num = 0
         self.agent_ids = []
         self.agents = {a_id: None for a_id in self.agent_ids}
         self.queue1 = {a_id: None for a_id in self.get_agent_ids_list()}

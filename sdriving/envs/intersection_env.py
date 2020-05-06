@@ -654,7 +654,10 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
 
     def post_process_rewards(self, rewards, now_dones):
         # Encourage the agents to make smoother transitions
-        for a_id, rew in rewards.items():
+        for a_id in self.get_agent_ids_list():
+            if a_id not in rewards:
+                continue
+            rew = rewards[a_id]
             pac = self.prev_actions[a_id]
             if now_dones is None:
                 # The penalty should be lasting for all the
