@@ -25,7 +25,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         *args,
         fast_model: bool = False,
         has_turns: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.fast_model = fast_model
         self.has_turns = has_turns

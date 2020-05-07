@@ -112,7 +112,9 @@ class PPO_Decentralized_Critic:
         if load_path is not None:
             ckpt = torch.load(load_path, map_location="cpu")
             self.ac.pi.load_state_dict(ckpt["actor"])
-            self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
+            self.pi_optimizer = Adam(
+                trainable_parameters(self.ac.pi), lr=pi_lr
+            )
             self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
             for state in self.pi_optimizer.state.values():
                 for k, v in state.items():
@@ -128,7 +130,9 @@ class PPO_Decentralized_Critic:
                         if torch.is_tensor(v):
                             state[k] = v.to(device)
         else:
-            self.pi_optimizer = Adam(trainable_parameters(self.ac.pi), lr=pi_lr)
+            self.pi_optimizer = Adam(
+                trainable_parameters(self.ac.pi), lr=pi_lr
+            )
             self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
 
         # Sync params across processes
@@ -136,13 +140,17 @@ class PPO_Decentralized_Critic:
         self.ac = self.ac.to(device)
 
         if proc_id() == 0:
-            eid = log_dir.split('/')[-2] if load_path is None else load_path.split('/')[-4]
+            eid = (
+                log_dir.split("/")[-2]
+                if load_path is None
+                else load_path.split("/")[-4]
+            )
             wandb.init(
                 name=eid,
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True
+                allow_val_change=True,
             )
             wandb.watch_called = False
 
@@ -288,7 +296,7 @@ class PPO_Decentralized_Critic:
                     "KL Divergence": kl,
                     "Entropy": ent,
                     "Clip Factor": cf,
-                    "Value Estimate": v_est
+                    "Value Estimate": v_est,
                 }
             )
 
@@ -316,8 +324,7 @@ class PPO_Decentralized_Critic:
 
                 next_o, r, d, info = env.step(a)
                 rlist = [
-                    torch.as_tensor(rwd).detach().cpu()
-                    for _, rwd in r.items()
+                    torch.as_tensor(rwd).detach().cpu() for _, rwd in r.items()
                 ]
                 ret = sum(rlist)
                 rlen = len(rlist)
@@ -363,10 +370,12 @@ class PPO_Decentralized_Critic:
                     self.logger.store(EpRet=ep_ret, EpLen=ep_len)
                     if terminal:
                         if proc_id() == 0:
-                            wandb.log({
-                                "Episode Return (Train)": ep_ret,
-                                "Episode Length (Train)": ep_len
-                            })
+                            wandb.log(
+                                {
+                                    "Episode Return (Train)": ep_ret,
+                                    "Episode Length (Train)": ep_len,
+                                }
+                            )
                     o, ep_ret, ep_len = env.reset(), 0, 0
 
             if (

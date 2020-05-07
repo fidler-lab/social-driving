@@ -27,8 +27,9 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
         start_agents: int = 4,
         max_agents: int = 4,
         remove_done: int = np.inf,
+        spawn_at_center: int = False,
         *args,
-        **kwargs
+        **kwargs,
     ):
         if "nagents" in kwargs:
             raise Exception(
@@ -49,6 +50,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
         self.start_agents = start_agents
         self.max_agents = max_agents
         self.remove_done = remove_done
+        self.spawn_at_center = spawn_at_center
 
     def configure_action_list(self):
         # For this env I am adding smoother actions
@@ -74,6 +76,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
 
     def handle_goal_tolerance(self, agent):
         rew = 0.0
+        a_id = agent["vehicle"].name
         if (
             agent["vehicle"].distance_from_destination() < self.goal_tolerance
         ) or (
@@ -89,28 +92,28 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                 agent["goal_reach_bonus"] = True
                 agent["completed_time"] = 0
                 rew = self.goal_reach_bonus
-                a_id = agent["vehicle"].name
                 srd = int(self.agents[a_id]["road name"][-1])
                 # FIXME: No turns for now
                 erd = (srd + 2) % 4
                 spos = self.world.road_network.roads[
                     self.agents[a_id]["road name"]
                 ].sample(x_bound=0.6, y_bound=0.6)[0]
-                side = torch.sign(
-                    agent["vehicle"].position[(srd + 1) % 2]
-                )
+                side = torch.sign(agent["vehicle"].position[(srd + 1) % 2])
                 spos[(srd + 1) % 2] = (
                     side * (torch.rand(1) * 0.15 + 0.15) * self.width
                 )
                 if self.nagents < self.max_agents:
                     self._add_vehicle_with_collision_check(
-                        f"agent_{self.agent_num}", srd, erd, self.mode == 2, pos=spos
+                        f"agent_{self.agent_num}",
+                        srd,
+                        erd,
+                        self.mode == 2,
+                        pos=spos,
                     )
                     self.col_matrix = self.construct_collision_matrix()
             else:
                 agent["completed_time"] = agent["completed_time"] + 1
                 if agent["completed_time"] >= self.remove_done:
-                    a_id = agent["vehicle"].name
                     self.world.dynamic_environment(a_id)
                     self.nagents -= 1
                     self.agent_ids.remove(a_id)
@@ -119,13 +122,38 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
                     del self.queue2[a_id]
                     del self.prev_actions[a_id]
                     del self.curr_actions[a_id]
-                
+
                 rew = -torch.abs(
                     (
                         agent["vehicle"].speed
                         / (agent["dynamics"].v_lim * self.horizon)
                     )
                 ).item()
+
+        if self.spawn_at_center:
+            if not agent["spawn_at_center"]:
+                if self.world.vehicles[a_id].grayarea:
+                    agent["spawn_at_center"] = True
+                    srd = int(self.agents[a_id]["road name"][-1])
+                    # FIXME: No turns for now
+                    erd = (srd + 2) % 4
+                    spos = self.world.road_network.roads[
+                        self.agents[a_id]["road name"]
+                    ].sample(x_bound=0.6, y_bound=0.6)[0]
+                    side = torch.sign(agent["vehicle"].position[(srd + 1) % 2])
+                    spos[(srd + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
+                    if self.nagents < self.max_agents:
+                        self._add_vehicle_with_collision_check(
+                            f"agent_{self.agent_num}",
+                            srd,
+                            erd,
+                            self.mode == 2,
+                            pos=spos,
+                        )
+                        self.col_matrix = self.construct_collision_matrix()
+
         return rew
 
     def setup_nagents_1(self):

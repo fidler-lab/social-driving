@@ -213,12 +213,14 @@ class BaseEnv:
                     collided = True
                     break
             if collided:
-                rewards[id1] -= penalty
-                rewards[id2] -= penalty
+                if id1 in rewards:
+                    rewards[id1] -= penalty
+                    now_done[id1] = True
+                if id2 in rewards:
+                    rewards[id2] -= penalty
+                    now_done[id2] = True
                 agent1["done"] = True
                 agent2["done"] = True
-                now_done[id1] = True
-                now_done[id2] = True
                 self.col_matrix[key] = True
 
     def check_collision(self, vehicle):

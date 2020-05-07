@@ -211,6 +211,7 @@ class RoadIntersectionEnv(BaseEnv):
             ],
             "prev_point": 0,
             "goal_reach_bonus": False,
+            "spawn_at_center": False,
         }
 
         int_goals = self.agents[a_id]["intermediate_goals"]
@@ -520,12 +521,7 @@ class RoadIntersectionEnv(BaseEnv):
                 dynamics_model,
                 dynamics_kwargs,
             ) = self.add_vehicle_path(
-                a_id,
-                srd,
-                erd,
-                sample,
-                spos=pos,
-                place=False,
+                a_id, srd, erd, sample, spos=pos, place=False,
             )
             vehicle = Vehicle(
                 spos,
