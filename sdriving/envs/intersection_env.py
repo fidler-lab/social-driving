@@ -90,7 +90,7 @@ class RoadIntersectionEnv(BaseEnv):
 
     def generate_world_without_agents(self):
         self.length = (torch.rand(1) * 30.0 + 40.0).item()
-        self.width = (torch.rand(1) * 20.0 + 10.0).item()
+        self.width = (torch.rand(1) * 15.0 + 15.0).item()
         time_green = int((torch.rand(1) / 2 + 1) * self.time_green)
         return generate_intersection_world_4signals(
             length=self.length,

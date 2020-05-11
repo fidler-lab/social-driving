@@ -37,10 +37,10 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         time_green = int((torch.rand(1) / 2 + 1) * self.time_green)
         if self.has_turns:
             gen = generate_intersection_world_12signals
-            ordering = random.choice(range(4))
+            ordering = random.choice(range(8))
         else:
             gen = generate_intersection_world_4signals
-            ordering = random.choice(range(12))
+            ordering = random.choice(range(2))
         return gen(
             length=self.length,
             road_width=self.width,
@@ -164,6 +164,19 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                     )
             else:
                 spos = sroad.offset.clone()
+        else:
+            if sample:
+                s_pos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
+                if hasattr(self, "lane_side"):
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
+                    s_pos[(int(srd[-1]) + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
+            else:
+                s_pos = sroad.offset.clone()
+            spos[int(srd[-1]) % 2] = s_pos[int(srd[-1]) % 2]
 
         track = self._get_track(
             self.world,
@@ -219,7 +232,13 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
 
     def post_process_rewards(self, rewards, now_dones):
         # Encourage the agents to make smoother transitions
-        for a_id, rew in rewards.items():
+        for a_id in self.get_agent_ids_list():
+            if a_id not in rewards:
+                continue
+            rew = rewards[a_id]
+            if a_id not in self.prev_actions or a_id not in self.curr_actions:
+                # Agents are removed in case of Continuous Flow Environments
+                continue
             pac = self.prev_actions[a_id]
             if now_dones is None:
                 # The penalty should be lasting for all the

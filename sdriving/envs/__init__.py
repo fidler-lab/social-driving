@@ -4,6 +4,7 @@ import sys
 from sdriving.envs.base_env import BaseEnv
 from sdriving.envs.continuous_cars import (
     RoadIntersectionContinuousFlowControlEnv,
+    RoadIntersectionContinuousFlowControlAccelerationEnv
 )
 from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,

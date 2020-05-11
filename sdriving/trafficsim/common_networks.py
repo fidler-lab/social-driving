@@ -151,54 +151,48 @@ def generate_intersection_world_12signals(
     col_map = {0.0: "g", 1.0: "r", 0.5: "y"}
 
     vals = []
-    vals.append([0.0, 0.5] + [1.0, 1.0] * 4 + [1.0, 0.5])
+    vals.append([0.0, 0.5] + [1.0, 1.0] * 2 + [1.0, 0.5])
     for i in range(2, len(vals[0]), 2):
         vals.append(vals[0][-i:] + vals[0][:-i])
 
     mapping = {}
+    mapping[(0, 1)] = vals[0]
     mapping[(0, 2)] = vals[0]
-    mapping[(2, 0)] = vals[0]
-    mapping[(2, 1)] = vals[0]
     mapping[(0, 3)] = vals[0]
-    mapping[(1, 3)] = vals[1]
-    mapping[(3, 1)] = vals[1]
-    mapping[(3, 2)] = vals[1]
     mapping[(1, 0)] = vals[1]
-    mapping[(1, 2)] = vals[2]
-    mapping[(2, 3)] = vals[3]
-    mapping[(3, 0)] = vals[4]
-    mapping[(0, 1)] = vals[5]
+    mapping[(1, 2)] = vals[1]
+    mapping[(1, 3)] = vals[1]
+    mapping[(2, 0)] = vals[2]
+    mapping[(2, 1)] = vals[2]
+    mapping[(2, 3)] = vals[2]
+    mapping[(3, 0)] = vals[3]
+    mapping[(3, 1)] = vals[3]
+    mapping[(3, 2)] = vals[3]
     colors = {}
+
     for idx, v in mapping.items():
         colors[idx] = [col_map[value] for value in v]
 
-    world.add_traffic_signal(
-        f"{name}_0",
-        f"{name}_2",
-        val=mapping[(0, 2)],
-        start_signal=ordering,
-        times=[time_green - 20, 20] * 6,
-        colors=colors[(0, 2)],
-        add_reverse=True,
-    )
-    world.add_traffic_signal(
-        f"{name}_1",
-        f"{name}_3",
-        val=mapping[(1, 3)],
-        start_signal=ordering,
-        times=[time_green - 20, 20] * 6,
-        colors=colors[(1, 3)],
-        add_reverse=True,
-    )
+    times = [time_green - 20, 20] * len(vals)
+
+    for rd_pair in [(0, 2), (2, 0), (1, 3), (3, 1)]:
+        world.add_traffic_signal(
+            f"{name}_{rd_pair[0]}",
+            f"{name}_{rd_pair[1]}",
+            val=mapping[rd_pair],
+            start_signal=ordering,
+            times=times,
+            colors=colors[rd_pair],
+        )
 
     orientation = torch.as_tensor(orientation)
     center = torch.as_tensor(center)
     for i, loc in enumerate(
         [
             (road_width / 5, road_width / 2),
-            (road_width / 2, -road_width / 5),
-            (-road_width / 5, -road_width / 2),
             (-road_width / 2, road_width / 5),
+            (-road_width / 5, -road_width / 2),
+            (road_width / 2, -road_width / 5),
         ]
     ):
         idx = ((i + 1) % 4, i)
@@ -207,7 +201,7 @@ def generate_intersection_world_12signals(
             f"{name}_{idx[1]}",
             val=mapping[idx],
             start_signal=ordering,
-            times=[time_green - 20, 20] * 6,
+            times=times,
             colors=colors[idx],
             location=transform_2d_coordinates(
                 torch.as_tensor(loc), orientation, center
@@ -228,7 +222,7 @@ def generate_intersection_world_12signals(
             f"{name}_{idx[1]}",
             val=mapping[idx],
             start_signal=ordering,
-            times=[time_green - 20, 20] * 6,
+            times=times,
             colors=colors[idx],
             location=transform_2d_coordinates(
                 torch.as_tensor(loc), orientation, center

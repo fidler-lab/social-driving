@@ -68,19 +68,14 @@ if __name__ == "__main__":
     df = dict()
     # FIXME: Generalize for other gym spaces
     # Right now only handle Tuple
-    if args.env in (
-        "RoadIntersectionControlEnv",
-        "RoadIntersectionControlAccelerationEnv",
-        "RoadIntersectionControlImitateEnv",
-        "RoadIntersectionContinuousFlowControlEnv",
-    ):
+    if "RoadIntersection" in args.env:
         df["Traffic Signal"] = []
         df["Velocity"] = []
         # This is the distance from signal only when signal is visible
         df["Distance from Signal"] = []
         df["Agent ID"] = []
         df["Acceleration"] = []
-        if args.env != "RoadIntersectionControlAccelerationEnv":
+        if "ControlAccelerationEnv" not in args.env:
             df["Steering Angle"] = []
 
     total_ret = 0.0
@@ -104,7 +99,7 @@ if __name__ == "__main__":
                     a[key] = ac.act(obs, True)
                 else:
                     a[key] = torch.as_tensor(test_env.action_space.sample())
-                if args.env == "RoadIntersectionControlAccelerationEnv":
+                if "ControlAccelerationEnv" in args.env:
                     df["Acceleration"].append(
                         test_env.actions_list[a[key]][0, 0].item()
                     )
