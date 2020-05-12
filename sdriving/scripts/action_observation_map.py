@@ -77,6 +77,7 @@ if __name__ == "__main__":
         df["Acceleration"] = []
         if "ControlAccelerationEnv" not in args.env:
             df["Steering Angle"] = []
+            df["Lane Distance"] = []
 
     total_ret = 0.0
     count = 0
@@ -110,6 +111,12 @@ if __name__ == "__main__":
                     df["Acceleration"].append(
                         test_env.actions_list[a[key]][0, 1].item()
                     )
+
+                    pt1, pt2 = test_env.get_next_two_goals(key)
+                    lane_distance = test_env.world.get_distance_from_road_axis(
+                        key, pt1, test_env.agents[key]["original_destination"]
+                    )
+                    df["Lane Distance"].append(lane_distance.item())
                 if args.verbose:
                     print(
                         f"Agent: {key} || Observation: {obs[0][:-4]} || Action: {a[key]}"

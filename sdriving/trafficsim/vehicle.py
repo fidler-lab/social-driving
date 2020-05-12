@@ -219,6 +219,23 @@ class Vehicle:
                 )
             )
 
+    def drawing_info(self):
+        info = {
+            obj: self.to_numpy(getattr(self, obj))
+            for obj in [
+                "position",
+                "get_coordinates",
+                "orientation",
+                "min_lidar_range",
+                "max_lidar_range",
+                "safety_circle"
+            ]
+        }
+        if self.destination is not None:
+            info["destination"] = self.to_numpy(self.destination)
+        info["dimension"] = self.dimensions[0].item()
+        return info
+
 
 class VehicleEntity:
     def __init__(self, vehicle: Vehicle, road, grayarea: bool):
