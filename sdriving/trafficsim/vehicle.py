@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+from gym.envs.classic_control import rendering
+
 from sdriving.trafficsim.utils import (
     angle_normalize,
     circle_area_overlap,
@@ -63,6 +65,8 @@ class Vehicle:
         self.min_lidar_range = min_lidar_range
         self.vision_range = vision_range
         self.device = torch.device("cpu")
+
+        self.render_utils = None
 
     def to(self, device):
         if device == self.device:
@@ -161,6 +165,41 @@ class Vehicle:
                 obj.safety_circle,
             )
         raise NotImplementedError
+
+    def render_pyglet(self, viewer, zoom_factor=10.0):
+        if self.render_utils is None:
+            # The bottom left corner is (0, 0)
+            trans_factor = torch.as_tensor([viewer.width / 2, viewer.height / 2])
+
+            coord = self.base_coordinates * zoom_factor + trans_factor
+            box = rendering.FilledPolygon(coord.numpy())
+            box.set_color(0.0, 1.0, 0.0)
+            transform = rendering.Transform()
+            box.add_attr(transform)
+            viewer.add_geom(box)
+
+            head_coord = torch.as_tensor([[0.0, 0.0], [self.dimensions[0], 0.0]])
+            head_coord = head_coord * zoom_factor + trans_factor
+            heading = rendering.PolyLine(head_coord, close=True)
+            heading.set_color(0.0, 0.0, 1.0)
+            heading.add_attr(transform)
+            viewer.add_geom(heading)
+
+            # TODO: Add the lidar range circles
+            self.render_utils = {
+                "transform": transform,
+                "zoom_factor": zoom_factor,
+                "trans_factor": trans_factor,
+            }
+
+        transform = self.render_utils["transform"]
+        zoom_factor = self.render_utils["zoom_factor"]
+        trans_factor = self.render_utils["trans_factor"]
+
+        translation = (self.position * zoom_factor + trans_factor).numpy()
+        print(translation)
+        transform.set_translation(*translation)
+        transform.set_rotation(self.orientation.numpy())
 
     def render(
         self,

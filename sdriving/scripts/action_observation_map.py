@@ -75,6 +75,8 @@ if __name__ == "__main__":
         df["Distance from Signal"] = []
         df["Agent ID"] = []
         df["Acceleration"] = []
+        df["Time Step"] = []
+        df["Episode"] = []
         if "ControlAccelerationEnv" not in args.env:
             df["Steering Angle"] = []
             df["Lane Distance"] = []
@@ -83,6 +85,7 @@ if __name__ == "__main__":
     count = 0
     for ep in range(args.num_test_episodes):
         o, done, ep_ret, ep_len = test_env.reset(), False, 0, 0
+        timestep = {}
         while not done:
             # Take deterministic actions at test time
             a = {}
@@ -117,6 +120,11 @@ if __name__ == "__main__":
                         key, pt1, test_env.agents[key]["original_destination"]
                     )
                     df["Lane Distance"].append(lane_distance.item())
+                if key not in timestep:
+                    timestep[key] = 1
+                df["Time Step"].append(timestep[key])
+                timestep[key] += 1
+                df["Episode"].append(ep)
                 if args.verbose:
                     print(
                         f"Agent: {key} || Observation: {obs[0][:-4]} || Action: {a[key]}"
