@@ -389,6 +389,7 @@ class RoadIntersectionEnv(BaseEnv):
         sample: bool,
         spos=None,
         place: bool = True,
+        dynamics_model: torch.nn.Module = VehicleDynamics,
     ):
         srd = f"traffic_signal_world_{srd}"
         sroad = self.world.road_network.roads[srd]
@@ -447,7 +448,7 @@ class RoadIntersectionEnv(BaseEnv):
                 orientation,
                 end_pos,
                 dest_orientation,
-                VehicleDynamics,
+                dynamics_model,
                 {},
             )
         else:
@@ -459,7 +460,7 @@ class RoadIntersectionEnv(BaseEnv):
                 orientation,
                 end_pos,
                 dest_orientation,
-                VehicleDynamics,
+                dynamics_model,
                 {},
             )
 

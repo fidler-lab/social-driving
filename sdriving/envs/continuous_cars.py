@@ -135,7 +135,10 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
 
         if self.spawn_at_center:
             if not agent["spawn_at_center"]:
-                if a_id in self.world.vehicles and self.world.vehicles[a_id].grayarea:
+                if (
+                    a_id in self.world.vehicles
+                    and self.world.vehicles[a_id].grayarea
+                ):
                     agent["spawn_at_center"] = True
                     srd = int(self.agents[a_id]["road name"][-1])
                     # FIXME: No turns for now
@@ -220,8 +223,8 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
 
 class RoadIntersectionContinuousFlowControlAccelerationEnv(
     RoadIntersectionContinuousFlowControlEnv,
-    RoadIntersectionControlAccelerationEnv
-):    
+    RoadIntersectionControlAccelerationEnv,
+):
     def configure_action_list(self):
         RoadIntersectionControlAccelerationEnv.configure_action_list(self)
 

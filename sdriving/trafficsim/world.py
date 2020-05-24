@@ -367,6 +367,14 @@ class World:
         for ts, _ in self.traffic_signals.values():
             ts.reset()
 
+    def get_configuration_data(self, name: str, data: dict):
+        config = {name: data}
+        config["Traffic Signal"] = []
+        for (ts, pos) in self.traffic_signals.values():
+            pos = [pos[0].item(), pos[1].item()]
+            config["Traffic Signal"].append({"name": ts.name, "position": pos})
+        return config
+
     def render(self, *args, backend: str = "matplotlib", **kwargs):
         if backend == "matplotlib":
             self.render_matplotlib(*args, **kwargs)
@@ -386,7 +394,9 @@ class World:
     def _render_vehicle(self, vname, ax):
         self.vehicles[vname].vehicle.render(ax, color="black")
 
-    def render_matplotlib(self, pts=None, path=None, render_vehicle=None, lims=None):
+    def render_matplotlib(
+        self, pts=None, path=None, render_vehicle=None, lims=None
+    ):
         if render_vehicle is None:
             render_vehicle = self._render_vehicle
 

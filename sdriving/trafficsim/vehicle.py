@@ -169,7 +169,9 @@ class Vehicle:
     def render_pyglet(self, viewer, zoom_factor=10.0):
         if self.render_utils is None:
             # The bottom left corner is (0, 0)
-            trans_factor = torch.as_tensor([viewer.width / 2, viewer.height / 2])
+            trans_factor = torch.as_tensor(
+                [viewer.width / 2, viewer.height / 2]
+            )
 
             coord = self.base_coordinates * zoom_factor + trans_factor
             box = rendering.FilledPolygon(coord.numpy())
@@ -178,7 +180,9 @@ class Vehicle:
             box.add_attr(transform)
             viewer.add_geom(box)
 
-            head_coord = torch.as_tensor([[0.0, 0.0], [self.dimensions[0], 0.0]])
+            head_coord = torch.as_tensor(
+                [[0.0, 0.0], [self.dimensions[0], 0.0]]
+            )
             head_coord = head_coord * zoom_factor + trans_factor
             heading = rendering.PolyLine(head_coord, close=True)
             heading.set_color(0.0, 0.0, 1.0)
@@ -267,7 +271,7 @@ class Vehicle:
                 "orientation",
                 "min_lidar_range",
                 "max_lidar_range",
-                "safety_circle"
+                "safety_circle",
             ]
         }
         if self.destination is not None:

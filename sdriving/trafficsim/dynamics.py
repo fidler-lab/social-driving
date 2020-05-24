@@ -283,3 +283,99 @@ class FixedTrackAccelerationModel(nn.Module):
                 theta = angle_normalize(math.pi / 2 + phi)
 
         return torch.cat([x, y, v, theta], dim=1)
+
+
+class SplineAccelerationModel(nn.Module):
+    # NOTE: This is not an accurate model following the kinematics model.
+    def __init__(
+        self,
+        dt: float = 0.10,
+        dim: Union[float, List[float]] = 4.48,
+        v_lim: Union[float, List[float]] = 5.0,
+    ):
+        if isinstance(dim, float):
+            dim = [dim]
+        if isinstance(v_lim, float):
+            v_lim = [v_lim]
+
+        assert len(dim) == len(v_lim)
+
+        super().__init__()
+
+        self.dt = dt
+        self.dim = torch.as_tensor(dim).unsqueeze(1)
+        self.v_lim = torch.as_tensor(v_lim).unsqueeze(1)
+
+        self.device = torch.device("cpu")
+        self.nbatch = len(dim)
+
+        self.points = torch.zeros(1, 2)
+        self.orientations = None
+        self.cur_position = 0
+
+    def to(self, device):
+        if device == self.device:
+            return
+        self.dim = self.dim.to(device)
+        self.v_lim = self.v_lim.to(device)
+        self.device = device
+        self.points = self.points.to(device)
+        self.orientations = self.orientations.to(device)
+
+    def register(self, points: torch.Tensor):
+        # points --> N x 2
+        self.points = points.to(self.device)
+        pdiff = self.points[1:, :] - self.points[:-1, :]
+        self.orientations = torch.atan(pdiff[:, 1] / (pdiff[:, 0] + 1e-7))
+        self.orientations = torch.cat(
+            [self.orientations, self.orientations[-1].unsqueeze(0)]
+        )
+        self.orientations.unsqueeze_(1)
+        self.cur_position = 0
+
+    def get_next_target(self):
+        return self.points[
+            min(self.cur_position + 1, self.points.size(0) - 1), :
+        ]
+
+    def _nearest_point_on_spline(self, pt: torch.Tensor):
+        cpos = self.cur_position
+        min_pos = max(0, cpos - 5)
+        max_pos = min(self.points.size(0) - 1, cpos + 5)
+        npos = min_pos + torch.argmin(
+            ((pt.unsqueeze(0) - self.points[min_pos:max_pos, :]) ** 2).sum()
+        )
+        self.cur_position = npos
+        return npos
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
+        """
+        Args:
+            state: N x 4 Dimensional Tensor, where N is the batch size, and
+                   the second dimension represents
+                   {x coordinate, y coordinate, velocity, orientation}
+            action: N x 1 Dimensional Tensor, where N is the batch size, and
+                    the second dimension represents
+                    {acceleration}
+        """
+        assert state.size(0) == 1
+
+        dt = self.dt
+        x = state[:, 0:1]
+        y = state[:, 1:2]
+        v = state[:, 2:3]
+        theta = state[:, 3:4]
+        acceleration = action[:, 0:1]
+
+        x = x + v * torch.cos(theta) * dt
+        y = y + v * torch.sin(theta) * dt
+        pos = self._nearest_point_on_spline(torch.as_tensor([x, y]))
+        x, y = self.points[pos, :]
+        x = x[None, None]
+        y = y[None, None]
+        theta = self.orientations[pos, :].unsqueeze(0)
+
+        v_lim = self.v_lim
+        v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
+
+        return torch.cat([x, y, v, theta], dim=1)
