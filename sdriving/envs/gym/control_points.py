@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from ray.tune.registry import register_env
 from sdriving.agents.model import ActiveSplineTorch
 
 
@@ -199,5 +198,3 @@ class ControlPointEnv(gym.Env):
         if fname:
             plt.savefig(fname)
 
-
-register_env("ControlPoint-v0", lambda config: ControlPointEnv(config))
