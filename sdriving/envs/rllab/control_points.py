@@ -1,8 +1,11 @@
 import itertools
 import random
+from typing import Optional
 
 import gym
 from gym.spaces import Discrete, Box
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
@@ -34,6 +37,7 @@ class ControlPointEnv(gym.Env):
         self.goal_pos = None
         self.distance_norm = None
         self.points = None
+        self.cps = None
 
     def _configure_action_space(self) -> tuple:
         vals = np.arange(-1.0, 1.01, 0.2)
@@ -44,6 +48,11 @@ class ControlPointEnv(gym.Env):
         actions = list(
             itertools.product(*[xy_vals for _ in range(self.cp_num - 1)])
         )
+        acts = []
+        for ac in actions:
+            if len(set(ac)) == self.cp_num - 1:
+                acts.append(ac)
+        actions = acts
         return actions, Discrete(len(actions))
 
     def _configure_observation_space(self) -> Box:
@@ -102,10 +111,11 @@ class ControlPointEnv(gym.Env):
         assert action in self.action_space
 
         cps = [self.start_pos.unsqueeze(0)]
-        cps.extend(self.actions[action])
+        cps.extend([ac * self.max_val for ac in self.actions[action]])
         cps.append(self.goal_pos.unsqueeze(0))
         cps = torch.cat(cps)
 
+        self.cps = cps
         self.points = self.spline(cps.unsqueeze(0)).squeeze(0)
 
         return self._get_state(), self._get_reward(self.points), True, {}
@@ -130,10 +140,66 @@ class ControlPointEnv(gym.Env):
             (self.length * 2 + self.width) ** 2 + self.width ** 2
         )
 
+        self.points = None
+        self.cps = None
+
         return self._get_state()
 
-    def render(self):
-        pass
+    def _collision_lines(self):
+        p1 = self.min_val
+        p2 = self.max_val
+        return [
+            [-p1, -p2],
+            [p1, -p2],
+            [p1, -p1],
+            [p2, -p1],
+            [p2, p1],
+            [p1, p1],
+            [p1, p2],
+            [-p1, p2],
+            [-p1, p1],
+            [-p2, p1],
+            [-p2, -p1],
+            [-p1, -p1]
+        ]
+
+    def render(self, fname: Optional[str] = None):
+        plt.xlim((-100.0, 100.0))
+        plt.ylim((-100.0, 100.0))
+
+        if self.start_pos is not None:
+            plt.plot(
+                self.start_pos[0].item(),
+                self.start_pos[1].item(),
+                color='r',
+                marker='o',
+            )
+        if self.goal_pos is not None:
+            plt.plot(
+                self.goal_pos[0].item(),
+                self.goal_pos[1].item(),
+                color='g',
+                marker='o',
+            )
+
+        if self.cps is not None:
+            for cp in self.cps:
+                plt.plot(cp[0].item(), cp[1].item(), color='y', marker='x')
+
+        if self.points is not None:
+            for i, pt in enumerate(self.points):
+                if not i % 4 == 1:
+                    continue
+                plt.plot(pt[0].item(), pt[1].item(), color='b', marker='.')
+
+        edges = self._collision_lines()
+        for i in range(len(edges)):
+            ed1 = edges[i]
+            ed2 = edges[(i + 1) % len(edges)]
+            plt.plot([ed1[0], ed2[0]], [ed1[1], ed2[1]], color="black")
+
+        if fname:
+            plt.savefig(fname)
 
 
 register_env("ControlPoint-v0", lambda config: ControlPointEnv(config))
