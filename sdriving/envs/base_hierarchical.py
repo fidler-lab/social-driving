@@ -64,7 +64,7 @@ class BaseHierarchicalEnv(BaseEnv):
         }
 
     def get_action_space(self):
-        return None 
+        return None
 
     def get_observation_space(self):
         return None
@@ -135,7 +135,7 @@ class BaseHierarchicalEnv(BaseEnv):
         assert all(
             self.metacontrol_cache.values()
         ), "Control Points need to be set"
-        super().step(actions, timesteps, render, tolerance, **kwargs)
+        return super().step(actions, timesteps, render, tolerance, **kwargs)
 
     def update_extrinsic_reward(self):
         rewards = super().get_reward()

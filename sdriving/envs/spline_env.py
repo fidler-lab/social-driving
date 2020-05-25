@@ -113,14 +113,14 @@ class SplineRoadIntersectionAccelerationControlEnv(
     def _configure_metacontroller_actions(self):
         x_vals = np.arange(-1.0, 1.01, self.meta_controller_discretization)
         y_vals = np.arange(-1.0, 1.01, self.meta_controller_discretization)
+        x_vals *= self.length + self.width / 2
+        y_vals *= self.length + self.width / 2
         xy_vals = [
             torch.as_tensor(xy).unsqueeze(0)
             for xy in itertools.product(x_vals, y_vals)
         ]
         self.meta_controller_actions = list(
-            itertools.product(
-                *[xy_vals for _ in range(self.cp_num - 1)]
-            )
+            itertools.product(*[xy_vals for _ in range(self.cp_num - 1)])
         )
 
     def _configure_controller_actions(self):
@@ -147,8 +147,8 @@ class SplineRoadIntersectionAccelerationControlEnv(
         max_length = self.mean_length + self.std_length
         # {x_s, y_s, x_g, y_g, width, length}
         return Box(
-            low=np.array([-1.0, -1.0, -1.0, -1.0, min_width, min_length]),
-            high=np.array([1.0, 1.0, 1.0, 1.0, max_width, max_length]),
+            low=np.array([-1.0] * 4 + [min_width, min_length]),
+            high=np.array([1.0] * 4 + [max_width, max_length]),
         )
 
     def _get_controller_observation_space(self):

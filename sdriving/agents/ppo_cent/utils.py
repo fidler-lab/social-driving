@@ -180,8 +180,8 @@ class PPOBuffer:
 
         Also, resets some pointers in the buffer.
         """
-        for a_id in self.agent_list:
-            assert self.ptr[a_id] == self.max_size
+        # for a_id in self.agent_list:
+        #     assert self.ptr[a_id] == self.max_size
 
         for a_id in self.agent_list:
             self.ptr[a_id], self.path_start_idx[a_id] = 0, 0

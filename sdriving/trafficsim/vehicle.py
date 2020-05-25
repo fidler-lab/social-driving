@@ -5,8 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from gym.envs.classic_control import rendering
-
 from sdriving.trafficsim.utils import (
     angle_normalize,
     circle_area_overlap,
@@ -166,6 +164,7 @@ class Vehicle:
             )
         raise NotImplementedError
 
+    """
     def render_pyglet(self, viewer, zoom_factor=10.0):
         if self.render_utils is None:
             # The bottom left corner is (0, 0)
@@ -204,6 +203,7 @@ class Vehicle:
         print(translation)
         transform.set_translation(*translation)
         transform.set_rotation(self.orientation.numpy())
+    """
 
     def render(
         self,
