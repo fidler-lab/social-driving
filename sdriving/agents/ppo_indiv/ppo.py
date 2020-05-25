@@ -340,7 +340,7 @@ class PPO_Decentralized_Critic:
                         obs[0].cpu(),
                         obs[1].cpu(),
                         a[key].cpu(),
-                        ret / rlen,  # torch.as_tensor(r[key]).detach().cpu(),
+                        torch.as_tensor(r[key]).detach().cpu(),
                         v[key].cpu(),
                         logp[key].cpu(),
                     )

@@ -71,7 +71,7 @@ class ControlPointEnv(gym.Env):
             y = (random.random() - 0.5) * self.width
         return np.array([x, y])
 
-    def _get_state(self) -> torch.Tensor:
+    def _get_state(self) -> np.ndarray:
         rng = self.length + self.width / 2
         return torch.as_tensor(
             [
@@ -82,7 +82,7 @@ class ControlPointEnv(gym.Env):
                 self.width,
                 self.length,
             ]
-        )
+        ).numpy()
 
     def _outside_point(self, point: torch.Tensor) -> bool:
         x, y = point
@@ -108,8 +108,6 @@ class ControlPointEnv(gym.Env):
         return reward / self.distance_norm
 
     def step(self, action) -> tuple:
-        assert action in self.action_space
-
         cps = [self.start_pos.unsqueeze(0)]
         cps.extend([ac * self.max_val for ac in self.actions[action]])
         cps.append(self.goal_pos.unsqueeze(0))
@@ -120,7 +118,7 @@ class ControlPointEnv(gym.Env):
 
         return self._get_state(), self._get_reward(self.points), True, {}
 
-    def reset(self) -> torch.Tensor:
+    def reset(self) -> np.ndarray:
         self.length = (
             random.random() * (self.max_length - self.min_length)
             + self.min_length

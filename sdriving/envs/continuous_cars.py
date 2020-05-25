@@ -229,8 +229,8 @@ class RoadIntersectionContinuousFlowControlAccelerationEnv(
         RoadIntersectionControlAccelerationEnv.configure_action_list(self)
 
     def generate_world_without_agents(self):
-        self.length = (torch.rand(1) * 50.0 + 40.0).item()
-        self.width = (torch.rand(1) * 20.0 + 20.0).item()
+        self.length = (torch.rand(1) * 30.0 + 50.0).item()
+        self.width = (torch.rand(1) * 10.0 + 20.0).item()
         time_green = int((torch.rand(1) / 2 + 1) * self.time_green)
         if self.has_turns:
             gen = generate_intersection_world_12signals
@@ -290,7 +290,9 @@ class RoadIntersectionContinuousFlowControlAccelerationEnv(
                 spos = self.world.road_network.roads[
                     self.agents[a_id]["road name"]
                 ].sample(x_bound=0.6, y_bound=0.6)[0]
-                side = torch.sign(agent["vehicle"].position[(srd + 1) % 2])
+                side = self.lane_side * (
+                    1 if srd in (1, 2) else -1
+                )
                 spos[(srd + 1) % 2] = (
                     side * (torch.rand(1) * 0.15 + 0.15) * self.width
                 )
@@ -333,7 +335,9 @@ class RoadIntersectionContinuousFlowControlAccelerationEnv(
                     spos = self.world.road_network.roads[
                         self.agents[a_id]["road name"]
                     ].sample(x_bound=0.6, y_bound=0.6)[0]
-                    side = torch.sign(agent["vehicle"].position[(srd + 1) % 2])
+                    side = self.lane_side * (
+                        1 if srd in (1, 2) else -1
+                    )
                     spos[(srd + 1) % 2] = (
                         side * (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
