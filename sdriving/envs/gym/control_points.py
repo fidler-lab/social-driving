@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from ray.tune.registry import register_env
 from sdriving.agents.model import ActiveSplineTorch
 
 
@@ -158,7 +157,7 @@ class ControlPointEnv(gym.Env):
             [-p1, p1],
             [-p2, p1],
             [-p2, -p1],
-            [-p1, -p1]
+            [-p1, -p1],
         ]
 
     def render(self, fname: Optional[str] = None):
@@ -169,26 +168,26 @@ class ControlPointEnv(gym.Env):
             plt.plot(
                 self.start_pos[0].item(),
                 self.start_pos[1].item(),
-                color='r',
-                marker='o',
+                color="r",
+                marker="o",
             )
         if self.goal_pos is not None:
             plt.plot(
                 self.goal_pos[0].item(),
                 self.goal_pos[1].item(),
-                color='g',
-                marker='o',
+                color="g",
+                marker="o",
             )
 
         if self.cps is not None:
             for cp in self.cps:
-                plt.plot(cp[0].item(), cp[1].item(), color='y', marker='x')
+                plt.plot(cp[0].item(), cp[1].item(), color="y", marker="x")
 
         if self.points is not None:
             for i, pt in enumerate(self.points):
                 if not i % 4 == 1:
                     continue
-                plt.plot(pt[0].item(), pt[1].item(), color='b', marker='.')
+                plt.plot(pt[0].item(), pt[1].item(), color="b", marker=".")
 
         edges = self._collision_lines()
         for i in range(len(edges)):
@@ -199,5 +198,3 @@ class ControlPointEnv(gym.Env):
         if fname:
             plt.savefig(fname)
 
-
-register_env("ControlPoint-v0", lambda config: ControlPointEnv(config))
