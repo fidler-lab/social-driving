@@ -45,11 +45,11 @@ class ControlPointEnv(gym.Env):
             for xy in itertools.product(vals, vals)
         ]
         actions = list(
-            itertools.product(*[xy_vals for _ in range(self.cp_num - 1)])
+            itertools.product(*[xy_vals for _ in range(self.cp_num)])
         )
         acts = []
         for ac in actions:
-            if len(set(ac)) == self.cp_num - 1:
+            if len(set(ac)) == self.cp_num:
                 acts.append(ac)
         actions = acts
         return actions, Discrete(len(actions))
@@ -99,17 +99,19 @@ class ControlPointEnv(gym.Env):
         reward = 0.0
         prev_point = points[0]
         for i, point in enumerate(points[1:], start=1):
-            dist = ((point - prev_point) ** 2).sum()
+            dist = ((point - prev_point) ** 2).sum().sqrt()
             reward -= dist.item()
             prev_point = points[i]
             if self._outside_point(point):
-                return -5.0
+                return -500.0
+        print(reward)
+        reward -= ((points[-1] - self.goal_pos) ** 2).sum().sqrt()
         return reward / self.distance_norm
 
     def step(self, action) -> tuple:
         cps = [self.start_pos.unsqueeze(0)]
         cps.extend([ac * self.max_val for ac in self.actions[action]])
-        cps.append(self.goal_pos.unsqueeze(0))
+        # cps.append(self.goal_pos.unsqueeze(0))
         cps = torch.cat(cps)
 
         self.cps = cps
@@ -133,9 +135,10 @@ class ControlPointEnv(gym.Env):
         self.start_pos = torch.as_tensor(self._sample_point()).float()
         self.goal_pos = torch.as_tensor(self._sample_point()).float()
 
-        self.distance_norm = self.p_num * np.sqrt(
-            (self.length * 2 + self.width) ** 2 + self.width ** 2
-        )
+        # self.distance_norm = self.p_num * np.sqrt(
+        #     (self.length * 2 + self.width) ** 2 + self.width ** 2
+        # )
+        self.distance_norm = 1.0
 
         self.points = None
         self.cps = None

@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     # NOTE: This doesn't support preemption :'(
     ppo_pytorch(
-        lambda _: env(**args.env_kwargs),
+        lambda : env(args.env_kwargs),
         ac_kwargs=args.ac_kwargs,
         seed=args.seed,
         steps_per_epoch=args.steps_per_epoch,
