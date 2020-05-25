@@ -71,7 +71,7 @@ class ControlPointEnv(gym.Env):
             y = (random.random() - 0.5) * self.width
         return np.array([x, y])
 
-    def _get_state(self) -> torch.Tensor:
+    def _get_state(self) -> np.ndarray:
         rng = self.length + self.width / 2
         return torch.as_tensor(
             [
@@ -82,7 +82,7 @@ class ControlPointEnv(gym.Env):
                 self.width,
                 self.length,
             ]
-        )
+        ).numpy()
 
     def _outside_point(self, point: torch.Tensor) -> bool:
         x, y = point
@@ -108,8 +108,6 @@ class ControlPointEnv(gym.Env):
         return reward / self.distance_norm
 
     def step(self, action) -> tuple:
-        assert action in self.action_space
-
         cps = [self.start_pos.unsqueeze(0)]
         cps.extend([ac * self.max_val for ac in self.actions[action]])
         cps.append(self.goal_pos.unsqueeze(0))
@@ -120,7 +118,7 @@ class ControlPointEnv(gym.Env):
 
         return self._get_state(), self._get_reward(self.points), True, {}
 
-    def reset(self) -> torch.Tensor:
+    def reset(self) -> np.ndarray:
         self.length = (
             random.random() * (self.max_length - self.min_length)
             + self.min_length
@@ -160,7 +158,7 @@ class ControlPointEnv(gym.Env):
             [-p1, p1],
             [-p2, p1],
             [-p2, -p1],
-            [-p1, -p1]
+            [-p1, -p1],
         ]
 
     def render(self, fname: Optional[str] = None):
@@ -171,26 +169,26 @@ class ControlPointEnv(gym.Env):
             plt.plot(
                 self.start_pos[0].item(),
                 self.start_pos[1].item(),
-                color='r',
-                marker='o',
+                color="r",
+                marker="o",
             )
         if self.goal_pos is not None:
             plt.plot(
                 self.goal_pos[0].item(),
                 self.goal_pos[1].item(),
-                color='g',
-                marker='o',
+                color="g",
+                marker="o",
             )
 
         if self.cps is not None:
             for cp in self.cps:
-                plt.plot(cp[0].item(), cp[1].item(), color='y', marker='x')
+                plt.plot(cp[0].item(), cp[1].item(), color="y", marker="x")
 
         if self.points is not None:
             for i, pt in enumerate(self.points):
                 if not i % 4 == 1:
                     continue
-                plt.plot(pt[0].item(), pt[1].item(), color='b', marker='.')
+                plt.plot(pt[0].item(), pt[1].item(), color="b", marker=".")
 
         edges = self._collision_lines()
         for i in range(len(edges)):
