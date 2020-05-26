@@ -123,7 +123,7 @@ class BaseHierarchicalEnv(BaseEnv):
         for a_id, idx in actions.items():
             cps = [self.agents[a_id]["vehicle"].position.unsqueeze(0)]
             cps.extend(self.meta_controller_actions[idx])
-            cps.append(self.agents[a_id]["original_destination"].unsqueeze(0))
+            # cps.append(self.agents[a_id]["original_destination"].unsqueeze(0))
             cps = torch.cat(cps)
             # cps should include the starting and ending positions
             self.control_points[a_id] = cps

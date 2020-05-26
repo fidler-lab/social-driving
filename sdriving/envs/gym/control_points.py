@@ -20,6 +20,7 @@ class ControlPointEnv(gym.Env):
         self.max_length = config.get("max_length", 70)
         self.min_width = config.get("min_width", 15)
         self.max_width = config.get("max_width", 30)
+        self.continuous_actions = config.get("continuous_actions", True)
 
         actions, action_space = self._configure_action_space()
         self.actions = actions
@@ -39,6 +40,10 @@ class ControlPointEnv(gym.Env):
         self.cps = None
 
     def _configure_action_space(self) -> tuple:
+        if self.continuous_actions:
+            return None, Box(
+                low=-1.0, high=1.0, shape=(self.cp_num * 2,)
+            )
         vals = np.arange(-1.0, 1.01, 0.2)
         xy_vals = [
             torch.as_tensor(xy).unsqueeze(0)
@@ -104,14 +109,17 @@ class ControlPointEnv(gym.Env):
             prev_point = points[i]
             if self._outside_point(point):
                 return -500.0
-        print(reward)
-        reward -= ((points[-1] - self.goal_pos) ** 2).sum().sqrt()
+        reward -= 100.0 * ((points[-1] - self.goal_pos) ** 2).sum().sqrt()
         return reward / self.distance_norm
 
     def step(self, action) -> tuple:
         cps = [self.start_pos.unsqueeze(0)]
-        cps.extend([ac * self.max_val for ac in self.actions[action]])
-        # cps.append(self.goal_pos.unsqueeze(0))
+        if self.continuous_actions:
+            action = torch.tanh(action)
+            cps.append(action.reshape(2, -1) * self.max_val)
+        else:
+            cps.extend([ac * self.max_val for ac in self.actions[action]])
+            # cps.append(self.goal_pos.unsqueeze(0))
         cps = torch.cat(cps)
 
         self.cps = cps
@@ -138,7 +146,7 @@ class ControlPointEnv(gym.Env):
         # self.distance_norm = self.p_num * np.sqrt(
         #     (self.length * 2 + self.width) ** 2 + self.width ** 2
         # )
-        self.distance_norm = 1.0
+        self.distance_norm = self.p_num
 
         self.points = None
         self.cps = None

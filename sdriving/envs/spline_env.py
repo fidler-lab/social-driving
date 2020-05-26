@@ -120,7 +120,7 @@ class SplineRoadIntersectionAccelerationControlEnv(
             for xy in itertools.product(x_vals, y_vals)
         ]
         self.meta_controller_actions = list(
-            itertools.product(*[xy_vals for _ in range(self.cp_num - 1)])
+            itertools.product(*[xy_vals for _ in range(self.cp_num)])
         )
 
     def _configure_controller_actions(self):
