@@ -28,6 +28,7 @@ class ControlPointEnv(gym.Env):
         self.observation_space = self._configure_observation_space()
 
         self.spline = ActiveSplineTorch(self.cp_num, self.p_num)
+        self.discount_factor = torch.linspace(1, self.p_num) / self.p_num
 
         self.length = None
         self.width = None
@@ -102,20 +103,25 @@ class ControlPointEnv(gym.Env):
         # If successful pathing the penalty is the overall distance
         # If the pathing fails then give a -5.0 penalty
         reward = 0.0
-        prev_point = points[0]
-        for i, point in enumerate(points[1:], start=1):
-            dist = ((point - prev_point) ** 2).sum().sqrt()
-            reward -= dist.item()
-            prev_point = points[i]
+
+        # Distance to goal
+        goal_distance = ((
+            (self.points - self.goal_pos) ** 2
+        ).sum(-1) * self.discount_factor).sum()
+
+        reward -= goal_distance.item()
+
+        # Check collision
+        for point in points:
             if self._outside_point(point):
-                return -500.0
-        reward -= 100.0 * ((points[-1] - self.goal_pos) ** 2).sum().sqrt()
+                return -50.0
+
         return reward / self.distance_norm
 
     def step(self, action) -> tuple:
         cps = [self.start_pos.unsqueeze(0)]
         if self.continuous_actions:
-            action = torch.tanh(action)
+            action = torch.tanh(torch.as_tensor(action))
             cps.append(action.reshape(2, -1) * self.max_val)
         else:
             cps.extend([ac * self.max_val for ac in self.actions[action]])
@@ -146,7 +152,7 @@ class ControlPointEnv(gym.Env):
         # self.distance_norm = self.p_num * np.sqrt(
         #     (self.length * 2 + self.width) ** 2 + self.width ** 2
         # )
-        self.distance_norm = self.p_num
+        self.distance_norm = ((self.goal_pos - self.start_pos) ** 2).sum()
 
         self.points = None
         self.cps = None
