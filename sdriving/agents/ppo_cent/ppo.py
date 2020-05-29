@@ -9,13 +9,13 @@ import torch
 from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
 
-from sdriving.agents.ppo_cent.model import ActorCritic
-from sdriving.agents.ppo_cent.utils import (
-    PPOBuffer,
+from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
+from sdriving.agents.utils import (
     count_vars,
     mpi_avg_grads,
     trainable_parameters,
 )
+from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
@@ -114,6 +114,7 @@ class PPO_Centralized_Critic:
             self.env.observation_space,
             self.env.action_space,
             nagents=self.nagents,
+            centralized=True,
             **ac_kwargs,
         )
         if load_path is not None:
