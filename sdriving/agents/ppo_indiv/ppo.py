@@ -160,8 +160,7 @@ class PPO_Decentralized_Critic:
                 del hparams["self"]
             wandb.config.update(hparams, allow_val_change=True)
 
-            wandb.watch(self.ac.pi.lidar_features, log="all")
-            wandb.watch(self.ac.pi.logits_net, log="all")
+            wandb.watch(self.ac.pi, log="all")
             wandb.watch(self.ac.v, log="all")
 
         self.device = device

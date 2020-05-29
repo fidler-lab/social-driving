@@ -257,6 +257,7 @@ class RoadIntersectionContinuousAccelerationEnv(
     RoadIntersectionControlAccelerationEnv
 ):
     def get_action_space(self):
+        self.max_accln = 2.5
         return Box(low=-2.5, high=2.5, shape=(1,))
 
     def transform_state_action_single_agent(
@@ -275,7 +276,7 @@ class RoadIntersectionContinuousAccelerationEnv(
 
         action.unsqueeze_(0)
         for _ in range(timesteps):
-            start_state = nominal_state[-1]
+            start_state = nominal_states[-1]
             new_state = dynamics(start_state, action)
             nominal_states.append(new_state.cpu())
             nominal_actions.append(action)
@@ -288,6 +289,6 @@ class RoadIntersectionContinuousAccelerationEnv(
         ns = torch.zeros(4)
         ex = (nominal_states, nominal_actions)
 
-        self.curr_actions = action[0]
+        self.curr_actions[a_id] = action[0]
 
         return na, ns, ex

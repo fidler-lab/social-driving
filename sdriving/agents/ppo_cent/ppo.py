@@ -174,8 +174,7 @@ class PPO_Centralized_Critic:
                 del hparams["self"]
             wandb.config.update(hparams, allow_val_change=True)
 
-            wandb.watch(self.ac.pi.lidar_features, log="all")
-            wandb.watch(self.ac.pi.logits_net, log="all")
+            wandb.watch(self.ac.pi, log="all")
             wandb.watch(self.ac.v, log="all")
 
         self.device = device
@@ -359,7 +358,7 @@ class PPO_Centralized_Critic:
 
                 actions, val_f, log_probs = ac.step(o_list)
                 for i, key in enumerate(o.keys()):
-                    a[key] = actions[i]
+                    a[key] = actions[i].cpu()
                     v[key] = val_f
                     logp[key] = log_probs[i]
                 next_o, r, d, info = env.step(a)

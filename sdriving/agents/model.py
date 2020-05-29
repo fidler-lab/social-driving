@@ -209,7 +209,7 @@ class PPOGaussianActor(PPOActor):
         raise NotImplementedError
 
     def _distribution(self, obs):
-        return Normal(self._get_mu(obs), torch.exp(log_std))
+        return Normal(self._get_mu(obs), torch.exp(self.log_std))
 
     def _deterministic(self, obs):
         return self.act_scale(torch.tanh(self._get_mu(obs)))
@@ -230,11 +230,8 @@ class PPOLidarGaussianActor(PPOGaussianActor):
     ):
         super().__init__()
         act_dim = act_space.shape[0]
-        act_high = torch.as_tensor(act_space.high)
-        act_low = torch.as_tensor(act_space.low)
-        self.act_scale = (
-            lambda act: (act + 1) * 0.5 * (act_high - act_low) + act_low
-        )
+        self.act_high = torch.as_tensor(act_space.high)
+        self.act_low = torch.as_tensor(act_space.low)
         self.mu_net = mlp(
             [obs_dim + feature_dim] + list(hidden_sizes) + [act_dim],
             activation,
@@ -246,6 +243,12 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         )
         self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
         self.history_len = history_len
+
+    def act_scale(self, act):
+        if not act.device == self.act_high.device:
+            self.act_high = self.act_high.to(act.device)
+            self.act_low = self.act_low.to(act.device)
+        return (act + 1) * 0.5 * (self.act_high - self.act_low) + self.act_low
 
     def _get_mu(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
