@@ -144,7 +144,7 @@ class PPOActor(nn.Module):
         raise NotImplementedError
 
     def _log_prob_from_distribution(self, pi, act):
-        raise pi.log_prob(act)
+        return pi.log_prob(act)
 
     def forward(self, obs, act=None):
         pi = self._distribution(obs)
@@ -279,6 +279,7 @@ class PPOLidarCentralizedCritic(nn.Module):
             nn.AdaptiveAvgPool1d(feature_dim),
         )
         self.history_len = history_len
+        self.nagents = nagents
 
     def forward(
         self, obs_list: List[Union[Tuple[torch.Tensor], List[torch.Tensor]]]
@@ -305,9 +306,9 @@ class PPOLidarCentralizedCritic(nn.Module):
 
 class PPOLidarDecentralizedCritic(PPOLidarCentralizedCritic):
     def __init__(self, *args, **kwargs):
-        if len(args) > 4:
+        if len(args) >= 5:
             args = list(args)
-            args[3] = 1
+            args[4] = 1
         else:
             kwargs["nagents"] = 1
         super().__init__(*args, **kwargs)
