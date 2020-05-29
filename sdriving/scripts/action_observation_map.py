@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
 from sdriving.envs import REGISTRY as ENV_REGISTRY
 
 
@@ -52,11 +53,8 @@ if __name__ == "__main__":
 
     if not args.dummy_run:
         ckpt = torch.load(args.model_save_path, map_location="cpu")
-        if "model" not in ckpt or ckpt["model"] == "centralized_critic":
-            from sdriving.agents.ppo_cent.model import ActorCritic
-        elif ckpt["model"] == "decentralized_critic":
-            from sdriving.agents.ppo_indiv.model import ActorCritic
-        ac = ActorCritic(**ckpt["ac_kwargs"])
+        centralized = ckpt["model"] == "centralized_critic"
+        ac = ActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
         ac = ac.to(device)
