@@ -19,11 +19,8 @@ class ControlPointEnvDifferentiable(ControlPointEnv):
         self.cps = cps
         self.points = self.spline(cps.unsqueeze(0)).squeeze(0)
 
-        goal_distance = ((
-            (self.points - self.goal_pos) ** 2
-        ).sum(-1) * self.discount_factor).sum()
+        goal_distance = (
+            ((self.points - self.goal_pos) ** 2).sum(-1) * self.discount_factor
+        ).sum()
         road_length = ((self.points[1:, :] - self.points[:-1, :]) ** 2).sum()
         return goal_distance + road_length
-
-
-

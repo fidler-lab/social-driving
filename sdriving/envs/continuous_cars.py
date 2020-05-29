@@ -7,10 +7,10 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
 
-from sdriving.envs.intersection_env import RoadIntersectionControlEnv
 from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,
 )
+from sdriving.envs.intersection_env import RoadIntersectionControlEnv
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
@@ -290,9 +290,7 @@ class RoadIntersectionContinuousFlowControlAccelerationEnv(
                 spos = self.world.road_network.roads[
                     self.agents[a_id]["road name"]
                 ].sample(x_bound=0.6, y_bound=0.6)[0]
-                side = self.lane_side * (
-                    1 if srd in (1, 2) else -1
-                )
+                side = self.lane_side * (1 if srd in (1, 2) else -1)
                 spos[(srd + 1) % 2] = (
                     side * (torch.rand(1) * 0.15 + 0.15) * self.width
                 )
@@ -335,9 +333,7 @@ class RoadIntersectionContinuousFlowControlAccelerationEnv(
                     spos = self.world.road_network.roads[
                         self.agents[a_id]["road name"]
                     ].sample(x_bound=0.6, y_bound=0.6)[0]
-                    side = self.lane_side * (
-                        1 if srd in (1, 2) else -1
-                    )
+                    side = self.lane_side * (1 if srd in (1, 2) else -1)
                     spos[(srd + 1) % 2] = (
                         side * (torch.rand(1) * 0.15 + 0.15) * self.width
                     )

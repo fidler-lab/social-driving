@@ -53,4 +53,3 @@ class ClothoidMotion(nn.Module):
         s_t = s_0 + a * (Ct * tangent + St * normal)
         theta = theta + math.pi / 2 * (t ** 2)
         return s_t, angle_normalize(theta)
-

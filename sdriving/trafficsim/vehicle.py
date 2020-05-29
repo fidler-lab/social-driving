@@ -5,13 +5,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-# from gym.envs.classic_control import rendering
-
 from sdriving.trafficsim.utils import (
     angle_normalize,
     circle_area_overlap,
     transform_2d_coordinates,
 )
+
+# from gym.envs.classic_control import rendering
 
 
 class Vehicle:

@@ -119,14 +119,24 @@ if __name__ == "__main__":
                     if pt1 == -1 and not test_env.world.vehicles[key].grayarea:
                         v = int(test_env.world.vehicles[key].road[-1])
                         side = 1 if v in (1, 2) else -1
-                        lane_distance = 2 * test_env.world.vehicles[key].vehicle.position[
-                            (v + 1) % 2
-                        ] / test_env.width
+                        lane_distance = (
+                            2
+                            * test_env.world.vehicles[key].vehicle.position[
+                                (v + 1) % 2
+                            ]
+                            / test_env.width
+                        )
                         lane_distance *= side
                     else:
-                        lane_distance = 2 * test_env.world.get_distance_from_road_axis(
-                            key, pt1, test_env.agents[key]["original_destination"]
-                        ) / test_env.width
+                        lane_distance = (
+                            2
+                            * test_env.world.get_distance_from_road_axis(
+                                key,
+                                pt1,
+                                test_env.agents[key]["original_destination"],
+                            )
+                            / test_env.width
+                        )
                     df["Lane Distance"].append(lane_distance.item())
                 if key not in timestep:
                     timestep[key] = 1

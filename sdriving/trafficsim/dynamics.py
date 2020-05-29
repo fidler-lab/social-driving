@@ -413,10 +413,12 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
                 self.registered[i] = True
                 self.position[i, :] = state[i, 0:2]
                 self.theta[i, :] = state[i, 2:3]
-            a.append(self.track[i:i + 1, tnum, 0:1])
-            dir.append(self.track[i:i + 1, tnum, 2:3])
-            if not self.distance_checks[i] and\
-                    self.track[i, tnum, 1] < self.distances[i]:
+            a.append(self.track[i : i + 1, tnum, 0:1])
+            dir.append(self.track[i : i + 1, tnum, 2:3])
+            if (
+                not self.distance_checks[i]
+                and self.track[i, tnum, 1] < self.distances[i]
+            ):
                 print(tnum, self.position[i, :])
                 self.track_num[i] = self.track_num[i] + 1
                 if self.track_num[i] > self.track.size(1) - 1:
@@ -432,8 +434,9 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
                 self.track_num[i] = max(self.track_num[i] - 1, 0.0)
                 # TODO: Special case for 0, Will have to modify position
                 # accordingly
-                self.distances[i] = self.track[i, self.track_num[i], 1] +\
-                    self.distances[i]
+                self.distances[i] = (
+                    self.track[i, self.track_num[i], 1] + self.distances[i]
+                )
         return torch.cat(a, dim=0), torch.cat(dir, dim=0)
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
@@ -454,7 +457,9 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
         a, dir = self._get_track(state[:, 0:3])
 
         print(self.distances)
-        s_t, theta = self.motion(self.position, a, self.distances, self.theta, dir)
+        s_t, theta = self.motion(
+            self.position, a, self.distances, self.theta, dir
+        )
 
         if state.size(0) == self.nbatch:
             v_lim = self.v_lim

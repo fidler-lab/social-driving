@@ -3,11 +3,11 @@ import random
 from typing import Optional
 
 import gym
-from gym.spaces import Discrete, Box
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from gym.spaces import Box, Discrete
 
 from sdriving.agents.model import ActiveSplineTorch
 
@@ -42,9 +42,7 @@ class ControlPointEnv(gym.Env):
 
     def _configure_action_space(self) -> tuple:
         if self.continuous_actions:
-            return None, Box(
-                low=-1.0, high=1.0, shape=(self.cp_num * 2,)
-            )
+            return None, Box(low=-1.0, high=1.0, shape=(self.cp_num * 2,))
         vals = np.arange(-1.0, 1.01, 0.2)
         xy_vals = [
             torch.as_tensor(xy).unsqueeze(0)
@@ -105,9 +103,10 @@ class ControlPointEnv(gym.Env):
         reward = 0.0
 
         # Distance to goal
-        goal_distance = ((
-            (self.points - self.goal_pos) ** 2
-        ).sum(-1).sqrt() * self.discount_factor).sum()
+        goal_distance = (
+            ((self.points - self.goal_pos) ** 2).sum(-1).sqrt()
+            * self.discount_factor
+        ).sum()
 
         reward -= goal_distance.item() / self.p_num
 
@@ -153,8 +152,8 @@ class ControlPointEnv(gym.Env):
         #     (self.length * 2 + self.width) ** 2 + self.width ** 2
         # )
         self.distance_norm = (
-            (self.goal_pos - self.start_pos) ** 2
-        ).sum().sqrt()
+            ((self.goal_pos - self.start_pos) ** 2).sum().sqrt()
+        )
 
         self.points = None
         self.cps = None
@@ -216,4 +215,3 @@ class ControlPointEnv(gym.Env):
 
         if fname:
             plt.savefig(fname)
-

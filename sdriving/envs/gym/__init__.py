@@ -5,9 +5,8 @@ import gym
 
 from sdriving.envs.gym.control_points import ControlPointEnv
 from sdriving.envs.gym.control_points_differentiable import (
-    ControlPointEnvDifferentiable
+    ControlPointEnvDifferentiable,
 )
-
 
 REGISTRY = {}
 

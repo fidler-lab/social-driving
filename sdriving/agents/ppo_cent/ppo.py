@@ -9,13 +9,14 @@ import torch
 from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
 
+import wandb
+from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
 from sdriving.agents.utils import (
     count_vars,
     mpi_avg_grads,
     trainable_parameters,
 )
-from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
@@ -26,8 +27,6 @@ from spinup.utils.mpi_tools import (
     proc_id,
 )
 from spinup.utils.serialization_utils import convert_json
-
-import wandb
 
 
 class PPO_Centralized_Critic:

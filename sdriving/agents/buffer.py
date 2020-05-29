@@ -3,8 +3,8 @@ import torch
 
 from sdriving.agents.utils import (
     combined_shape,
-    mpi_statistics_scalar,
     discount_cumsum,
+    mpi_statistics_scalar,
 )
 
 

@@ -141,17 +141,17 @@ class PPOActor(nn.Module):
         raise NotImplementedError
 
     def _deterministic(self, obs):
-        raise NotImplementedError 
+        raise NotImplementedError
 
     def _log_prob_from_distribution(self, pi, act):
         raise pi.log_prob(act)
 
     def forward(self, obs, act=None):
         pi = self._distribution(obs)
-        logp_a = None 
+        logp_a = None
         if act is not None:
             logp_a = self._log_prob_from_distribution(pi, act)
-        return pi, logp_a 
+        return pi, logp_a
 
 
 class PPOCategoricalActor(Actor):
@@ -181,7 +181,7 @@ class PPOLidarCategoricalActor(PPOCategoricalActor):
         super().__init__()
         self.logits_net = mlp(
             [obs_dim + feature_dim] + list(hidden_sizes) + [act_space.n],
-            activation
+            activation,
         )
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
@@ -190,9 +190,7 @@ class PPOLidarCategoricalActor(PPOCategoricalActor):
         )
         self.history_len = history_len
 
-    def _get_logits(
-        self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]
-    ):
+    def _get_logits(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
         features = self.lidar_features(
             obs[1].view(bsize, self.history_len, -1)
@@ -234,11 +232,12 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         act_dim = act_space.shape[0]
         act_high = torch.as_tensor(act_space.high)
         act_low = torch.as_tensor(act_space.low)
-        self.act_scale = lambda act: (act + 1) * 0.5 * (act_high - act_low) +\
-            act_low
+        self.act_scale = (
+            lambda act: (act + 1) * 0.5 * (act_high - act_low) + act_low
+        )
         self.mu_net = mlp(
             [obs_dim + feature_dim] + list(hidden_sizes) + [act_dim],
-            activation
+            activation,
         )
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
@@ -248,9 +247,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
         self.history_len = history_len
 
-    def _get_mu(
-        self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]
-    ):
+    def _get_mu(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
         features = self.lidar_features(
             obs[1].view(bsize, self.history_len, -1)
@@ -274,7 +271,7 @@ class PPOLidarCentralizedCritic(nn.Module):
         super().__init__()
         self.v_net = mlp(
             [(obs_dim + feature_dim) * nagents] + list(hidden_sizes) + [1],
-            activation
+            activation,
         )
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
@@ -286,7 +283,7 @@ class PPOLidarCentralizedCritic(nn.Module):
     def forward(
         self, obs_list: List[Union[Tuple[torch.Tensor], List[torch.Tensor]]]
     ):
-        assert len(obs_list) == self.nagents 
+        assert len(obs_list) == self.nagents
 
         f_vecs = []
         state_vec = torch.cat([o for o, _ in obs_list], dim=-1)
@@ -310,9 +307,7 @@ class PPOLidarDecentralizedCritic(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, nagents=1)
 
-    def forward(
-        self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]
-    ):
+    def forward(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
         features = self.lidar_features(
             obs[1].view(bsize, self.history_len, -1)
@@ -335,13 +330,13 @@ class PPOLidarActorCritic(nn.Module):
         history_len: int = 1,
         feature_dim: int = 25,
         nagents: int = 1,
-        centralized: bool = False
+        centralized: bool = False,
     ):
         super().__init__()
 
         obs_dim = observation_space[0].shape[0]
-        self.centralized = centralized 
-        self.nagents = nagents 
+        self.centralized = centralized
+        self.nagents = nagents
 
         if isinstance(action_space, Box):
             self.pi = PPOLidarGaussianActor(
@@ -350,7 +345,7 @@ class PPOLidarActorCritic(nn.Module):
                 hidden_sizes,
                 activation,
                 history_len,
-                feature_dim
+                feature_dim,
             )
         elif isinstance(action_space, Discrete):
             self.pi = PPOLidarCategoricalActor(
@@ -359,7 +354,7 @@ class PPOLidarActorCritic(nn.Module):
                 hidden_sizes,
                 activation,
                 history_len,
-                feature_dim
+                feature_dim,
             )
         else:
             raise Exception(
@@ -373,15 +368,11 @@ class PPOLidarActorCritic(nn.Module):
                 activation,
                 history_len,
                 nagents,
-                feature_dim 
+                feature_dim,
             )
         else:
             self.v = PPOLidarDecentralizedCritic(
-                obs_dim,
-                hidden_sizes,
-                activation,
-                history_len,
-                feature_dim 
+                obs_dim, hidden_sizes, activation, history_len, feature_dim
             )
 
     def _step_centralized(self, obs):
@@ -405,7 +396,7 @@ class PPOLidarActorCritic(nn.Module):
             logp_a = self.pi._log_prob_from_distribution(pi, a)
 
             v = self.v(obs)
-            return a, v, logp_a 
+            return a, v, logp_a
 
     def step(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         if self.centralized:
@@ -416,7 +407,7 @@ class PPOLidarActorCritic(nn.Module):
     def act(
         self,
         obs: Union[Tuple[torch.Tensor], List[torch.Tensor]],
-        deterministic: bool = True
+        deterministic: bool = True,
     ):
         if deterministic:
             return self.pi._deterministic(obs)

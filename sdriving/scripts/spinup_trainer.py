@@ -3,11 +3,9 @@ import json
 import logging
 import os
 
+from sdriving.envs.gym import REGISTRY as ENV_REGISTRY
 from spinup import ppo_pytorch
 from spinup.utils.mpi_tools import mpi_fork
-
-from sdriving.envs.gym import REGISTRY as ENV_REGISTRY
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -52,7 +50,7 @@ if __name__ == "__main__":
 
     # NOTE: This doesn't support preemption :'(
     ppo_pytorch(
-        lambda : env(args.env_kwargs),
+        lambda: env(args.env_kwargs),
         ac_kwargs=args.ac_kwargs,
         seed=args.seed,
         steps_per_epoch=args.steps_per_epoch,
