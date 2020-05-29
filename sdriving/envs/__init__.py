@@ -12,6 +12,7 @@ from sdriving.envs.continuous_cars import (
 )
 from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,
+    RoadIntersectionContinuousAccelerationEnv,
 )
 from sdriving.envs.intersection_env import (
     RoadIntersectionControlEnv,
