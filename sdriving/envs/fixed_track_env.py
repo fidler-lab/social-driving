@@ -292,3 +292,80 @@ class RoadIntersectionContinuousAccelerationEnv(
         self.curr_actions[a_id] = action[0]
 
         return na, ns, ex
+
+    def add_vehicle_path(
+        self,
+        a_id: str,
+        srd: int,
+        erd: int,
+        sample: bool,
+        spos=None,
+        place: bool = True,
+    ):
+        srd = f"traffic_signal_world_{srd}"
+        sroad = self.world.road_network.roads[srd]
+        erd = f"traffic_signal_world_{erd}"
+        eroad = self.world.road_network.roads[erd]
+
+        orientation = angle_normalize(sroad.orientation + math.pi).item()
+        dest_orientation = eroad.orientation.item()
+
+        end_pos = torch.zeros(2)
+        if erd[-1] in ("1", "3"):
+            end_pos[1] = (
+                (self.length / 1.5 + self.width)
+                / 2
+                * (1 if erd[-1] == "1" else -1)
+            )
+        else:
+            end_pos[0] = (
+                (self.length / 1.5 + self.width)
+                / 2
+                * (1 if erd[-1] == "0" else -1)
+            )
+
+        if spos is None:
+            if sample:
+                spos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
+                if hasattr(self, "lane_side"):
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
+                    spos[(int(srd[-1]) + 1) % 2] = side * self.width / 4
+            else:
+                spos = sroad.offset.clone()
+        else:
+            if sample:
+                s_pos = sroad.sample(x_bound=0.6, y_bound=0.6)[0]
+                if hasattr(self, "lane_side"):
+                    side = self.lane_side * (
+                        1 if srd[-1] in ("1", "2") else -1
+                    )
+                    spos[(int(srd[-1]) + 1) % 2] = side * self.width / 4
+            else:
+                s_pos = sroad.offset.clone()
+            spos[int(srd[-1]) % 2] = s_pos[int(srd[-1]) % 2]
+
+        track = self._get_track(
+            self.world,
+            self.width,
+            srd,
+            erd,
+            spos,
+            orientation,
+            dest_orientation,
+        )
+
+        if place:
+            self.add_vehicle(
+                a_id,
+                srd,
+                spos,
+                torch.as_tensor(20.0 if self.fast_model else 8.0),
+                orientation,
+                end_pos,
+                dest_orientation,
+                dynamics_model=FixedTrackAccelerationModel,
+                dynamics_kwargs={"track": track},
+            )
+        else:
