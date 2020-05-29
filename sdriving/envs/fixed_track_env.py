@@ -251,3 +251,43 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             diff = torch.abs(pac - cac)
             penalty = diff[0] / (4 * self.max_accln * self.horizon)
             rewards[a_id] = rew - penalty
+
+
+class RoadIntersectionContinuousAccelerationEnv(
+    RoadIntersectionControlAccelerationEnv
+):
+    def get_action_space(self):
+        return Box(low=-2.5, high=2.5, shape=(1,))
+
+    def transform_state_action_single_agent(
+        self, a_id: str, action: torch.Tensor, state, timesteps: int
+    ):
+        agent = self.agents[a_id]["vehicle"]
+
+        x, y = agent.position
+        v = agent.speed 
+        t = agent.orientation 
+
+        start_state = torch.as_tensor([x, y, v, t])
+        dynamics = self.agents[a_id]["dynamics"]
+        nominal_states = [start_state.unsqueeze(0)]
+        nominal_actions = [action]
+
+        action.unsqueeze_(0)
+        for _ in range(timesteps):
+            start_state = nominal_state[-1]
+            new_state = dynamics(start_state, action)
+            nominal_states.append(new_state.cpu())
+            nominal_actions.append(action)
+
+        nominal_states, nominal_actions = (
+            torch.cat(nominal_states),
+            torch.cat(nominal_actions),
+        )
+        na = torch.zeros(4)
+        ns = torch.zeros(4)
+        ex = (nominal_states, nominal_actions)
+
+        self.curr_actions = action[0]
+
+        return na, ns, ex
