@@ -396,6 +396,8 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
 
         assert self.nbatch == track.size(0)
         self.track = track
+        for i in range(track.size(0)):
+            self.track[i, :, 1] = torch.cumsum(self.track[i, :, 1])
 
     def reset(self):
         self.position = torch.zeros(self.nbatch, 2)

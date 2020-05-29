@@ -331,7 +331,9 @@ class RoadIntersectionContinuousAccelerationEnv(
                     side = self.lane_side * (
                         1 if srd[-1] in ("1", "2") else -1
                     )
-                    spos[(int(srd[-1]) + 1) % 2] = side * self.width / 4
+                    spos[(int(srd[-1]) + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
             else:
                 spos = sroad.offset.clone()
         else:
@@ -341,7 +343,9 @@ class RoadIntersectionContinuousAccelerationEnv(
                     side = self.lane_side * (
                         1 if srd[-1] in ("1", "2") else -1
                     )
-                    spos[(int(srd[-1]) + 1) % 2] = side * self.width / 4
+                    s_pos[(int(srd[-1]) + 1) % 2] = (
+                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                    )
             else:
                 s_pos = sroad.offset.clone()
             spos[int(srd[-1]) % 2] = s_pos[int(srd[-1]) % 2]
@@ -369,3 +373,14 @@ class RoadIntersectionContinuousAccelerationEnv(
                 dynamics_kwargs={"track": track},
             )
         else:
+            return (
+                a_id,
+                srd,
+                spos,
+                torch.as_tensor(20.0 if self.fast_model else 8.0),
+                orientation,
+                end_pos,
+                dest_orientation,
+                FixedTrackAccelerationModel,
+                {"track": track},
+            )
