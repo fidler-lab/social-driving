@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from gym.spaces import Discrete
+from gym.spaces import Discrete, Box
 from gym.spaces import Tuple as GSTuple
 from torch import nn
 from torch.distributions.categorical import Categorical
@@ -154,7 +154,7 @@ class PPOActor(nn.Module):
         return pi, logp_a
 
 
-class PPOCategoricalActor(Actor):
+class PPOCategoricalActor(PPOActor):
     def sample(self, pi):
         return pi.sample()
 
@@ -303,9 +303,14 @@ class PPOLidarCentralizedCritic(nn.Module):
         )
 
 
-class PPOLidarDecentralizedCritic(nn.Module):
+class PPOLidarDecentralizedCritic(PPOLidarCentralizedCritic):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, nagents=1)
+        if len(args) > 4:
+            args = list(args)
+            args[3] = 1
+        else:
+            kwargs["nagents"] = 1
+        super().__init__(*args, **kwargs)
 
     def forward(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
         bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
