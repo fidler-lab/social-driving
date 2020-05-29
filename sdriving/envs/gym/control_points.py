@@ -107,14 +107,14 @@ class ControlPointEnv(gym.Env):
         # Distance to goal
         goal_distance = ((
             (self.points - self.goal_pos) ** 2
-        ).sum(-1) * self.discount_factor).sum()
+        ).sum(-1).sqrt() * self.discount_factor).sum()
 
-        reward -= goal_distance.item()
+        reward -= goal_distance.item() / self.p_num
 
         # Check collision
         for point in points:
             if self._outside_point(point):
-                return -50.0
+                return -5.0
 
         return reward / self.distance_norm
 
@@ -152,7 +152,9 @@ class ControlPointEnv(gym.Env):
         # self.distance_norm = self.p_num * np.sqrt(
         #     (self.length * 2 + self.width) ** 2 + self.width ** 2
         # )
-        self.distance_norm = ((self.goal_pos - self.start_pos) ** 2).sum()
+        self.distance_norm = (
+            (self.goal_pos - self.start_pos) ** 2
+        ).sum().sqrt()
 
         self.points = None
         self.cps = None

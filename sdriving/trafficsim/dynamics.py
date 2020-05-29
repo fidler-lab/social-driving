@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple, Union
 import torch
 from torch import nn
 
+from sdriving.trafficsim.clothoid import ClothoidMotion
 from sdriving.trafficsim.utils import angle_normalize
 
 
@@ -379,3 +380,97 @@ class SplineAccelerationModel(nn.Module):
         v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
 
         return torch.cat([x, y, v, theta], dim=1)
+
+
+class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
+    def __init__(self, track, *args, **kwargs):
+        # track is a B x k x 3 tensor
+        super().__init__(*args, **kwargs)
+        self.motion = ClothoidMotion()
+        self.distances = torch.zeros(self.nbatch)
+        self.distance_checks = torch.zeros(self.nbatch).bool()
+        self.track_num = torch.zeros(self.nbatch).int()
+        self.position = torch.zeros(self.nbatch, 2)
+        self.theta = torch.zeros(self.nbatch, 1)
+        self.registered = torch.zeros(self.nbatch).bool()
+
+        assert self.nbatch == track.size(0)
+        self.track = track
+
+    def reset(self):
+        self.position = torch.zeros(self.nbatch, 2)
+        self.theta = torch.zeros(self.nbatch, 1)
+        self.registered = torch.zeros(self.nbatch).bool()
+        self.distances = torch.zeros(self.nbatch)
+        self.distance_checks = torch.zeros(self.nbatch).bool()
+        self.track_num = torch.zeros(self.nbatch).int()
+
+    def _get_track(self, state):
+        a = []
+        dir = []
+        for i, tnum in enumerate(self.track_num):
+            if not self.registered[i]:
+                self.registered[i] = True
+                self.position[i, :] = state[i, 0:2]
+                self.theta[i, :] = state[i, 2:3]
+            a.append(self.track[i:i + 1, tnum, 0:1])
+            dir.append(self.track[i:i + 1, tnum, 2:3])
+            if not self.distance_checks[i] and\
+                    self.track[i, tnum, 1] < self.distances[i]:
+                print(tnum, self.position[i, :])
+                self.track_num[i] = self.track_num[i] + 1
+                if self.track_num[i] > self.track.size(1) - 1:
+                    self.track_num[i] = self.track.size(1) - 1
+                    self.distance_checks[i] = True
+                else:
+                    self.distances[i] = 0.0
+                    self.position[i, :] = state[i, 0:2]
+                    self.theta[i, :] = state[i, 2:3]
+                print(self.track_num[i], self.position[i, :])
+            elif self.distances[i] < 0.0:
+                self.distance_checks[i] = False
+                self.track_num[i] = max(self.track_num[i] - 1, 0.0)
+                # TODO: Special case for 0, Will have to modify position
+                # accordingly
+                self.distances[i] = self.track[i, self.track_num[i], 1] +\
+                    self.distances[i]
+        return torch.cat(a, dim=0), torch.cat(dir, dim=0)
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
+        """
+        Args:
+            state: N x 4 Dimensional Tensor
+            action: N x 1 Dimensional Tensor
+        """
+        dt = self.dt
+        x = state[:, 0:1]
+        y = state[:, 1:2]
+        v = state[:, 2:3]
+        theta = state[:, 3:4]
+        acceleration = action[:, 0:1]
+
+        self.distances = self.distances + v * dt
+
+        a, dir = self._get_track(state[:, 0:3])
+
+        print(self.distances)
+        s_t, theta = self.motion(self.position, a, self.distances, self.theta, dir)
+
+        if state.size(0) == self.nbatch:
+            v_lim = self.v_lim
+            dim = self.dim
+        elif state.size(0) > self.nbatch:
+            v_lim = (
+                self.v_lim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+            dim = (
+                self.dim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+
+        v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
+
+        return torch.cat([s_t, v, theta], dim=1)
