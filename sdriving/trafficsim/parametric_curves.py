@@ -53,3 +53,18 @@ class ClothoidMotion(nn.Module):
         s_t = s_0 + a * (Ct * tangent + St * normal)
         theta = theta + math.pi / 2 * (t ** 2)
         return s_t, angle_normalize(theta)
+
+
+class LinearSplineMotion(nn.Module):
+    def forward(
+        self,
+        pt1: torch.Tensor,
+        pt2: torch.Tensor,
+        t: torch.Tensor,
+        theta: torch.Tensor,
+    ):
+        # pt1 --> N x 2
+        # pt2 --> N x 2
+        # t   --> N x 1
+        return pt1 * (1 - t) + pt2 * t, theta
+

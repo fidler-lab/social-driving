@@ -199,13 +199,13 @@ class ControlPointEnv(gym.Env):
 
         if self.cps is not None:
             for cp in self.cps:
-                plt.plot(cp[0].item(), cp[1].item(), color="y", marker="x")
+                plt.plot(cp[0].item(), cp[1].item(), color="y", marker=".")
 
         if self.points is not None:
             for i, pt in enumerate(self.points):
                 if not i % 4 == 1:
                     continue
-                plt.plot(pt[0].item(), pt[1].item(), color="b", marker=".")
+                plt.plot(pt[0].item(), pt[1].item(), color="b", marker="x", markersize=0.5)
 
         edges = self._collision_lines()
         for i in range(len(edges)):
