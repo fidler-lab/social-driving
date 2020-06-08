@@ -160,7 +160,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                         1 if srd[-1] in ("1", "2") else -1
                     )
                     spos[(int(srd[-1]) + 1) % 2] = (
-                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                        side * self.width / 4 # (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
             else:
                 spos = sroad.offset.clone()
@@ -172,7 +172,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                         1 if srd[-1] in ("1", "2") else -1
                     )
                     s_pos[(int(srd[-1]) + 1) % 2] = (
-                        side * (torch.rand(1) * 0.15 + 0.15) * self.width
+                        side * self.width / 4 # (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
             else:
                 s_pos = sroad.offset.clone()

@@ -195,17 +195,23 @@ class PPO_Decentralized_Critic:
         self.save_freq = save_freq
         self.tboard = tboard
 
+    def _get_batch(self, data: torch.Tensor, i: int, batch_size: int):
+        return data[i * batch_size:min((i + 1) * batch_size, data.size(0))]
+
     # Set up function for computing PPO policy loss
-    def compute_loss_pi(self, data):
+    def compute_loss_pi(self, data, i: int, batch_size: int):
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, lidar, act, adv, logp_old = (
-            data["obs"].to(device),
-            data["lidar"].to(device),
-            data["act"].to(device),
-            data["adv"].to(device),
-            data["logp"].to(device),
+        obs, lidar, act, adv, logp_old = map(
+            lambda x: self._get_batch(x, i, batch_size),
+            (
+                data["obs"].to(device),
+                data["lidar"].to(device),
+                data["act"].to(device),
+                data["adv"].to(device),
+                data["logp"].to(device),
+            )
         )
 
         # Policy loss
@@ -224,10 +230,13 @@ class PPO_Decentralized_Critic:
         return loss_pi, pi_info
 
     # Set up function for computing value loss
-    def compute_loss_v(self, data):
+    def compute_loss_v(self, data, i: int, batch_size: int):
         device = self.device
 
-        obs, lidar, ret = [data[x].to(device) for x in ["obs", "lidar", "ret"]]
+        obs, lidar, ret = map(
+            lambda x: self._get_batch(data[x].to(device), i, batch_size),
+            ["obs", "lidar", "ret"]
+        )
 
         value_est = self.ac.v((obs, lidar))
 
@@ -241,22 +250,25 @@ class PPO_Decentralized_Critic:
         local_steps_per_epoch = self.local_steps_per_epoch
 
         with torch.no_grad():
-            pi_l_old, pi_info_old = self.compute_loss_pi(data)
+            pi_l_old, pi_info_old = self.compute_loss_pi(data, 0, data["obs"].size(0))
             pi_l_old = pi_l_old.item()
-            v_l_old, v_est = self.compute_loss_v(data)
+            v_l_old, v_est = self.compute_loss_v(data, 0, data["obs"].size(0))
             v_l_old = v_l_old.item()
             v_est = v_est["value_est"]
 
+        batch_size = local_steps_per_epoch // self.train_pi_iters
         # Train policy with multiple steps of gradient descent
         for i in range(self.train_pi_iters):
             self.pi_optimizer.zero_grad()
-            loss_pi, pi_info = self.compute_loss_pi(data)
+            loss_pi, pi_info = self.compute_loss_pi(data, i, batch_size)
             kl = mpi_avg(pi_info["kl"])
+            """
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
                     "Early stopping at step %d due to reaching max kl." % i
                 )
                 break
+            """
             loss_pi.backward()
             self.ac.pi = self.ac.pi.cpu()
             # TODO: Use NCCL to do this without GPU to CPU transfer
@@ -266,10 +278,11 @@ class PPO_Decentralized_Critic:
 
         self.logger.store(StopIter=i)
 
+        batch_size = local_steps_per_epoch // self.train_v_iters
         # Value function learning
         for i in range(self.train_v_iters):
             self.vf_optimizer.zero_grad()
-            loss_v, _ = self.compute_loss_v(data)
+            loss_v, _ = self.compute_loss_v(data, i, batch_size)
             loss_v.backward()
             self.ac.v = self.ac.v.cpu()
             # TODO: Use NCCL

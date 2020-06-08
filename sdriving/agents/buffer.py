@@ -226,7 +226,7 @@ class DecentralizedPPOBuffer:
 
         # the next two lines implement the advantage normalization trick
         adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf.numpy())
-        self.adv_buf = (self.adv_buf - adv_mean) / adv_std
+        self.adv_buf = (self.adv_buf - adv_mean) / (adv_std + 1e-7)
         return dict(
             obs=self.state_buf,
             lidar=self.lidar_buf,
