@@ -19,8 +19,17 @@ class ControlPointEnvDifferentiable(ControlPointEnv):
         self.cps = cps
         self.points = self.spline(cps.unsqueeze(0)).squeeze(0)
 
+        # The agent needs to reach the goal fast
         goal_distance = (
-            ((self.points - self.goal_pos) ** 2).sum(-1) * self.discount_factor
+            (self.points - self.goal_pos).pow(2).sum(-1) * self.discount_factor
         ).sum()
-        road_length = ((self.points[1:, :] - self.points[:-1, :]) ** 2).sum()
-        return goal_distance + road_length
+        # print(goal_distance)
+        # Minimize the length of the path
+        distances = (self.points[1:, :] - self.points[:-1, :]).pow(2)
+        road_length = distances.sum()
+        # print(road_length)
+        # Equal spacing of the points
+        mean_distance = road_length.item() / self.p_num
+        deviation = torch.pow(distances - mean_distance, 2).sum()
+        # print(deviation)
+        return goal_distance * 1e-3 + road_length * 0.1 + deviation

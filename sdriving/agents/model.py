@@ -94,7 +94,6 @@ class ActiveSplineTorch(nn.Module):
 
         # No need to calculate gradient w.r.t t.
         t = t.detach()
-        # print(t)
         lp = 0
         points = torch.zeros(
             [cps.size(0), self.p_num * self.cp_num, cps.size(2)],

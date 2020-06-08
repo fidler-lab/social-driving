@@ -4,7 +4,10 @@ from typing import Dict, List, Tuple, Union
 import torch
 from torch import nn
 
-from sdriving.trafficsim.clothoid import ClothoidMotion
+from sdriving.trafficsim.parametric_curves import (
+    ClothoidMotion,
+    LinearSplineMotion,
+)
 from sdriving.trafficsim.utils import angle_normalize
 
 
@@ -382,11 +385,15 @@ class SplineAccelerationModel(nn.Module):
         return torch.cat([x, y, v, theta], dim=1)
 
 
-class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
-    def __init__(self, track, *args, **kwargs):
+class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
+    def __init__(self, track, model=ClothoidMotion, *args, **kwargs):
         # track is a B x k x 3 tensor
         super().__init__(*args, **kwargs)
-        self.motion = ClothoidMotion()
+
+        # TODO: Work on a batched implementation that is differentiable
+        assert self.nbatch == 1
+
+        self.motion = model()
         self.distances = torch.zeros(self.nbatch)
         self.distance_checks = torch.zeros(self.nbatch).bool()
         self.track_num = torch.zeros(self.nbatch).int()
@@ -395,9 +402,24 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
         self.registered = torch.zeros(self.nbatch).bool()
 
         assert self.nbatch == track.size(0)
-        self.track = track
-        for i in range(track.size(0)):
-            self.track[i, :, 1] = torch.cumsum(self.track[i, :, 1])
+        self.track_unmodified = track.clone()
+        self.track = self._setup_track(track)
+
+    def _setup_track(self, track):
+        if isinstance(self.motion, ClothoidMotion):
+            assert track.shape[0] == self.nbatch
+            assert track.shape[2] == 3
+            track[:, :, 1] = torch.cumsum(track[:, :, 1], dim=1)
+            return track
+        else:
+            assert track.shape[0] == self.nbatch
+            assert track.shape[2] == 2
+            diff = track[:, 1:, :] - track[:, :-1, :]
+            ratio = diff[:, :, 1] / diff[:, :, 0]  # B x (k - 1)
+            self.arc_lengths = diff.pow(2).sum(-1)
+            self.theta = torch.atan(ratio)
+            self.theta.unsqueeze_(-1)
+            return track
 
     def reset(self):
         self.position = torch.zeros(self.nbatch, 2)
@@ -406,40 +428,63 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
         self.distances = torch.zeros(self.nbatch)
         self.distance_checks = torch.zeros(self.nbatch).bool()
         self.track_num = torch.zeros(self.nbatch).int()
+        self.track = self._setup_track(self.track_unmodified)
 
     def _get_track(self, state):
-        a = []
-        dir = []
-        for i, tnum in enumerate(self.track_num):
-            if not self.registered[i]:
-                self.registered[i] = True
-                self.position[i, :] = state[i, 0:2]
-                self.theta[i, :] = state[i, 2:3]
-            a.append(self.track[i : i + 1, tnum, 0:1])
-            dir.append(self.track[i : i + 1, tnum, 2:3])
-            if (
-                not self.distance_checks[i]
-                and self.track[i, tnum, 1] < self.distances[i]
-            ):
-                print(tnum, self.position[i, :])
-                self.track_num[i] = self.track_num[i] + 1
-                if self.track_num[i] > self.track.size(1) - 1:
-                    self.track_num[i] = self.track.size(1) - 1
-                    self.distance_checks[i] = True
-                else:
-                    self.distances[i] = 0.0
+        if isinstance(self.motion, ClothoidMotion):
+            a = []
+            dir = []
+            for i, tnum in enumerate(self.track_num):
+                if not self.registered[i]:
+                    self.registered[i] = True
                     self.position[i, :] = state[i, 0:2]
                     self.theta[i, :] = state[i, 2:3]
-                print(self.track_num[i], self.position[i, :])
-            elif self.distances[i] < 0.0:
-                self.distance_checks[i] = False
-                self.track_num[i] = max(self.track_num[i] - 1, 0.0)
-                # TODO: Special case for 0, Will have to modify position
-                # accordingly
-                self.distances[i] = (
-                    self.track[i, self.track_num[i], 1] + self.distances[i]
+                a.append(self.track[i : i + 1, tnum, 0:1])
+                dir.append(self.track[i : i + 1, tnum, 2:3])
+                if (
+                    not self.distance_checks[i]
+                    and self.track[i, tnum, 1] < self.distances[i]
+                ):
+                    print(tnum, self.position[i, :])
+                    self.track_num[i] = self.track_num[i] + 1
+                    if self.track_num[i] > self.track.size(1) - 1:
+                        self.track_num[i] = self.track.size(1) - 1
+                        self.distance_checks[i] = True
+                    else:
+                        self.distances[i] = 0.0
+                        self.position[i, :] = state[i, 0:2]
+                        self.theta[i, :] = state[i, 2:3]
+                    print(self.track_num[i], self.position[i, :])
+                elif self.distances[i] < 0.0:
+                    self.distance_checks[i] = False
+                    self.track_num[i] = max(self.track_num[i] - 1, 0.0)
+                    # TODO: Special case for 0, Will have to modify position
+                    # accordingly
+                    self.distances[i] = (
+                        self.track[i, self.track_num[i], 1] + self.distances[i]
+                    )
+            return torch.cat(a, dim=0), torch.cat(dir, dim=0)
+        else:
+            # For now the batch size is 1
+            for i, tnum in enumerate(self.track_num.clone()):
+                if self.distances[i] > self.arc_lengths[i, tnum]:
+                    self.track_num[i] = min(
+                        self.track_num[i] + 1, self.track.size(1) - 2
+                    )
+                    if self.track_num[i] == tnum + 1:
+                        self.distances[i] = 0.0
+                elif self.distances[i] < 0.0:
+                    self.track_num[i] = max(self.track_num[i] - 1, 0)
+                    if self.track_num[i] == tnum - 1:
+                        self.distances[i] = (
+                            self.arc_lengths[i, tnum - 1] - self.distances[i]
+                        )
+                return (
+                    self.track[i, tnum, :],
+                    self.track[i, tnum + 1, :],
+                    self.arc_lengths[i, tnum],
+                    self.theta[i, tnum]
                 )
-        return torch.cat(a, dim=0), torch.cat(dir, dim=0)
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """
@@ -456,12 +501,17 @@ class ClothoidBicycleKinematicsModel(BicycleKinematicsModel):
 
         self.distances = self.distances + v * dt
 
-        a, dir = self._get_track(state[:, 0:3])
-
-        print(self.distances)
-        s_t, theta = self.motion(
-            self.position, a, self.distances, self.theta, dir
-        )
+        if isinstance(self.motion, ClothoidMotion):
+            a, dir = self._get_track(state)
+            s_t, theta = self.motion(
+                self.position, a, self.distances, self.theta, dir
+            )
+        else:
+            pt1, pt2, arc_length, theta_path = self._get_track(state)
+            s_t, theta = self.motion(
+                pt1, pt2, self.distances / arc_length, theta_path
+            )
+            theta = theta.unsqueeze(-1)
 
         if state.size(0) == self.nbatch:
             v_lim = self.v_lim
