@@ -370,7 +370,7 @@ class PPOLidarActorCritic(nn.Module):
         observation_space: GSTuple,
         action_space: Union[Discrete, Box],
         hidden_sizes: Union[List[int], Tuple[int]] = (64, 64),
-        activation: torch.nn.Module = nn.ReLU,
+        activation: torch.nn.Module = nn.Tanh,
         history_len: int = 1,
         feature_dim: int = 25,
         nagents: int = 1,

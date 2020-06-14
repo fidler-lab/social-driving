@@ -46,6 +46,10 @@ class CentralizedPPOBuffer:
             )
             for a_id in self.agent_list
         }
+        self.vest_buf = {
+            a_id: torch.zeros(size, dtype=torch.float32)
+            for a_id in self.agent_list
+        }
         self.adv_buf = {
             a_id: torch.zeros(size, dtype=torch.float32)
             for a_id in self.agent_list
@@ -72,7 +76,7 @@ class CentralizedPPOBuffer:
         self.ptr = {a_id: 0 for a_id in self.agent_list}
         self.path_start_idx = {a_id: 0 for a_id in self.agent_list}
 
-    def store(self, a_id: str, obs, lidar, act, rew, val, logp):
+    def store(self, a_id: str, obs, lidar, act, rew, val, logp, vest=None):
         """Append one timestep of agent-environment interaction to the
         buffer."""
         assert (
@@ -84,6 +88,8 @@ class CentralizedPPOBuffer:
         self.rew_buf[a_id][self.ptr[a_id]] = rew
         self.val_buf[a_id][self.ptr[a_id]] = val
         self.logp_buf[a_id][self.ptr[a_id]] = logp
+        if vest is not None:
+            self.vest_buf[a_id][self.ptr[a_id]] = vest
         self.ptr[a_id] = self.ptr[a_id] + 1
 
     def finish_path(
@@ -126,14 +132,16 @@ class CentralizedPPOBuffer:
         # for a_id in self.agent_list:
         #     assert self.ptr[a_id] == self.max_size
 
+        # NOTE: We do not normalize the entire batch. Rather this needs to be
+        # done at the minibatch level while training
         for a_id in self.agent_list:
             self.ptr[a_id], self.path_start_idx[a_id] = 0, 0
 
             # the next two lines implement the advantage normalization trick
-            adv_mean, adv_std = mpi_statistics_scalar(
-                self.adv_buf[a_id].numpy()
-            )
-            self.adv_buf[a_id] = (self.adv_buf[a_id] - adv_mean) / adv_std
+            # adv_mean, adv_std = mpi_statistics_scalar(
+            #     self.adv_buf[a_id].numpy()
+            # )
+            # self.adv_buf[a_id] = (self.adv_buf[a_id] - adv_mean) / adv_std
         return {
             a_id: dict(
                 obs=self.state_buf[a_id],
@@ -142,6 +150,7 @@ class CentralizedPPOBuffer:
                 ret=self.ret_buf[a_id],
                 adv=self.adv_buf[a_id],
                 logp=self.logp_buf[a_id],
+                vest=self.vest_buf[a_id]
             )
             for a_id in self.agent_list
         }
