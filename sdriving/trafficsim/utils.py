@@ -43,11 +43,19 @@ def transform_2d_coordinates_rotation_matrix(
 def circle_segment_area(
     dist: torch.Tensor, radius: torch.Tensor
 ) -> torch.Tensor:
-    if dist > radius:
-        return torch.zeros(1)
-    theta = 2 * torch.acos(dist / radius)
-    return (theta - torch.sin(theta)) * (radius ** 2) / 2
-
+    if dist.size(0) == 1:
+        if dist > radius:
+            return torch.zeros(1)
+        theta = 2 * torch.acos(dist / radius)
+        return (theta - torch.sin(theta)) * (radius ** 2) / 2
+    else:
+        theta = 2 * torch.acos(torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5))
+        zeros = torch.zeros_like(dist)
+        return torch.where(
+            dist > radius,
+            zeros,
+            (theta - torch.sin(theta)) * (radius ** 2) / 2
+        )
 
 def circle_area_overlap(
     center1: torch.Tensor,

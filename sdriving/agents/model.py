@@ -224,8 +224,6 @@ class PPOGaussianActor(PPOActor):
         logp = logp - (
             2 * (np.log(2) - act - F.softplus(-2 * act))
         ).sum(axis=1)
-        # idx = torch.isnan(logp).nonzero()
-        # print(idx, pi.loc[idx], pi.scale[idx], act[idx], logp[idx])
         return logp.view(-1)
 
 
@@ -249,7 +247,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
             activation
         )
         self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
-        self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
+        self.log_std = -0.5 * torch.ones(act_dim).requires_grad_(True)
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
             nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
@@ -271,7 +269,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
 
     @staticmethod
     def atanh(x):
-        return 0.5 * torch.log((1 + x) / (1 - x))
+        return 0.5 * torch.log(torch.abs((1 + x + 1e-7) / (1 - x + 1e-7)))
 
     def _get_mu_std(
         self,
@@ -290,9 +288,10 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         if std:
             return self.mu_layer(out), torch.exp(
                 torch.clamp(
-                    self.log_std_layer(out), LOG_STD_MIN, LOG_STD_MAX
+                    self.log_std, LOG_STD_MIN, LOG_STD_MAX
                 )
             )
+            return mu, std
         else:
             return self.mu_layer(out)
 

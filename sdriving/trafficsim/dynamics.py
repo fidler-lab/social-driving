@@ -22,7 +22,7 @@ class BicycleKinematicsModel(nn.Module):
         self,
         dt: float = 0.10,
         dim: Union[float, List[float]] = 4.48,
-        v_lim: Union[float, List[float]] = 5.0,
+        v_lim: Union[float, List[float]] = 8.0,
     ):
         if isinstance(dim, float):
             dim = [dim]
@@ -414,10 +414,14 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
         else:
             assert track.shape[0] == self.nbatch
             assert track.shape[2] == 2
-            diff = track[:, 1:, :] - track[:, :-1, :]
+            diff = track[:, :-1, :] - track[:, 1:, :]
             ratio = diff[:, :, 1] / diff[:, :, 0]  # B x (k - 1)
-            self.arc_lengths = diff.pow(2).sum(-1)
-            self.theta = torch.atan(ratio)
+            self.arc_lengths = diff.pow(2).sum(-1).sqrt()
+            self.theta = angle_normalize(torch.where(
+                diff[:, :, 0] < 0,
+                torch.atan(ratio),
+                math.pi + torch.atan(ratio)
+            )) # angle_normalize(math.pi + torch.atan(ratio))
             self.theta.unsqueeze_(-1)
             return track
 
@@ -500,6 +504,8 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
         acceleration = action[:, 0:1]
 
         self.distances = self.distances + v * dt
+        
+#         print(self.distances, self.track_num)
 
         if isinstance(self.motion, ClothoidMotion):
             a, dir = self._get_track(state)
@@ -507,9 +513,9 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                 self.position, a, self.distances, self.theta, dir
             )
         else:
-            pt1, pt2, arc_length, theta_path = self._get_track(state)
-            s_t, theta = self.motion(
-                pt1, pt2, self.distances / arc_length, theta_path
+            pt1, pt2, arc_length, theta = self._get_track(state)
+            s_t = self.motion(
+                pt1, pt2, self.distances / arc_length
             )
             theta = theta.unsqueeze(-1)
 
