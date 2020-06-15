@@ -247,13 +247,12 @@ class PPOLidarGaussianActor(PPOGaussianActor):
             activation
         )
         self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
-        self.log_std = -0.5 * torch.ones(act_dim).requires_grad_(True)
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
             nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
             nn.AdaptiveAvgPool1d(feature_dim),
         )
-        # self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
+        self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
         self.history_len = history_len
 
     def act_scale(self, act):

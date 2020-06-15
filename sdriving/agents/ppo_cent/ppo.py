@@ -220,8 +220,8 @@ class PPO_Centralized_Critic:
 
         # Random subset sampling
         data = {a_id: {
-            data[a_id][key][idx] for key in data[a_id].keys()
-        }}
+            key: data[a_id][key][idx] for key in data[a_id].keys()
+        } for a_id in data.keys()}
         for a_id in data.keys():
             adv_mean, adv_std = data[a_id]["adv"].mean(), data[a_id]["adv"].std()
             data[a_id]["adv"] = (data[a_id]["adv"] - adv_mean) / adv_std
@@ -237,7 +237,7 @@ class PPO_Centralized_Critic:
         ]
 
         obs_list = []
-        vest_old = sum(d["vest"] for d in data_vf.values().to(device)) / len(
+        vest_old = sum(d["vest"] for d in data_vf.values()).to(device) / len(
             data_vf.keys()
         )
         ret = sum(d["ret"] for d in data_vf.values()).to(device) / len(
@@ -303,14 +303,16 @@ class PPO_Centralized_Critic:
 
         with torch.no_grad():
             _, info = self.compute_loss(data, range(local_steps_per_epoch))
-            pi_l_old = info["pi_loss"].item()
+            pi_l_old = info["pi_loss"]
             v_est = info["value_est"]
-            v_l_old = info["vf_loss"].item()
+            v_l_old = info["vf_loss"]
 
         for i, idx in enumerate(sampler):
             self.pi_optimizer.zero_grad()
             self.vf_optimizer.zero_grad()
+
             loss, info = self.compute_loss(data, idx)
+
             kl = mpi_avg(info["kl"])
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
@@ -333,15 +335,15 @@ class PPO_Centralized_Critic:
         self.logger.store(StopIter=i)
 
         # Log changes from update
-        kl, ent, cf = pi_info["kl"], pi_info_old["ent"], pi_info["cf"]
+        kl, ent, cf = info["kl"], info["ent"], info["cf"]
         self.logger.store(
             LossPi=pi_l_old,
             LossV=v_l_old,
             KL=kl,
             Entropy=ent,
             ClipFrac=cf,
-            DeltaLossPi=(loss_pi.item() - pi_l_old),
-            DeltaLossV=(loss_v.item() - v_l_old),
+            DeltaLossPi=(info["pi_loss"] - pi_l_old),
+            DeltaLossV=(info["vf_loss"] - v_l_old),
             ValueEstimate=v_est,
         )
         if proc_id() == 0:
