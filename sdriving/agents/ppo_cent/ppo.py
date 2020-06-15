@@ -224,7 +224,7 @@ class PPO_Centralized_Critic:
         } for a_id in data.keys()}
         for a_id in data.keys():
             adv_mean, adv_std = data[a_id]["adv"].mean(), data[a_id]["adv"].std()
-            data[a_id]["adv"] = (data[a_id]["adv"] - adv_mean) / adv_std
+            data[a_id]["adv"] = (data[a_id]["adv"] - adv_mean) / (adv_std + 1e-7)
 
         # Convert the data to the required format for actor and critic
         data_vf = data
@@ -404,7 +404,6 @@ class PPO_Centralized_Critic:
                         torch.as_tensor(r[key]).detach().cpu(),
                         v[key].cpu(),
                         logp[key].cpu(),
-                        v[key].cpu()
                     )
                     self.logger.store(VVals=v[key])
 

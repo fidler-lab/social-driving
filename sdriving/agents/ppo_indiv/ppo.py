@@ -53,6 +53,7 @@ class PPO_Decentralized_Critic:
         load_path=None,
         render_train: bool = False,
         tboard: bool = True,
+        entropy_coeff: float = 1e-2,
         **kwargs,
     ):
         # Special function to avoid certain slowdowns from PyTorch + MPI combo.
@@ -81,6 +82,8 @@ class PPO_Decentralized_Critic:
                 "action_space": self.env.action_space,
             }
         )
+
+        self.entropy_coeff = entropy_coeff
 
         if torch.cuda.is_available():
             # From emperical results, 8 tasks can use a single gpu
@@ -115,7 +118,7 @@ class PPO_Decentralized_Critic:
             ckpt = torch.load(load_path, map_location="cpu")
             self.ac.pi.load_state_dict(ckpt["actor"])
             self.pi_optimizer = Adam(
-                trainable_parameters(self.ac.pi), lr=pi_lr
+                trainable_parameters(self.ac.pi), lr=pi_lr, eps=1e-8
             )
             self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
             for state in self.pi_optimizer.state.values():
@@ -124,7 +127,9 @@ class PPO_Decentralized_Critic:
                         state[k] = v.to(device)
             if "model" in ckpt and ckpt["model"] == "decentralized_critic":
                 self.ac.v.load_state_dict(ckpt["critic"])
-            self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
+            self.vf_optimizer = Adam(
+                trainable_parameters(self.ac.v), lr=vf_lr, eps=1e-8
+            )
             if "model" in ckpt and ckpt["model"] == "decentralized_critic":
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
                 for state in self.vf_optimizer.state.values():
@@ -133,9 +138,11 @@ class PPO_Decentralized_Critic:
                             state[k] = v.to(device)
         else:
             self.pi_optimizer = Adam(
-                trainable_parameters(self.ac.pi), lr=pi_lr
+                trainable_parameters(self.ac.pi), lr=pi_lr, eps=1e-8
             )
-            self.vf_optimizer = Adam(trainable_parameters(self.ac.v), lr=vf_lr)
+            self.vf_optimizer = Adam(
+                trainable_parameters(self.ac.v), lr=vf_lr, eps=1e-8
+            )
 
         # Sync params across processes
         sync_params(self.ac)
@@ -195,111 +202,107 @@ class PPO_Decentralized_Critic:
         self.save_freq = save_freq
         self.tboard = tboard
 
-    def _get_batch(self, data: torch.Tensor, i: int, batch_size: int):
-        return data[i * batch_size:min((i + 1) * batch_size, data.size(0))]
-
-    # Set up function for computing PPO policy loss
-    def compute_loss_pi(self, data, i: int, batch_size: int):
+    def compute_loss(self, data: dict, idx):
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, lidar, act, adv, logp_old = map(
-            lambda x: self._get_batch(x, i, batch_size),
-            (
-                data["obs"].to(device),
-                data["lidar"].to(device),
-                data["act"].to(device),
-                data["adv"].to(device),
-                data["logp"].to(device),
-            )
+        # Random subset sampling
+        data = {key: val[idx] for key, val in data.items()}
+        obs, lidar, ret, act, adv, logp_old, vest_old = map(
+            lambda x: data[x].to(device),
+            ["obs", "lidar", "ret", "act", "adv", "logp", "vest"]
         )
+        adv = (adv - adv.mean()) / (adv.std() + 1e-7)
+
+        # Value Function Loss
+        value_est = self.ac.v((obs, lidar))
+        value_est_clipped = vest_old + (value_est - vest_old).clamp(
+            -clip_ratio, clip_ratio
+        )
+        value_losses = (value_est - ret).pow(2)
+        value_losses_clipped = (value_est_clipped - ret).pow(2)
+
+        value_loss = 0.5 * torch.max(value_losses, value_losses_clipped).mean()
 
         # Policy loss
         pi, logp = self.ac.pi((obs, lidar), act)
-        ratio = torch.exp(logp - logp_old)
+        ratio = torch.exp((logp - logp_old).clamp(-20.0, 2.0))
         clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
         loss_pi = -(torch.min(ratio * adv, clip_adv)).mean()
 
-        # Useful extra info
+        # Entropy Loss
+        ent = pi.entropy().mean()
+
+        # TODO: Search for a good set of coeffs
+        loss = loss_pi - ent * self.entropy_coeff + value_loss
+
+        # Logging Utilities
         approx_kl = (logp_old - logp).mean().item()
-        ent = pi.entropy().mean().item()
         clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
         clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
-        pi_info = dict(kl=approx_kl, ent=ent, cf=clipfrac)
-
-        return loss_pi, pi_info
-
-    # Set up function for computing value loss
-    def compute_loss_v(self, data, i: int, batch_size: int):
-        device = self.device
-
-        obs, lidar, ret = map(
-            lambda x: self._get_batch(data[x].to(device), i, batch_size),
-            ["obs", "lidar", "ret"]
+        info = dict(
+            kl=approx_kl, ent=ent.item(),
+            cf=clipfrac, value_est=value_est.mean().item(),
+            pi_loss=loss_pi.item(), vf_loss=value_loss.item()
         )
 
-        value_est = self.ac.v((obs, lidar))
-
-        return (
-            ((value_est - ret) ** 2).mean(),
-            dict(value_est=value_est.mean().item()),
-        )
+        return loss, info
 
     def update(self, epoch, t):
         data = self.buf.get()
         local_steps_per_epoch = self.local_steps_per_epoch
 
-        with torch.no_grad():
-            pi_l_old, pi_info_old = self.compute_loss_pi(data, 0, data["obs"].size(0))
-            pi_l_old = pi_l_old.item()
-            v_l_old, v_est = self.compute_loss_v(data, 0, data["obs"].size(0))
-            v_l_old = v_l_old.item()
-            v_est = v_est["value_est"]
+        train_iters = max(self.train_pi_iters, self.train_v_iters)
+        batch_size = data["obs"].size(0) // train_iters
 
-        batch_size = local_steps_per_epoch // self.train_pi_iters
-        # Train policy with multiple steps of gradient descent
-        for i in range(self.train_pi_iters):
+        sampler = torch.utils.data.BatchSampler(
+            torch.utils.data.SubsetRandomSampler(range(data["obs"].size(0))),
+            batch_size, drop_last=True
+        )
+
+        with torch.no_grad():
+            _, info = self.compute_loss(data, range(local_steps_per_epoch))
+            pi_l_old = info["pi_loss"]
+            v_est = info["value_est"]
+            v_l_old = info["vf_loss"]
+
+        for i, idx in enumerate(sampler):
             self.pi_optimizer.zero_grad()
-            loss_pi, pi_info = self.compute_loss_pi(data, i, batch_size)
-            kl = mpi_avg(pi_info["kl"])
-            """
+            self.vf_optimizer.zero_grad()
+
+            loss, info = self.compute_loss(data, idx)
+
+            kl = mpi_avg(info["kl"])
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
-                    "Early stopping at step %d due to reaching max kl." % i
+                    f"Early stopping at step {i} due to reaching max kl."
                 )
                 break
-            """
-            loss_pi.backward()
+            loss.backward()
+
             self.ac.pi = self.ac.pi.cpu()
-            # TODO: Use NCCL to do this without GPU to CPU transfer
-            mpi_avg_grads(self.ac.pi)  # average grads across MPI processes
+            mpi_avg_grads(self.ac.pi)
             self.ac.pi = self.ac.pi.to(self.device)
+
+            self.ac.v = self.ac.v.cpu()
+            mpi_avg_grads(self.ac.v)
+            self.ac.v = self.ac.v.to(self.device)
+
             self.pi_optimizer.step()
+            self.vf_optimizer.step()
 
         self.logger.store(StopIter=i)
 
-        batch_size = local_steps_per_epoch // self.train_v_iters
-        # Value function learning
-        for i in range(self.train_v_iters):
-            self.vf_optimizer.zero_grad()
-            loss_v, _ = self.compute_loss_v(data, i, batch_size)
-            loss_v.backward()
-            self.ac.v = self.ac.v.cpu()
-            # TODO: Use NCCL
-            mpi_avg_grads(self.ac.v)  # average grads across MPI processes
-            self.ac.v = self.ac.v.to(self.device)
-            self.vf_optimizer.step()
-
         # Log changes from update
-        kl, ent, cf = pi_info["kl"], pi_info_old["ent"], pi_info["cf"]
+        kl, ent, cf = info["kl"], info["ent"], info["cf"]
         self.logger.store(
             LossPi=pi_l_old,
             LossV=v_l_old,
             KL=kl,
             Entropy=ent,
             ClipFrac=cf,
-            DeltaLossPi=(loss_pi.item() - pi_l_old),
-            DeltaLossV=(loss_v.item() - v_l_old),
+            DeltaLossPi=(info["pi_loss"] - pi_l_old),
+            DeltaLossV=(info["vf_loss"] - v_l_old),
             ValueEstimate=v_est,
         )
         if proc_id() == 0:

@@ -76,7 +76,7 @@ class CentralizedPPOBuffer:
         self.ptr = {a_id: 0 for a_id in self.agent_list}
         self.path_start_idx = {a_id: 0 for a_id in self.agent_list}
 
-    def store(self, a_id: str, obs, lidar, act, rew, val, logp, vest=None):
+    def store(self, a_id: str, obs, lidar, act, rew, val, logp):
         """Append one timestep of agent-environment interaction to the
         buffer."""
         assert (
@@ -88,8 +88,6 @@ class CentralizedPPOBuffer:
         self.rew_buf[a_id][self.ptr[a_id]] = rew
         self.val_buf[a_id][self.ptr[a_id]] = val
         self.logp_buf[a_id][self.ptr[a_id]] = logp
-        if vest is not None:
-            self.vest_buf[a_id][self.ptr[a_id]] = vest
         self.ptr[a_id] = self.ptr[a_id] + 1
 
     def finish_path(
@@ -150,7 +148,7 @@ class CentralizedPPOBuffer:
                 ret=self.ret_buf[a_id],
                 adv=self.adv_buf[a_id],
                 logp=self.logp_buf[a_id],
-                vest=self.vest_buf[a_id]
+                vest=self.val_buf[a_id]
             )
             for a_id in self.agent_list
         }
@@ -231,16 +229,18 @@ class DecentralizedPPOBuffer:
         zero and std one).
         Also, resets some pointers in the buffer.
         """
+        ptr_copy = self.ptr
         self.ptr, self.path_start_idx = 0, 0
 
         # the next two lines implement the advantage normalization trick
-        adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf.numpy())
-        self.adv_buf = (self.adv_buf - adv_mean) / (adv_std + 1e-7)
+        # adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf.numpy())
+        # self.adv_buf = (self.adv_buf - adv_mean) / (adv_std + 1e-7)
         return dict(
-            obs=self.state_buf,
-            lidar=self.lidar_buf,
-            act=self.act_buf,
-            ret=self.ret_buf,
-            adv=self.adv_buf,
-            logp=self.logp_buf,
+            obs=self.state_buf[:ptr_copy],
+            lidar=self.lidar_buf[:ptr_copy],
+            act=self.act_buf[:ptr_copy],
+            ret=self.ret_buf[:ptr_copy],
+            adv=self.adv_buf[:ptr_copy],
+            logp=self.logp_buf[:ptr_copy],
+            vest=self.val_buf[:ptr_copy]
         )
