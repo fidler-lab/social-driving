@@ -22,9 +22,6 @@ from sdriving.envs.intersection_env import (
 
 # Legacy code for experimentaion
 from sdriving.envs.meta_control import MetaControlEnv
-from sdriving.envs.spline_env import (
-    SplineRoadIntersectionAccelerationControlEnv,
-)
 
 REGISTRY = {}
 

@@ -7,8 +7,12 @@ from torch import nn
 from sdriving.trafficsim.parametric_curves import (
     ClothoidMotion,
     LinearSplineMotion,
+    CatmullRomSplineMotion,
 )
 from sdriving.trafficsim.utils import angle_normalize
+
+
+EPS = 1e-7
 
 
 class BicycleKinematicsModel(nn.Module):
@@ -289,104 +293,8 @@ class FixedTrackAccelerationModel(nn.Module):
         return torch.cat([x, y, v, theta], dim=1)
 
 
-class SplineAccelerationModel(nn.Module):
-    # NOTE: This is not an accurate model following the kinematics model.
-    def __init__(
-        self,
-        dt: float = 0.10,
-        dim: Union[float, List[float]] = 4.48,
-        v_lim: Union[float, List[float]] = 5.0,
-    ):
-        if isinstance(dim, float):
-            dim = [dim]
-        if isinstance(v_lim, float):
-            v_lim = [v_lim]
-
-        assert len(dim) == len(v_lim)
-
-        super().__init__()
-
-        self.dt = dt
-        self.dim = torch.as_tensor(dim).unsqueeze(1)
-        self.v_lim = torch.as_tensor(v_lim).unsqueeze(1)
-
-        self.device = torch.device("cpu")
-        self.nbatch = len(dim)
-
-        self.points = torch.zeros(1, 2)
-        self.orientations = None
-        self.cur_position = 0
-
-    def to(self, device):
-        if device == self.device:
-            return
-        self.dim = self.dim.to(device)
-        self.v_lim = self.v_lim.to(device)
-        self.device = device
-        self.points = self.points.to(device)
-        self.orientations = self.orientations.to(device)
-
-    def register(self, points: torch.Tensor):
-        # points --> N x 2
-        self.points = points.to(self.device)
-        pdiff = self.points[1:, :] - self.points[:-1, :]
-        self.orientations = torch.atan(pdiff[:, 1] / (pdiff[:, 0] + 1e-7))
-        self.orientations = torch.cat(
-            [self.orientations, self.orientations[-1].unsqueeze(0)]
-        )
-        self.orientations.unsqueeze_(1)
-        self.cur_position = 0
-
-    def get_next_target(self):
-        return self.points[
-            min(self.cur_position + 1, self.points.size(0) - 1), :
-        ]
-
-    def _nearest_point_on_spline(self, pt: torch.Tensor):
-        cpos = self.cur_position
-        min_pos = max(0, cpos - 5)
-        max_pos = min(self.points.size(0) - 1, cpos + 5)
-        npos = min_pos + torch.argmin(
-            ((pt.unsqueeze(0) - self.points[min_pos:max_pos, :]) ** 2).sum()
-        )
-        self.cur_position = npos
-        return npos
-
-    def forward(self, state: torch.Tensor, action: torch.Tensor):
-        """
-        Args:
-            state: N x 4 Dimensional Tensor, where N is the batch size, and
-                   the second dimension represents
-                   {x coordinate, y coordinate, velocity, orientation}
-            action: N x 1 Dimensional Tensor, where N is the batch size, and
-                    the second dimension represents
-                    {acceleration}
-        """
-        assert state.size(0) == 1
-
-        dt = self.dt
-        x = state[:, 0:1]
-        y = state[:, 1:2]
-        v = state[:, 2:3]
-        theta = state[:, 3:4]
-        acceleration = action[:, 0:1]
-
-        x = x + v * torch.cos(theta) * dt
-        y = y + v * torch.sin(theta) * dt
-        pos = self._nearest_point_on_spline(torch.as_tensor([x, y]))
-        x, y = self.points[pos, :]
-        x = x[None, None]
-        y = y[None, None]
-        theta = self.orientations[pos, :].unsqueeze(0)
-
-        v_lim = self.v_lim
-        v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
-
-        return torch.cat([x, y, v, theta], dim=1)
-
-
 class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
-    def __init__(self, track, model=ClothoidMotion, *args, **kwargs):
+    def __init__(self, track, model=ClothoidMotion, *args, model_kwargs={}, **kwargs):
         # track is a B x k x 3 tensor
         super().__init__(*args, **kwargs)
 
@@ -394,14 +302,17 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
         assert self.nbatch == 1
 
         self.motion = model()
+        self.model = model
         self.distances = torch.zeros(self.nbatch)
         self.distance_checks = torch.zeros(self.nbatch).bool()
         self.track_num = torch.zeros(self.nbatch).int()
         self.position = torch.zeros(self.nbatch, 2)
         self.theta = torch.zeros(self.nbatch, 1)
         self.registered = torch.zeros(self.nbatch).bool()
+        self.arc_lengths = None
+        self.model_kwargs = model_kwargs
 
-        assert self.nbatch == track.size(0)
+#         assert self.nbatch == track.size(0)
         self.track_unmodified = track.clone()
         self.track = self._setup_track(track)
 
@@ -411,7 +322,7 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
             assert track.shape[2] == 3
             track[:, :, 1] = torch.cumsum(track[:, :, 1], dim=1)
             return track
-        else:
+        elif isinstance(self.motion, LinearSplineMotion):
             assert track.shape[0] == self.nbatch
             assert track.shape[2] == 2
             diff = track[:, :-1, :] - track[:, 1:, :]
@@ -421,7 +332,19 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                 diff[:, :, 0] < 0,
                 torch.atan(ratio),
                 math.pi + torch.atan(ratio)
-            )) # angle_normalize(math.pi + torch.atan(ratio))
+            ))
+            self.theta.unsqueeze_(-1)
+            return track
+        elif isinstance(self.motion, CatmullRomSplineMotion):
+            self.motion = self.model(track, **self.model_kwargs)
+            diff = self.motion.diff
+            ratio = diff[:, 1] / (diff[:, 0] + EPS)  # (k - 1)
+            self.arc_lengths = self.motion.arc_lengths
+            self.theta = angle_normalize(torch.where(
+                diff[:, 0] < 0, 
+                torch.atan(ratio),
+                math.pi + torch.atan(ratio)
+            ))
             self.theta.unsqueeze_(-1)
             return track
 
@@ -468,7 +391,7 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                         self.track[i, self.track_num[i], 1] + self.distances[i]
                     )
             return torch.cat(a, dim=0), torch.cat(dir, dim=0)
-        else:
+        elif isinstance(self.motion, LinearSplineMotion):
             # For now the batch size is 1
             for i, tnum in enumerate(self.track_num.clone()):
                 if self.distances[i] > self.arc_lengths[i, tnum]:
@@ -489,6 +412,20 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                     self.arc_lengths[i, tnum],
                     self.theta[i, tnum]
                 )
+        elif isinstance(self.motion, CatmullRomSplineMotion):
+            s = self.distances[0] % self.motion.curve_length
+            sg = self.track_num[0]
+            while s < 0:
+                s = s + self.arc_lengths[0, -1]
+            while (s > self.arc_lengths[(sg + 1) % self.motion.npoints]
+                   or s < self.arc_lengths[sg]):
+                sg = (sg + 1) % self.motion.npoints
+            self.track_num[0] = sg
+            
+            return (
+                sg.unsqueeze(0),
+                self.theta[sg]
+            )
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """
@@ -504,19 +441,22 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
         acceleration = action[:, 0:1]
 
         self.distances = self.distances + v * dt
-        
-#         print(self.distances, self.track_num)
 
         if isinstance(self.motion, ClothoidMotion):
             a, dir = self._get_track(state)
             s_t, theta = self.motion(
                 self.position, a, self.distances, self.theta, dir
             )
-        else:
+        elif isinstance(self.motion, LinearSplineMotion):
             pt1, pt2, arc_length, theta = self._get_track(state)
             s_t = self.motion(
                 pt1, pt2, self.distances / arc_length
             )
+            theta = theta.unsqueeze(-1)
+        elif isinstance(self.motion, CatmullRomSplineMotion):
+            sg, theta = self._get_track(state)
+            ts = self.motion.map_s_to_t(self.distances[0:1] % self.motion.curve_length, sg)
+            s_t = self.motion(ts)
             theta = theta.unsqueeze(-1)
 
         if state.size(0) == self.nbatch:
