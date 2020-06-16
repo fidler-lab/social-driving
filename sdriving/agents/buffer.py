@@ -185,17 +185,22 @@ class DecentralizedPPOBuffer:
         self.val_buf = torch.zeros(size, dtype=torch.float32)
         self.logp_buf = torch.zeros(size, dtype=torch.float32)
 
+        self.agent_id_idxs = {}
+
         self.gamma, self.lam = gamma, lam
         self.max_size = size
         self.ptr = 0
-        self.path_start_idx = 0
 
-    def store(self, obs, lidar, act, rew, val, logp):
+    def store(self, a_id, obs, lidar, act, rew, val, logp):
         """Append one timestep of agent-environment interaction to the
         buffer."""
         assert (
             self.ptr < self.max_size
         )  # buffer has to have room so you can store
+        if a_id not in self.agent_id_idxs:
+            self.agent_id_idxs[a_id] = [self.ptr]
+        else:
+            self.agent_id_idxs[a_id].append(self.ptr)
         self.state_buf[self.ptr] = obs
         self.lidar_buf[self.ptr] = lidar
         self.act_buf[self.ptr] = act
@@ -204,24 +209,34 @@ class DecentralizedPPOBuffer:
         self.logp_buf[self.ptr] = logp
         self.ptr = self.ptr + 1
 
-    def finish_path(self, last_val: Optional[Union[int, torch.Tensor]] = None):
+    def finish_path(
+        self,
+        a_id: Optional[str],
+        last_val: Optional[Union[int, torch.Tensor]] = None
+    ):
         last_val = 0 if last_val is None else last_val
 
-        path_slice = slice(self.path_start_idx, self.ptr)
-        rews = np.append(self.rew_buf[path_slice].detach().numpy(), last_val)
-        vals = np.append(self.val_buf[path_slice].detach().numpy(), last_val)
+        if a_id is None:
+            a_ids = self.agent_id_idxs.keys()
+        else:
+            a_ids = [a_id]
 
-        # the next two lines implement GAE-Lambda advantage calculation
-        deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-        self.adv_buf[path_slice] = discount_cumsum(
-            deltas, self.gamma * self.lam
-        )
+        for a_id in a_ids:
+            path_slice = self.agent_id_idx[a_id]
+            rews = np.append(self.rew_buf[path_slice].detach().numpy(), last_val)
+            vals = np.append(self.val_buf[path_slice].detach().numpy(), last_val)
 
-        # the next line computes rewards-to-go,
-        # to be targets for the value function
-        self.ret_buf[path_slice] = discount_cumsum(rews, self.gamma)[:-1]
+            # the next two lines implement GAE-Lambda advantage calculation
+            deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
+            self.adv_buf[path_slice] = discount_cumsum(
+                deltas, self.gamma * self.lam
+            )
 
-        self.path_start_idx = self.ptr
+            # the next line computes rewards-to-go,
+            # to be targets for the value function
+            self.ret_buf[path_slice] = discount_cumsum(rews, self.gamma)[:-1]
+
+            del self.agent_id_idxs[a_id]
 
     def get(self):
         """Call this at the end of an epoch to get all of the data from the
@@ -230,7 +245,8 @@ class DecentralizedPPOBuffer:
         Also, resets some pointers in the buffer.
         """
         ptr_copy = self.ptr
-        self.ptr, self.path_start_idx = 0, 0
+        self.ptr = 0
+        self.agent_id_idxs = {}
 
         # the next two lines implement the advantage normalization trick
         # adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf.numpy())

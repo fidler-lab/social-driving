@@ -358,6 +358,7 @@ class PPO_Decentralized_Critic:
                 # Store experience to replay buffer
                 for key, obs in o.items():
                     self.buf.store(
+                        key,
                         obs[0].cpu(),
                         obs[1].cpu(),
                         a[key].cpu(),
@@ -378,15 +379,13 @@ class PPO_Decentralized_Critic:
                     # if trajectory didn't reach terminal state,
                     # bootstrap value target
                     if timeout or epoch_ended:
-                        v_list = []
-                        for _, obs in o.items():
+                        for a_id, obs in o.items():
                             obs = tuple([t.to(self.device) for t in obs])
                             _, v, _ = ac.step(obs)
-                            v_list.append(v)
-                        v = (sum(v_list) / len(v_list)).cpu()
+                            self.buf.finish_path(a_id, v)
                     else:
                         v = 0
-                    self.buf.finish_path(v)
+                        self.buf.finish_path(None, v)
                     # only save EpRet / EpLen if trajectory finished
                     self.logger.store(EpRet=ep_ret, EpLen=ep_len)
                     if terminal:
