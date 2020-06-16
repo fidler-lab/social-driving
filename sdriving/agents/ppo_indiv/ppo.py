@@ -9,6 +9,7 @@ import torch
 from torch.optim import SGD, Adam
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from mpi4py import MPI
 
 import wandb
 from sdriving.agents.buffer import DecentralizedPPOBuffer as PPOBuffer
@@ -23,6 +24,7 @@ from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
     mpi_avg,
     mpi_fork,
+    mpi_op,
     mpi_statistics_scalar,
     num_procs,
     proc_id,
@@ -253,15 +255,16 @@ class PPO_Decentralized_Critic:
         local_steps_per_epoch = self.local_steps_per_epoch
 
         train_iters = max(self.train_pi_iters, self.train_v_iters)
-        batch_size = data["obs"].size(0) // train_iters
+        size = int(mpi_op(data["obs"].size(0), MPI.MIN))
+        batch_size = size // train_iters
 
         sampler = torch.utils.data.BatchSampler(
-            torch.utils.data.SubsetRandomSampler(range(data["obs"].size(0))),
+            torch.utils.data.SubsetRandomSampler(range(size)),
             batch_size, drop_last=True
         )
 
         with torch.no_grad():
-            _, info = self.compute_loss(data, range(local_steps_per_epoch))
+            _, info = self.compute_loss(data, range(size))
             pi_l_old = info["pi_loss"]
             v_est = info["value_est"]
             v_l_old = info["vf_loss"]
@@ -278,6 +281,7 @@ class PPO_Decentralized_Critic:
                     f"Early stopping at step {i} due to reaching max kl."
                 )
                 break
+
             loss.backward()
 
             self.ac.pi = self.ac.pi.cpu()
