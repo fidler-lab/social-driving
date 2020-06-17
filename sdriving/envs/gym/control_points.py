@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete
-
 from sdriving.agents.model import ActiveSplineTorch
 
 
@@ -205,7 +204,13 @@ class ControlPointEnv(gym.Env):
             for i, pt in enumerate(self.points):
                 if not i % 4 == 1:
                     continue
-                plt.plot(pt[0].item(), pt[1].item(), color="b", marker="x", markersize=0.5)
+                plt.plot(
+                    pt[0].item(),
+                    pt[1].item(),
+                    color="b",
+                    marker="x",
+                    markersize=0.5,
+                )
 
         edges = self._collision_lines()
         for i in range(len(edges)):

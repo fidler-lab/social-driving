@@ -6,7 +6,6 @@ from collections import deque
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
-
 from sdriving.envs.intersection_env import RoadIntersectionControlEnv
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
@@ -160,7 +159,9 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                         1 if srd[-1] in ("1", "2") else -1
                     )
                     spos[(int(srd[-1]) + 1) % 2] = (
-                        side * self.width / 4 # (torch.rand(1) * 0.15 + 0.15) * self.width
+                        side
+                        * self.width
+                        / 4  # (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
             else:
                 spos = sroad.offset.clone()
@@ -172,7 +173,9 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                         1 if srd[-1] in ("1", "2") else -1
                     )
                     s_pos[(int(srd[-1]) + 1) % 2] = (
-                        side * self.width / 4 # (torch.rand(1) * 0.15 + 0.15) * self.width
+                        side
+                        * self.width
+                        / 4  # (torch.rand(1) * 0.15 + 0.15) * self.width
                     )
             else:
                 s_pos = sroad.offset.clone()
@@ -266,8 +269,8 @@ class RoadIntersectionContinuousAccelerationEnv(
         agent = self.agents[a_id]["vehicle"]
 
         x, y = agent.position
-        v = agent.speed 
-        t = agent.orientation 
+        v = agent.speed
+        t = agent.orientation
 
         start_state = torch.as_tensor([x, y, v, t])
         dynamics = self.agents[a_id]["dynamics"]

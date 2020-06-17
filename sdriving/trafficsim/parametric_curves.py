@@ -2,10 +2,8 @@ import math
 
 import scipy.special as sc
 import torch
-from torch import nn
-
 from sdriving.trafficsim.utils import angle_normalize
-
+from torch import nn
 
 EPS = 1e-7
 
@@ -60,10 +58,7 @@ class ClothoidMotion(nn.Module):
 
 class LinearSplineMotion(nn.Module):
     def forward(
-        self,
-        pt1: torch.Tensor,
-        pt2: torch.Tensor,
-        t: torch.Tensor,
+        self, pt1: torch.Tensor, pt2: torch.Tensor, t: torch.Tensor,
     ):
         # pt1 --> N x 2
         # pt2 --> N x 2
@@ -77,7 +72,7 @@ class CatmullRomSplineMotion(nn.Module):
         cps: torch.Tensor = torch.rand(2, 2),
         p_num: int = 100,
         alpha: float = 0.5,
-        device="cpu"
+        device="cpu",
     ):
         super().__init__()
         self.device = device
@@ -85,10 +80,7 @@ class CatmullRomSplineMotion(nn.Module):
         cp_num = cps.size(0)
         cps = torch.cat([cps, cps[0, :].unsqueeze(0)], dim=0)
         auxillary_cps = torch.zeros(
-            cps.size(0) + 2,
-            cps.size(1),
-            device=cps.device,
-            dtype=torch.float,
+            cps.size(0) + 2, cps.size(1), device=cps.device, dtype=torch.float,
         )
         auxillary_cps[1:-1, :] = cps
 
@@ -110,11 +102,14 @@ class CatmullRomSplineMotion(nn.Module):
         )
 
         t = torch.zeros(
-            [auxillary_cps.size(0)],
-            device=cps.device,
-            dtype=torch.float,
+            [auxillary_cps.size(0)], device=cps.device, dtype=torch.float,
         )
-        diff = (auxillary_cps[1:] - auxillary_cps[:-1]).pow(2).sum(-1).pow(alpha / 2)
+        diff = (
+            (auxillary_cps[1:] - auxillary_cps[:-1])
+            .pow(2)
+            .sum(-1)
+            .pow(alpha / 2)
+        )
         t[1:] = torch.cumsum(diff, dim=0)
 
         # No need to calculate gradient w.r.t t.
@@ -127,8 +122,10 @@ class CatmullRomSplineMotion(nn.Module):
         self.device = device
 
         self.ts = torch.cat(
-            [torch.linspace(self.t[i], self.t[i + 1] - EPS, steps=p_num)
-             for i in range(1, len(self.t) - 2)]
+            [
+                torch.linspace(self.t[i], self.t[i + 1] - EPS, steps=p_num)
+                for i in range(1, len(self.t) - 2)
+            ]
         )
         pts = self.forward(self.ts)
         diff = pts[1:] - pts[:-1]
@@ -138,14 +135,14 @@ class CatmullRomSplineMotion(nn.Module):
         self.diff = diff
         self.dist = dist
         self.curve_length = dist.sum().detach()
-        self.arc_lengths = torch.cat([torch.zeros(1), torch.cumsum(dist, dim=0)])
+        self.arc_lengths = torch.cat(
+            [torch.zeros(1), torch.cumsum(dist, dim=0)]
+        )
         self.npoints = self.arc_lengths.size(0)
 
     def map_s_to_t(self, s, sgs=None):
         s = torch.reshape(s, (s.size(0),))
-        tval = torch.zeros(
-            [s.size(0)], device=self.device, dtype=torch.float
-        )
+        tval = torch.zeros([s.size(0)], device=self.device, dtype=torch.float)
 
         s, idx = torch.sort(s)
         sg = 0
@@ -157,8 +154,10 @@ class CatmullRomSplineMotion(nn.Module):
                     if elem == 0:
                         search_forward = False
                         sg = self.npoints - 1
-                while (sv > self.arc_lengths[(sg + 1) % self.npoints]
-                       or sv < self.arc_lengths[sg]):
+                while (
+                    sv > self.arc_lengths[(sg + 1) % self.npoints]
+                    or sv < self.arc_lengths[sg]
+                ):
                     if search_forward:
                         sg = (sg + 1) % self.npoints
                     if not search_forward:
@@ -177,29 +176,37 @@ class CatmullRomSplineMotion(nn.Module):
     def forward(self, t):
         t = torch.reshape(t, (t.size(0),))
         points = torch.zeros(
-            [t.size(0), self.cps.size(1)], device=self.device,
-            dtype=torch.float
+            [t.size(0), self.cps.size(1)],
+            device=self.device,
+            dtype=torch.float,
         )
 
         t, idx = torch.sort(t)
         sg = 1
         for i, tv in zip(idx, t):
-            while (tv > self.t[sg + 1] or tv < self.t[sg]) and sg <= self.cp_num:
+            while (
+                tv > self.t[sg + 1] or tv < self.t[sg]
+            ) and sg <= self.cp_num:
                 sg += 1
             t0 = self.t[sg - 1].unsqueeze(0)
             t1 = self.t[sg].unsqueeze(0)
             t2 = self.t[sg + 1].unsqueeze(0)
             t3 = self.t[sg + 2].unsqueeze(0)
 
-            x01 = ((t1 - tv) * self.auxillary_cps[sg - 1, :]
-                   + (tv - t0) * self.auxillary_cps[sg, :]) / (t1 - t0)
-            x12 = ((t2 - tv) * self.auxillary_cps[sg, :]
-                   + (tv - t1) * self.auxillary_cps[sg + 1, :]) / (t2 - t1)
-            x23 = ((t3 - tv) * self.auxillary_cps[sg + 1, :]
-                   + (tv - t2) * self.auxillary_cps[sg + 2, :]) / (t3 - t2)
+            x01 = (
+                (t1 - tv) * self.auxillary_cps[sg - 1, :]
+                + (tv - t0) * self.auxillary_cps[sg, :]
+            ) / (t1 - t0)
+            x12 = (
+                (t2 - tv) * self.auxillary_cps[sg, :]
+                + (tv - t1) * self.auxillary_cps[sg + 1, :]
+            ) / (t2 - t1)
+            x23 = (
+                (t3 - tv) * self.auxillary_cps[sg + 1, :]
+                + (tv - t2) * self.auxillary_cps[sg + 2, :]
+            ) / (t3 - t2)
             x012 = ((t2 - tv) * x01 + (tv - t0) * x12) / (t2 - t0)
             x123 = ((t3 - tv) * x12 + (tv - t1) * x23) / (t3 - t1)
             points[i] = ((t2 - tv) * x012 + (tv - t1) * x123) / (t2 - t1)
 
         return points
-

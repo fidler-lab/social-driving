@@ -2,7 +2,6 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-
 from sdriving.agents.utils import (
     combined_shape,
     discount_cumsum,
@@ -148,7 +147,7 @@ class CentralizedPPOBuffer:
                 ret=self.ret_buf[a_id],
                 adv=self.adv_buf[a_id],
                 logp=self.logp_buf[a_id],
-                vest=self.val_buf[a_id]
+                vest=self.val_buf[a_id],
             )
             for a_id in self.agent_list
         }
@@ -212,29 +211,37 @@ class DecentralizedPPOBuffer:
     def finish_path(
         self,
         a_id: Optional[str],
-        last_val: Optional[Union[int, torch.Tensor]] = None
+        last_val: Optional[Union[int, torch.Tensor]] = None,
     ):
         last_val = 0 if last_val is None else last_val
 
         if a_id is None:
-            a_ids = self.agent_id_idxs.keys()
+            a_ids = list(self.agent_id_idxs.keys())
         else:
             a_ids = [a_id]
 
         for a_id in a_ids:
-            path_slice = self.agent_id_idx[a_id]
-            rews = np.append(self.rew_buf[path_slice].detach().numpy(), last_val)
-            vals = np.append(self.val_buf[path_slice].detach().numpy(), last_val)
+            if a_id not in self.agent_id_idxs:
+                continue
+            path_slice = self.agent_id_idxs[a_id]
+            rews = np.append(
+                self.rew_buf[path_slice].detach().numpy(), last_val
+            )
+            vals = np.append(
+                self.val_buf[path_slice].detach().numpy(), last_val
+            )
 
             # the next two lines implement GAE-Lambda advantage calculation
             deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
             self.adv_buf[path_slice] = discount_cumsum(
                 deltas, self.gamma * self.lam
-            )
+            ).float()
 
             # the next line computes rewards-to-go,
             # to be targets for the value function
-            self.ret_buf[path_slice] = discount_cumsum(rews, self.gamma)[:-1]
+            self.ret_buf[path_slice] = discount_cumsum(rews, self.gamma)[
+                :-1
+            ].float()
 
             del self.agent_id_idxs[a_id]
 
@@ -258,5 +265,5 @@ class DecentralizedPPOBuffer:
             ret=self.ret_buf[:ptr_copy],
             adv=self.adv_buf[:ptr_copy],
             logp=self.logp_buf[:ptr_copy],
-            vest=self.val_buf[:ptr_copy]
+            vest=self.val_buf[:ptr_copy],
         )

@@ -1,5 +1,4 @@
 import torch
-
 from sdriving.envs.gym.control_points import ControlPointEnv
 
 

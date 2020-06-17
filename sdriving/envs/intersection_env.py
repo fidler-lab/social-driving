@@ -6,7 +6,6 @@ from collections import deque
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
-
 from sdriving.envs.base_env import BaseEnv
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
@@ -647,6 +646,8 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         ]
 
     def get_action_space(self):
+        self.max_accln = 1.5
+        self.max_steering = 0.1
         return Discrete(len(self.actions_list))
 
     def post_process_rewards(self, rewards, now_dones):
@@ -703,6 +704,48 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         return na, ns, ex
 
 
+class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
+    def get_action_space(self):
+        self.max_accln = 1.5
+        self.max_steering = 0.1
+        return Box(
+            low=np.array([-self.max_accln, -self.max_steering]),
+            high=np.array([self.max_accln, self.max_steering]),
+        )
+
+    def transform_state_action_single_agent(
+        self, a_id: str, action: torch.Tensor, state, timesteps: int
+    ):
+        agent = self.agents[a_id]["vehicle"]
+
+        x, y = agent.position
+        v = agent.speed
+        t = agent.orientation
+
+        start_state = torch.as_tensor([x, y, v, t])
+        dynamics = self.agents[a_id]["dynamics"]
+        nominal_states = [start_state.unsqueeze(0)]
+        nominal_actions = [action]
+
+        action.unsqueeze_(0)
+        for _ in range(timesteps):
+            start_state = nominal_states[-1]
+            new_state = dynamics(start_state, action)
+            nominal_states.append(new_state.cpu())
+            nominal_actions.append(action)
+
+        nominal_states, nominal_actions = (
+            torch.cat(nominal_states),
+            torch.cat(nominal_actions),
+        )
+        na = torch.zeros(4)
+        ns = torch.zeros(4)
+        ex = (nominal_states, nominal_actions)
+
+        self.curr_actions[a_id] = action[0]
+        return na, ns, ex
+
+
 class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
     def __init__(self, base_model: str, *args, lam: float = 2.0, **kwargs):
         super().__init__(*args, **kwargs)
@@ -747,7 +790,12 @@ class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
             diff = torch.abs(bac - cac)
             # TODO: Tune the weight on this penalty.
             penalty = (
-                self.lam * (diff[0] / 0.2 + diff[1] / 3.0) / (2 * self.horizon)
+                self.lam
+                * (
+                    diff[0] / (2 * self.max_steering)
+                    + diff[1] / (2 * self.max_accln)
+                )
+                / (2 * self.horizon)
             )
             rewards[a_id] = rew - penalty
 

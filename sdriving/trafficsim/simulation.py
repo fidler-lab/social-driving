@@ -1,8 +1,8 @@
 from itertools import combinations
 
-import torch
 from tqdm import tqdm
 
+import torch
 from sdriving.trafficsim import World
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,

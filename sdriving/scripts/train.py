@@ -9,7 +9,6 @@ import time
 import gym
 import numpy as np
 import torch
-
 from sdriving.envs import REGISTRY as ENV_REGISTRY
 from spinup.utils.mpi_tools import mpi_fork
 

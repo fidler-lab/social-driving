@@ -2,15 +2,13 @@ import math
 from typing import Dict, List, Tuple, Union
 
 import torch
-from torch import nn
-
 from sdriving.trafficsim.parametric_curves import (
+    CatmullRomSplineMotion,
     ClothoidMotion,
     LinearSplineMotion,
-    CatmullRomSplineMotion,
 )
 from sdriving.trafficsim.utils import angle_normalize
-
+from torch import nn
 
 EPS = 1e-7
 
@@ -294,7 +292,9 @@ class FixedTrackAccelerationModel(nn.Module):
 
 
 class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
-    def __init__(self, track, model=ClothoidMotion, *args, model_kwargs={}, **kwargs):
+    def __init__(
+        self, track, model=ClothoidMotion, *args, model_kwargs={}, **kwargs
+    ):
         # track is a B x k x 3 tensor
         super().__init__(*args, **kwargs)
 
@@ -312,7 +312,7 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
         self.arc_lengths = None
         self.model_kwargs = model_kwargs
 
-#         assert self.nbatch == track.size(0)
+        #         assert self.nbatch == track.size(0)
         self.track_unmodified = track.clone()
         self.track = self._setup_track(track)
 
@@ -328,11 +328,13 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
             diff = track[:, :-1, :] - track[:, 1:, :]
             ratio = diff[:, :, 1] / diff[:, :, 0]  # B x (k - 1)
             self.arc_lengths = diff.pow(2).sum(-1).sqrt()
-            self.theta = angle_normalize(torch.where(
-                diff[:, :, 0] < 0,
-                torch.atan(ratio),
-                math.pi + torch.atan(ratio)
-            ))
+            self.theta = angle_normalize(
+                torch.where(
+                    diff[:, :, 0] < 0,
+                    torch.atan(ratio),
+                    math.pi + torch.atan(ratio),
+                )
+            )
             self.theta.unsqueeze_(-1)
             return track
         elif isinstance(self.motion, CatmullRomSplineMotion):
@@ -340,11 +342,13 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
             diff = self.motion.diff
             ratio = diff[:, 1] / (diff[:, 0] + EPS)  # (k - 1)
             self.arc_lengths = self.motion.arc_lengths
-            self.theta = angle_normalize(torch.where(
-                diff[:, 0] < 0, 
-                torch.atan(ratio),
-                math.pi + torch.atan(ratio)
-            ))
+            self.theta = angle_normalize(
+                torch.where(
+                    diff[:, 0] > 0,
+                    torch.atan(ratio),
+                    math.pi + torch.atan(ratio),
+                )
+            )
             self.theta.unsqueeze_(-1)
             return track
 
@@ -410,22 +414,21 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                     self.track[i, tnum, :],
                     self.track[i, tnum + 1, :],
                     self.arc_lengths[i, tnum],
-                    self.theta[i, tnum]
+                    self.theta[i, tnum],
                 )
         elif isinstance(self.motion, CatmullRomSplineMotion):
             s = self.distances[0] % self.motion.curve_length
             sg = self.track_num[0]
             while s < 0:
                 s = s + self.arc_lengths[0, -1]
-            while (s > self.arc_lengths[(sg + 1) % self.motion.npoints]
-                   or s < self.arc_lengths[sg]):
+            while (
+                s > self.arc_lengths[(sg + 1) % self.motion.npoints]
+                or s < self.arc_lengths[sg]
+            ):
                 sg = (sg + 1) % self.motion.npoints
             self.track_num[0] = sg
-            
-            return (
-                sg.unsqueeze(0),
-                self.theta[sg]
-            )
+
+            return (sg.unsqueeze(0), self.theta[sg])
 
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """
@@ -449,13 +452,13 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
             )
         elif isinstance(self.motion, LinearSplineMotion):
             pt1, pt2, arc_length, theta = self._get_track(state)
-            s_t = self.motion(
-                pt1, pt2, self.distances / arc_length
-            )
+            s_t = self.motion(pt1, pt2, self.distances / arc_length)
             theta = theta.unsqueeze(-1)
         elif isinstance(self.motion, CatmullRomSplineMotion):
             sg, theta = self._get_track(state)
-            ts = self.motion.map_s_to_t(self.distances[0:1] % self.motion.curve_length, sg)
+            ts = self.motion.map_s_to_t(
+                self.distances[0:1] % self.motion.curve_length, sg
+            )
             s_t = self.motion(ts)
             theta = theta.unsqueeze(-1)
 

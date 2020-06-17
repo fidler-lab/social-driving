@@ -6,9 +6,6 @@ from typing import Optional
 import gym
 import numpy as np
 import torch
-from torch.optim import SGD, Adam
-from torch.utils.tensorboard import SummaryWriter
-
 import wandb
 from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
@@ -27,6 +24,8 @@ from spinup.utils.mpi_tools import (
     proc_id,
 )
 from spinup.utils.serialization_utils import convert_json
+from torch.optim import SGD, Adam
+from torch.utils.tensorboard import SummaryWriter
 
 
 class PPO_Centralized_Critic:
@@ -219,21 +218,30 @@ class PPO_Centralized_Critic:
         clip_ratio = self.clip_ratio
 
         # Random subset sampling
-        data = {a_id: {
-            key: data[a_id][key][idx] for key in data[a_id].keys()
-        } for a_id in data.keys()}
+        data = {
+            a_id: {key: data[a_id][key][idx] for key in data[a_id].keys()}
+            for a_id in data.keys()
+        }
         for a_id in data.keys():
-            adv_mean, adv_std = data[a_id]["adv"].mean(), data[a_id]["adv"].std()
-            data[a_id]["adv"] = (data[a_id]["adv"] - adv_mean) / (adv_std + 1e-7)
+            adv_mean, adv_std = (
+                data[a_id]["adv"].mean(),
+                data[a_id]["adv"].std(),
+            )
+            data[a_id]["adv"] = (data[a_id]["adv"] - adv_mean) / (
+                adv_std + 1e-7
+            )
 
         # Convert the data to the required format for actor and critic
         data_vf = data
         data_pi = {}
-        [[self.make_entry(data_pi, k, d[k]) for k in d.keys()]
-         for d in data.values()]
+        [
+            [self.make_entry(data_pi, k, d[k]) for k in d.keys()]
+            for d in data.values()
+        ]
 
         obs, lidar, act, adv, logp_old = [
-            data_pi[k].to(device) for k in ["obs", "lidar", "act", "adv", "logp"]
+            data_pi[k].to(device)
+            for k in ["obs", "lidar", "act", "adv", "logp"]
         ]
 
         obs_list = []
@@ -275,9 +283,12 @@ class PPO_Centralized_Critic:
         clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
         clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
         info = dict(
-            kl=approx_kl, ent=ent.item(),
-            cf=clipfrac, value_est=value_est.mean().item(),
-            pi_loss=loss_pi.item(), vf_loss=value_loss.item()
+            kl=approx_kl,
+            ent=ent.item(),
+            cf=clipfrac,
+            value_est=value_est.mean().item(),
+            pi_loss=loss_pi.item(),
+            vf_loss=value_loss.item(),
         )
 
         return loss, info
@@ -298,7 +309,8 @@ class PPO_Centralized_Critic:
 
         sampler = torch.utils.data.BatchSampler(
             torch.utils.data.SubsetRandomSampler(range(local_steps_per_epoch)),
-            batch_size, drop_last=True
+            batch_size,
+            drop_last=True,
         )
 
         with torch.no_grad():

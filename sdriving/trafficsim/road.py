@@ -3,11 +3,11 @@ import string
 from itertools import combinations
 from typing import List, Optional, Tuple, Union
 
-import matplotlib.pyplot as plt
 import networkx as nx
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
 from sdriving.trafficsim.utils import (
     get_2d_rotation_matrix,
     transform_2d_coordinates,

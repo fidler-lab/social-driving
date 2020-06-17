@@ -3,14 +3,12 @@ import time
 import warnings
 from typing import Optional
 
+from mpi4py import MPI
+from tqdm import tqdm
+
 import gym
 import numpy as np
 import torch
-from torch.optim import SGD, Adam
-from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
-from mpi4py import MPI
-
 import wandb
 from sdriving.agents.buffer import DecentralizedPPOBuffer as PPOBuffer
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
@@ -30,6 +28,8 @@ from spinup.utils.mpi_tools import (
     proc_id,
 )
 from spinup.utils.serialization_utils import convert_json
+from torch.optim import SGD, Adam
+from torch.utils.tensorboard import SummaryWriter
 
 
 class PPO_Decentralized_Critic:
@@ -212,7 +212,7 @@ class PPO_Decentralized_Critic:
         data = {key: val[idx] for key, val in data.items()}
         obs, lidar, ret, act, adv, logp_old, vest_old = map(
             lambda x: data[x].to(device),
-            ["obs", "lidar", "ret", "act", "adv", "logp", "vest"]
+            ["obs", "lidar", "ret", "act", "adv", "logp", "vest"],
         )
         adv = (adv - adv.mean()) / (adv.std() + 1e-7)
 
@@ -243,9 +243,12 @@ class PPO_Decentralized_Critic:
         clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
         clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
         info = dict(
-            kl=approx_kl, ent=ent.item(),
-            cf=clipfrac, value_est=value_est.mean().item(),
-            pi_loss=loss_pi.item(), vf_loss=value_loss.item()
+            kl=approx_kl,
+            ent=ent.item(),
+            cf=clipfrac,
+            value_est=value_est.mean().item(),
+            pi_loss=loss_pi.item(),
+            vf_loss=value_loss.item(),
         )
 
         return loss, info
@@ -260,7 +263,8 @@ class PPO_Decentralized_Critic:
 
         sampler = torch.utils.data.BatchSampler(
             torch.utils.data.SubsetRandomSampler(range(size)),
-            batch_size, drop_last=True
+            batch_size,
+            drop_last=True,
         )
 
         with torch.no_grad():
@@ -382,7 +386,7 @@ class PPO_Decentralized_Critic:
                         for a_id, obs in o.items():
                             obs = tuple([t.to(self.device) for t in obs])
                             _, v, _ = ac.step(obs)
-                            self.buf.finish_path(a_id, v)
+                            self.buf.finish_path(a_id, v.cpu())
                     else:
                         v = 0
                         self.buf.finish_path(None, v)

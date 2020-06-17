@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from celluloid import Camera
-
 from sdriving.agents.model import ActiveSplineTorch
 from sdriving.envs.base_env import BaseEnv
 from sdriving.trafficsim.utils import check_intersection_lines

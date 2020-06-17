@@ -4,7 +4,6 @@ from typing import List, Optional, Union
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-
 from sdriving.trafficsim.utils import (
     angle_normalize,
     circle_area_overlap,

@@ -5,7 +5,6 @@ import random
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
-
 from sdriving.envs.base_env import BaseEnv
 from sdriving.trafficsim.common_networks import generate_straight_road
 from sdriving.trafficsim.controller import MPCControllerWrapper

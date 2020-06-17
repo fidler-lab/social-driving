@@ -49,13 +49,16 @@ def circle_segment_area(
         theta = 2 * torch.acos(dist / radius)
         return (theta - torch.sin(theta)) * (radius ** 2) / 2
     else:
-        theta = 2 * torch.acos(torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5))
+        theta = 2 * torch.acos(
+            torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5)
+        )
         zeros = torch.zeros_like(dist)
         return torch.where(
             dist > radius,
             zeros,
-            (theta - torch.sin(theta)) * (radius ** 2) / 2
+            (theta - torch.sin(theta)) * (radius ** 2) / 2,
         )
+
 
 def circle_area_overlap(
     center1: torch.Tensor,

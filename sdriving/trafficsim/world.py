@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from celluloid import Camera
-
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,
 )

@@ -3,13 +3,12 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
-from gym.spaces import Discrete, Box
+from gym.spaces import Box, Discrete
 from gym.spaces import Tuple as GSTuple
+from sdriving.agents.utils import mlp
 from torch import nn
 from torch.distributions.categorical import Categorical
 from torch.distributions.normal import Normal
-
-from sdriving.agents.utils import mlp
 
 EPS = 1e-7
 LOG_STD_MAX = 2
@@ -221,9 +220,9 @@ class PPOGaussianActor(PPOActor):
         if act.ndim == 1:
             act = act.unsqueeze(0)
         logp = pi.log_prob(act).sum(axis=-1)
-        logp = logp - (
-            2 * (np.log(2) - act - F.softplus(-2 * act))
-        ).sum(axis=1)
+        logp = logp - (2 * (np.log(2) - act - F.softplus(-2 * act))).sum(
+            axis=1
+        )
         return logp.view(-1)
 
 
@@ -244,7 +243,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         self.net = mlp(
             [obs_dim + feature_dim] + list(hidden_sizes),
             activation,
-            activation
+            activation,
         )
         self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
         self.lidar_features = nn.Sequential(
@@ -273,7 +272,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
     def _get_mu_std(
         self,
         obs: Union[Tuple[torch.Tensor], List[torch.Tensor]],
-        std: bool = True
+        std: bool = True,
     ):
         bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
         features = self.lidar_features(
@@ -285,10 +284,9 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         out = self.net(torch.cat([obs[0], features], dim=-1))
 
         if std:
-            return self.mu_layer(out), torch.exp(
-                torch.clamp(
-                    self.log_std, LOG_STD_MIN, LOG_STD_MAX
-                )
+            return (
+                self.mu_layer(out),
+                torch.exp(torch.clamp(self.log_std, LOG_STD_MIN, LOG_STD_MAX)),
             )
             return mu, std
         else:

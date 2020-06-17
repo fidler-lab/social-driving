@@ -3,7 +3,6 @@ import math
 
 import numpy as np
 import torch
-
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,
 )

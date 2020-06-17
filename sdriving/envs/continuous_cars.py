@@ -6,7 +6,6 @@ from collections import deque
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
-
 from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,
 )

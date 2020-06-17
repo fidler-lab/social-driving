@@ -10,7 +10,6 @@ import gym
 import numpy as np
 import pandas as pd
 import torch
-
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
 from sdriving.envs import REGISTRY as ENV_REGISTRY
 
