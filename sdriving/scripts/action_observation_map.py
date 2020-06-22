@@ -97,20 +97,27 @@ if __name__ == "__main__":
                     obs = obs.to(device)
                 o[key] = obs
                 if not args.dummy_run:
-                    a[key] = ac.act(obs, True)
+                    a[key] = ac.act(obs, True).cpu()
                 else:
                     a[key] = torch.as_tensor(test_env.action_space.sample())
-                if "ControlAccelerationEnv" in args.env:
-                    df["Acceleration"].append(
-                        test_env.actions_list[a[key]][0, 0].item()
-                    )
+                if "Acceleration" in args.env:
+                    if "Continuous" in args.env:
+                        df["Acceleration"].append(a[key][0].item())
+                    else:
+                        df["Acceleration"].append(
+                            test_env.actions_list[a[key]][0, 0].item()
+                        )
                 else:
-                    df["Steering Angle"].append(
-                        test_env.actions_list[a[key]][0, 0].item()
-                    )
-                    df["Acceleration"].append(
-                        test_env.actions_list[a[key]][0, 1].item()
-                    )
+                    if "Continuous" in args.env:
+                        df["Steering Angle"].append(a[key][0].item())
+                        df["Acceleration"].append(a[key][1].item())
+                    else:
+                        df["Steering Angle"].append(
+                            test_env.actions_list[a[key]][0, 0].item()
+                        )
+                        df["Acceleration"].append(
+                            test_env.actions_list[a[key]][0, 1].item()
+                        )
 
                     pt1, _ = test_env.get_next_two_goals(key)
                     if pt1 == -1 and not test_env.world.vehicles[key].grayarea:

@@ -69,6 +69,7 @@ if __name__ == "__main__":
     parser.add_argument("--render-test", action="store_true")
     parser.add_argument("--model-checkpoint", type=str, default="")
     parser.add_argument("--tboard", action="store_true")
+    parser.add_argument("-wid", "--wandb-id", type=str, default=None)
     parser.add_argument("--centralized-critic", "-cc", action="store_true")
 
     args = parser.parse_args()
@@ -111,6 +112,7 @@ if __name__ == "__main__":
         load_path=args.model_checkpoint if args.resume else None,
         render_train=args.render_train,
         render_test=args.render_test,
+        wandb_id=args.wandb_id,
         tboard=args.tboard,
     )
 

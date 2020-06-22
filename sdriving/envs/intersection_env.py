@@ -709,8 +709,8 @@ class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
         self.max_accln = 1.5
         self.max_steering = 0.1
         return Box(
-            low=np.array([-self.max_accln, -self.max_steering]),
-            high=np.array([self.max_accln, self.max_steering]),
+            low=np.array([-self.max_steering, -self.max_accln]),
+            high=np.array([self.max_steering, self.max_accln]),
         )
 
     def transform_state_action_single_agent(

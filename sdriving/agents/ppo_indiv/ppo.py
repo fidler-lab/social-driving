@@ -56,6 +56,7 @@ class PPO_Decentralized_Critic:
         render_train: bool = False,
         tboard: bool = True,
         entropy_coeff: float = 1e-2,
+        wandb_id: Optional[str] = None,
         **kwargs,
     ):
         # Special function to avoid certain slowdowns from PyTorch + MPI combo.
@@ -151,11 +152,14 @@ class PPO_Decentralized_Critic:
         self.ac = self.ac.to(device)
 
         if proc_id() == 0:
-            eid = (
-                log_dir.split("/")[-2]
-                if load_path is None
-                else load_path.split("/")[-4]
-            )
+            if wandb_id is None:
+                eid = (
+                    log_dir.split("/")[-2]
+                    if load_path is None
+                    else load_path.split("/")[-4]
+                )
+            else:
+                eid = wandb_id
             wandb.init(
                 name=eid,
                 id=eid,
