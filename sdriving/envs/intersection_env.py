@@ -636,6 +636,9 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
         self.balance_cars = balance_cars
+        
+        self.max_length = 70.0
+        self.max_width = 30.0
 
     def configure_action_list(self):
         self.actions_list = [

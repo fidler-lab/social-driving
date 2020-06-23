@@ -20,6 +20,7 @@ from sdriving.envs.intersection_env import (
     RoadIntersectionControlImitateEnv,
     RoadIntersectionEnv,
 )
+from sdriving.envs.spline_env import RoadIntersectionSplineControlEnv
 
 # Legacy code for experimentaion
 from sdriving.envs.meta_control import MetaControlEnv

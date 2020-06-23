@@ -9,11 +9,13 @@ import torch
 import wandb
 from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
+from sdriving.agents.model import IterativeWayPointPredictor
 from sdriving.agents.utils import (
     count_vars,
     mpi_avg_grads,
     trainable_parameters,
 )
+from sdriving.agents.ppo_cent.runner import episode_runner
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
@@ -119,41 +121,21 @@ class PPO_Centralized_Critic:
             centralized=True,
             **ac_kwargs,
         )
+
+        self.device = device
+        
+        self.pi_lr = pi_lr
+        self.vf_lr = vf_lr
+
+        self.load_path = load_path
         if load_path is not None:
-            ckpt = torch.load(load_path, map_location="cpu")
-            self.ac.pi.load_state_dict(ckpt["actor"])
-            self.pi_optimizer = Adam(
-                trainable_parameters(self.ac.pi), lr=pi_lr, eps=1e-8
-            )
-            self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
-            for state in self.pi_optimizer.state.values():
-                for k, v in state.items():
-                    if torch.is_tensor(v):
-                        state[k] = v.to(device)
-            if ckpt["nagents"] == self.nagents:
-                self.ac.v.load_state_dict(ckpt["critic"])
-                self.vf_optimizer = Adam(
-                    trainable_parameters(self.ac.v), lr=vf_lr, eps=1e-8
-                )
-                self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
-            else:
-                self.vf_optimizer = Adam(
-                    trainable_parameters(self.ac.v), lr=vf_lr, eps=1e-8
-                )
-                self.logger.log(
-                    "The agent was trained with a different nagents",
-                    color="red",
-                )
-            for state in self.vf_optimizer.state.values():
-                for k, v in state.items():
-                    if torch.is_tensor(v):
-                        state[k] = v.to(device)
+            self.load_model(load_path)
         else:
             self.pi_optimizer = Adam(
-                trainable_parameters(self.ac.pi), lr=pi_lr, eps=1e-8
+                trainable_parameters(self.ac.pi), lr=self.pi_lr, eps=1e-8
             )
             self.vf_optimizer = Adam(
-                trainable_parameters(self.ac.v), lr=vf_lr, eps=1e-8
+                trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
             )
 
         # Sync params across processes
@@ -184,8 +166,6 @@ class PPO_Centralized_Critic:
 
             wandb.watch(self.ac.pi, log="all")
             wandb.watch(self.ac.v, log="all")
-
-        self.device = device
 
         # Count variables
         var_counts = tuple(
@@ -304,7 +284,7 @@ class PPO_Centralized_Critic:
         else:
             d[k] = torch.cat([d[k], val], dim=0)
 
-    def update(self, epoch, t):
+    def update(self):
         data = self.buf.get()
         local_steps_per_epoch = self.local_steps_per_epoch
 
@@ -373,124 +353,211 @@ class PPO_Centralized_Critic:
                     "Value Estimate": v_est,
                 }
             )
+            
+    def save_model(self, epoch: int, ckpt_extra: dict = {}):
+        ckpt = {
+            "actor": self.ac.pi.state_dict(),
+            "critic": self.ac.v.state_dict(),
+            "nagents": self.nagents,
+            "pi_optimizer": self.pi_optimizer.state_dict(),
+            "vf_optimizer": self.vf_optimizer.state_dict(),
+            "ac_kwargs": self.ac_params,
+            "model": "centralized_critic",
+        }
+        ckpt.update(ckpt_extra)
+        filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
+        torch.save(ckpt, filename)
+        torch.save(ckpt, self.softlink)
+        wandb.save(self.softlink)
+        
+    def load_model(self, load_path):
+        ckpt = torch.load(load_path, map_location="cpu")
+        self.ac.pi.load_state_dict(ckpt["actor"])
+        self.pi_optimizer = Adam(
+            trainable_parameters(self.ac.pi), lr=self.pi_lr, eps=1e-8
+        )
+        self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
+        for state in self.pi_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.to(self.device)
+        if ckpt["nagents"] == self.nagents:
+            self.ac.v.load_state_dict(ckpt["critic"])
+            self.vf_optimizer = Adam(
+                trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
+            )
+            self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
+        else:
+            self.vf_optimizer = Adam(
+                trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
+            )
+            self.logger.log(
+                "The agent was trained with a different nagents",
+                color="red",
+            )
+        for state in self.vf_optimizer.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.to(self.device)
+        
+    def dump_logs(self, epoch, start_time):
+        self.logger.log_tabular("Epoch", epoch)
+        self.logger.log_tabular("EpRet", with_min_and_max=True)
+        self.logger.log_tabular("EpLen", average_only=True)
+        self.logger.log_tabular("VVals", with_min_and_max=True)
+        self.logger.log_tabular(
+            "TotalEnvInteracts", (epoch + 1) * self.steps_per_epoch
+        )
+        self.logger.log_tabular("LossPi", average_only=True)
+        self.logger.log_tabular("LossV", average_only=True)
+        self.logger.log_tabular("DeltaLossPi", average_only=True)
+        self.logger.log_tabular("DeltaLossV", average_only=True)
+        self.logger.log_tabular("Entropy", average_only=True)
+        self.logger.log_tabular("KL", average_only=True)
+        self.logger.log_tabular("ClipFrac", average_only=True)
+        self.logger.log_tabular("StopIter", average_only=True)
+        self.logger.log_tabular("ValueEstimate", average_only=True)
+        self.logger.log_tabular("Time", time.time() - start_time)
+        self.logger.dump_tabular()
 
     def train(self):
-        env = self.env
-        ac = self.ac
-
         # Prepare for interaction with environment
         start_time = time.time()
-        o, ep_ret, ep_len = env.reset(), 0, 0
 
         for epoch in range(self.epochs):
-            for t in range(self.local_steps_per_epoch):
-                a = {}
-                v = {}
-                logp = {}
-                o_list = []
-                for key, obs in o.items():
-                    obs = tuple([t.detach().to(self.device) for t in obs])
-                    o[key] = obs
-                    o_list.append(obs)
-
-                actions, val_f, log_probs = ac.step(o_list)
-                for i, key in enumerate(o.keys()):
-                    a[key] = actions[i].cpu()
-                    v[key] = val_f
-                    logp[key] = log_probs[i]
-                next_o, r, d, info = env.step(a)
-                rlist = [
-                    torch.as_tensor(rwd).detach().cpu() for _, rwd in r.items()
-                ]
-                ret = sum(rlist)
-                rlen = len(rlist)
-                ep_ret += ret / rlen
-                ep_len += 1
-
-                # save and log
-                done = d["__all__"]
-
-                # Store experience to replay buffer
-                for key, obs in o.items():
-                    self.buf.store(
-                        key,
-                        obs[0].cpu(),
-                        obs[1].cpu(),
-                        a[key].cpu(),
-                        torch.as_tensor(r[key]).detach().cpu(),
-                        v[key].cpu(),
-                        logp[key].cpu(),
-                    )
-                    self.logger.store(VVals=v[key])
-
-                # Update obs (critical!)
-                o = next_o
-
-                timeout = info["timeout"] if "timeout" in info else done
-                terminal = done or timeout
-                epoch_ended = t == self.local_steps_per_epoch - 1
-
-                if terminal or epoch_ended:
-                    # if trajectory didn't reach terminal state,
-                    # bootstrap value target
-                    if timeout or epoch_ended:
-                        o_list = []
-                        for _, obs in o.items():
-                            o_list.append(
-                                tuple([t.to(self.device) for t in obs])
-                            )
-                        _, v, _ = ac.step(o_list)
-                        v = v.cpu()
-                    else:
-                        v = 0
-                    self.buf.finish_path(v)
-                    # only save EpRet / EpLen if trajectory finished
-                    self.logger.store(EpRet=ep_ret, EpLen=ep_len)
-                    if terminal:
-                        if proc_id() == 0:
-                            wandb.log(
-                                {
-                                    "Episode Return (Train)": ep_ret,
-                                    "Episode Length (Train)": ep_len,
-                                }
-                            )
-                    o, ep_ret, ep_len = env.reset(), 0, 0
+            episode_runner(
+                self.local_steps_per_epoch,
+                self.device,
+                self.buf,
+                self.env,
+                self.ac,
+                self.logger
+            )
 
             if (
                 (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
             ) and proc_id() == 0:
-                ckpt = {
-                    "actor": self.ac.pi.state_dict(),
-                    "critic": self.ac.v.state_dict(),
-                    "nagents": self.nagents,
-                    "pi_optimizer": self.pi_optimizer.state_dict(),
-                    "vf_optimizer": self.vf_optimizer.state_dict(),
-                    "ac_kwargs": self.ac_params,
-                    "model": "centralized_critic",
-                }
-                filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
-                torch.save(ckpt, filename)
-                torch.save(ckpt, self.softlink)
-                wandb.save(self.softlink)
+                self.save_model(epoch)
 
-            self.update(epoch, t)
+            self.update()
 
             # Log info about epoch
-            self.logger.log_tabular("Epoch", epoch)
-            self.logger.log_tabular("EpRet", with_min_and_max=True)
-            self.logger.log_tabular("EpLen", average_only=True)
-            self.logger.log_tabular("VVals", with_min_and_max=True)
-            self.logger.log_tabular(
-                "TotalEnvInteracts", (epoch + 1) * self.steps_per_epoch
+            self.dump_logs(epoch, start_time)
+
+            
+class PPO_Centralized_Critic_AltOpt(PPO_Centralized_Critic):
+    def __init__(
+        self,
+        *args,
+        hidden_dim_wpoint: int = 64,
+        separate_goal_model: bool = False,
+        spline_lr: float = 1e-3,
+        spline_model_iters: int = 10,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.spline_model = IterativeWayPointPredictor(
+            hidden_dim_wpoint,
+            self.env.max_length,
+            self.env.max_width,
+            separate_goal_model
+        )
+        sync_params(self.spline_model)
+#         self.spline_model = self.spline_model.to(self.device)
+        self.opt_spline = Adam(self.spline_model.parameters(), lr=spline_lr, eps=1e-8)
+        self.spline_model_iters = spline_model_iters
+        self.load_spline_model(self.load_path)
+        
+    def save_model(self, epoch: int, ckpt_extra: dict = {}):
+        ckpt_extra["spline"] = self.spline_model.state_dict()
+        ckpt_extra["opt_spline"] = self.opt_spline.state_dict()
+        ckpt_extra["model"] = "centralized_critic_spline"
+        super().save_model(epoch, ckpt_extra)
+        
+    def load_spline_model(self, load_path):
+        if load_path is None:
+            return
+        ckpt = torch.load(load_path, map_location="cpu")
+        self.spline_model.load_state_dict(ckpt["spline"])
+        self.opt_spline.load_state_dict(ckpt["opt_spline"])
+#         for state in self.opt_spline.state.values():
+#             for k, v in state.items():
+#                 if torch.is_tensor(v):
+#                     state[k] = v.to(self.device)
+                    
+    def dump_logs(self, epoch, start_time):
+        self.logger.log_tabular("SplinePathLoss", with_min_and_max=True)
+        super().dump_logs(epoch, start_time)
+
+    def update_spline_model(self):
+        for _ in range(self.spline_model_iters):                
+            o = self.env.reset()
+
+            self.opt_spline.zero_grad()
+            track = self.spline_model(
+                self.env.get_starting_positions(True),
+                self.env.get_intermediate_goals(True),
+                self.env.length,
+                self.env.width
             )
-            self.logger.log_tabular("LossPi", average_only=True)
-            self.logger.log_tabular("LossV", average_only=True)
-            self.logger.log_tabular("DeltaLossPi", average_only=True)
-            self.logger.log_tabular("DeltaLossV", average_only=True)
-            self.logger.log_tabular("Entropy", average_only=True)
-            self.logger.log_tabular("KL", average_only=True)
-            self.logger.log_tabular("ClipFrac", average_only=True)
-            self.logger.log_tabular("StopIter", average_only=True)
-            self.logger.log_tabular("ValueEstimate", average_only=True)
-            self.logger.log_tabular("Time", time.time() - start_time)
-            self.logger.dump_tabular()
+            self.env.register_dynamics_track({a_id: track[i, :, :]
+                                              for (i, a_id) in enumerate(self.env.get_agent_ids_list())})
+                
+            is_done = False
+            losses = {a_id: 0.0 for a_id in self.env.get_agent_ids_list()}
+                
+            while not is_done:
+                o_list = []
+                for k, obs in o.items():
+                    obs = tuple([t.detach().to(self.device) for t in obs])
+                    o[k] = obs
+                    o_list.append(obs)
+                        
+                actions = {a_id: self.ac.act(
+                                tuple([t.detach().to(self.device) for t in o[a_id]]),
+                                deterministic=True
+                           ) for a_id in o.keys()}
+                    
+                o, loss, is_done, _ = self.env.step(actions, differentiable_objective=True)
+
+                losses = {a_id: losses[a_id] + loss[a_id]
+                          for a_id in self.env.get_agent_ids_list()}
+
+                is_done = is_done["__all__"]
+                    
+            mean_loss = sum(losses.values()) / len(self.env.get_agent_ids_list())
+            mean_loss.backward()
+            
+            mpi_avg_grads(self.spline_model)
+                
+            self.opt_spline.step()
+
+            if proc_id() == 0:
+                wandb.log({"Spline Path Loss": mean_loss.item()})
+            self.logger.store(SplinePathLoss=mean_loss.item())
+        
+    def train(self):
+        # Prepare for interaction with environment
+        start_time = time.time()
+
+        for epoch in range(self.epochs):
+            self.update_spline_model()
+
+            episode_runner(
+                self.local_steps_per_epoch,
+                self.device,
+                self.buf,
+                self.env,
+                self.ac,
+                self.logger,
+            )
+
+            if (
+                (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
+            ) and proc_id() == 0:
+                self.save_model(epoch)
+
+            self.update()
+
+            # Log info about epoch
+            self.dump_logs(epoch, start_time)
