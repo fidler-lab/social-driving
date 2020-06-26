@@ -10,6 +10,8 @@ from sdriving.trafficsim.parametric_curves import (
 from sdriving.trafficsim.utils import angle_normalize
 from torch import nn
 
+from spinup.utils.mpi_tools import proc_id
+
 EPS = 1e-7
 
 
@@ -376,7 +378,6 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                     not self.distance_checks[i]
                     and self.track[i, tnum, 1] < self.distances[i]
                 ):
-                    print(tnum, self.position[i, :])
                     self.track_num[i] = self.track_num[i] + 1
                     if self.track_num[i] > self.track.size(1) - 1:
                         self.track_num[i] = self.track.size(1) - 1
@@ -385,7 +386,6 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                         self.distances[i] = 0.0
                         self.position[i, :] = state[i, 0:2]
                         self.theta[i, :] = state[i, 2:3]
-                    print(self.track_num[i], self.position[i, :])
                 elif self.distances[i] < 0.0:
                     self.distance_checks[i] = False
                     self.track_num[i] = max(self.track_num[i] - 1, 0.0)
@@ -417,15 +417,20 @@ class ParametricBicycleKinematicsModel(BicycleKinematicsModel):
                     self.theta[i, tnum],
                 )
         elif isinstance(self.motion, CatmullRomSplineMotion):
-            s = self.distances[0] % self.motion.curve_length
+            # To ensure the end is < self.motion.curve_length
+            s = (
+                self.distances[0] % self.motion.curve_length
+            ) % self.motion.curve_length
             sg = self.track_num[0]
             while s < 0:
                 s = s + self.arc_lengths[0, -1]
+
             while (
                 s > self.arc_lengths[(sg + 1) % self.motion.npoints]
                 or s < self.arc_lengths[sg]
             ):
                 sg = (sg + 1) % self.motion.npoints
+
             self.track_num[0] = sg
 
             return (sg.unsqueeze(0), self.theta[sg])

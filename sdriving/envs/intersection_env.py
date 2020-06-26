@@ -636,7 +636,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         }
         self.curr_actions = {a_id: None for a_id in self.get_agent_ids_list()}
         self.balance_cars = balance_cars
-        
+
         self.max_length = 70.0
         self.max_width = 30.0
 
@@ -672,7 +672,10 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
                 # Agents are removed in case of Continuous Flow Environments
                 continue
             diff = torch.abs(pac - cac)
-            penalty = (diff[0] / 0.2 + diff[1] / 3.0) / (2 * self.horizon)
+            penalty = (
+                diff[0] / (2 * self.max_steering)
+                + diff[1] / (2 * self.max_accln)
+            ) / (2 * self.horizon)
             rewards[a_id] = rew - penalty
 
     def transform_state_action_single_agent(
@@ -685,6 +688,7 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         t = agent.orientation
 
         action = self.actions_list[action]
+        #         print(action)
         start_state = torch.as_tensor([x, y, v, t])
         dynamics = self.agents[a_id]["dynamics"]
         nominal_states = [start_state.unsqueeze(0)]

@@ -383,17 +383,23 @@ class PPO_Decentralized_Critic:
                 terminal = done or timeout
                 epoch_ended = t == self.local_steps_per_epoch - 1
 
+                if not epoch_ended:
+                    for a_id in d.keys():
+                        if a_id == "__all__":
+                            continue
+                        if d[a_id] or timeout:
+                            self.buf.finish_path(a_id, 0)
+
                 if terminal or epoch_ended:
                     # if trajectory didn't reach terminal state,
                     # bootstrap value target
-                    if timeout or epoch_ended:
+                    if epoch_ended and not terminal:
                         for a_id, obs in o.items():
                             obs = tuple([t.to(self.device) for t in obs])
                             _, v, _ = ac.step(obs)
                             self.buf.finish_path(a_id, v.cpu())
                     else:
-                        v = 0
-                        self.buf.finish_path(None, v)
+                        self.buf.finish_path(None, 0)
                     # only save EpRet / EpLen if trajectory finished
                     self.logger.store(EpRet=ep_ret, EpLen=ep_len)
                     if terminal:

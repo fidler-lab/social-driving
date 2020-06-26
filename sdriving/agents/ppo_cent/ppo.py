@@ -123,7 +123,7 @@ class PPO_Centralized_Critic:
         )
 
         self.device = device
-        
+
         self.pi_lr = pi_lr
         self.vf_lr = vf_lr
 
@@ -353,7 +353,7 @@ class PPO_Centralized_Critic:
                     "Value Estimate": v_est,
                 }
             )
-            
+
     def save_model(self, epoch: int, ckpt_extra: dict = {}):
         ckpt = {
             "actor": self.ac.pi.state_dict(),
@@ -369,7 +369,7 @@ class PPO_Centralized_Critic:
         torch.save(ckpt, filename)
         torch.save(ckpt, self.softlink)
         wandb.save(self.softlink)
-        
+
     def load_model(self, load_path):
         ckpt = torch.load(load_path, map_location="cpu")
         self.ac.pi.load_state_dict(ckpt["actor"])
@@ -392,14 +392,13 @@ class PPO_Centralized_Critic:
                 trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
             )
             self.logger.log(
-                "The agent was trained with a different nagents",
-                color="red",
+                "The agent was trained with a different nagents", color="red",
             )
         for state in self.vf_optimizer.state.values():
             for k, v in state.items():
                 if torch.is_tensor(v):
                     state[k] = v.to(self.device)
-        
+
     def dump_logs(self, epoch, start_time):
         self.logger.log_tabular("Epoch", epoch)
         self.logger.log_tabular("EpRet", with_min_and_max=True)
@@ -431,7 +430,7 @@ class PPO_Centralized_Critic:
                 self.buf,
                 self.env,
                 self.ac,
-                self.logger
+                self.logger,
             )
 
             if (
@@ -444,7 +443,7 @@ class PPO_Centralized_Critic:
             # Log info about epoch
             self.dump_logs(epoch, start_time)
 
-            
+
 class PPO_Centralized_Critic_AltOpt(PPO_Centralized_Critic):
     def __init__(
         self,
@@ -456,86 +455,87 @@ class PPO_Centralized_Critic_AltOpt(PPO_Centralized_Critic):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.spline_model = IterativeWayPointPredictor(
-            hidden_dim_wpoint,
-            self.env.max_length,
-            self.env.max_width,
-            separate_goal_model
-        )
+        self.spline_args = {
+            "hdim": hidden_dim_wpoint,
+            "max_length": self.env.max_length,
+            "max_width": self.env.max_width,
+            "separate_goal_model": separate_goal_model,
+        }
+        self.spline_model = IterativeWayPointPredictor(**self.spline_args)
         sync_params(self.spline_model)
-#         self.spline_model = self.spline_model.to(self.device)
-        self.opt_spline = Adam(self.spline_model.parameters(), lr=spline_lr, eps=1e-8)
+        self.opt_spline = Adam(
+            self.spline_model.parameters(), lr=spline_lr, eps=1e-8
+        )
         self.spline_model_iters = spline_model_iters
         self.load_spline_model(self.load_path)
-        
+
     def save_model(self, epoch: int, ckpt_extra: dict = {}):
         ckpt_extra["spline"] = self.spline_model.state_dict()
         ckpt_extra["opt_spline"] = self.opt_spline.state_dict()
         ckpt_extra["model"] = "centralized_critic_spline"
+        ckpt_extra["spline_kwargs"] = self.spline_args
         super().save_model(epoch, ckpt_extra)
-        
+
     def load_spline_model(self, load_path):
         if load_path is None:
             return
         ckpt = torch.load(load_path, map_location="cpu")
         self.spline_model.load_state_dict(ckpt["spline"])
         self.opt_spline.load_state_dict(ckpt["opt_spline"])
-#         for state in self.opt_spline.state.values():
-#             for k, v in state.items():
-#                 if torch.is_tensor(v):
-#                     state[k] = v.to(self.device)
-                    
+
     def dump_logs(self, epoch, start_time):
         self.logger.log_tabular("SplinePathLoss", with_min_and_max=True)
         super().dump_logs(epoch, start_time)
 
     def update_spline_model(self):
-        for _ in range(self.spline_model_iters):                
+        for i in range(self.spline_model_iters):
             o = self.env.reset()
 
             self.opt_spline.zero_grad()
-            track = self.spline_model(
-                self.env.get_starting_positions(True),
-                self.env.get_intermediate_goals(True),
-                self.env.length,
-                self.env.width
-            )
-            self.env.register_dynamics_track({a_id: track[i, :, :]
-                                              for (i, a_id) in enumerate(self.env.get_agent_ids_list())})
-                
+            self.env.register_track(self.spline_model)
+
             is_done = False
             losses = {a_id: 0.0 for a_id in self.env.get_agent_ids_list()}
-                
+
             while not is_done:
                 o_list = []
                 for k, obs in o.items():
                     obs = tuple([t.detach().to(self.device) for t in obs])
                     o[k] = obs
                     o_list.append(obs)
-                        
-                actions = {a_id: self.ac.act(
-                                tuple([t.detach().to(self.device) for t in o[a_id]]),
-                                deterministic=True
-                           ) for a_id in o.keys()}
-                    
-                o, loss, is_done, _ = self.env.step(actions, differentiable_objective=True)
 
-                losses = {a_id: losses[a_id] + loss[a_id]
-                          for a_id in self.env.get_agent_ids_list()}
+                actions = {
+                    a_id: self.ac.act(
+                        tuple([t.detach().to(self.device) for t in o[a_id]]),
+                        deterministic=True,
+                    )
+                    for a_id in o.keys()
+                }
+
+                o, loss, is_done, _ = self.env.step(
+                    actions, differentiable_objective=True
+                )
+
+                losses = {
+                    a_id: losses[a_id] + loss[a_id]
+                    for a_id in self.env.get_agent_ids_list()
+                }
 
                 is_done = is_done["__all__"]
-                    
-            mean_loss = sum(losses.values()) / len(self.env.get_agent_ids_list())
+
+            mean_loss = sum(losses.values()) / len(
+                self.env.get_agent_ids_list()
+            )
             mean_loss.backward()
-            
+
             mpi_avg_grads(self.spline_model)
-                
+
             self.opt_spline.step()
 
             if proc_id() == 0:
                 wandb.log({"Spline Path Loss": mean_loss.item()})
             self.logger.store(SplinePathLoss=mean_loss.item())
-        
+
     def train(self):
         # Prepare for interaction with environment
         start_time = time.time()
@@ -550,6 +550,7 @@ class PPO_Centralized_Critic_AltOpt(PPO_Centralized_Critic):
                 self.env,
                 self.ac,
                 self.logger,
+                self.spline_model,
             )
 
             if (

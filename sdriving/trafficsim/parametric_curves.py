@@ -186,7 +186,7 @@ class CatmullRomSplineMotion(nn.Module):
         for i, tv in zip(idx, t):
             while (
                 tv > self.t[sg + 1] or tv < self.t[sg]
-            ) and sg <= self.cp_num:
+            ) and sg < self.cp_num:
                 sg += 1
             t0 = self.t[sg - 1].unsqueeze(0)
             t1 = self.t[sg].unsqueeze(0)

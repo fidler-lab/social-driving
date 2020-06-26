@@ -10,6 +10,7 @@ import gym
 import numpy as np
 import torch
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
+from sdriving.agents.model import IterativeWayPointPredictor
 from sdriving.envs import REGISTRY as ENV_REGISTRY
 
 
@@ -50,21 +51,40 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    test_env = ENV_REGISTRY[args.env](**args.env_kwargs)
+
     if not args.dummy_run:
         ckpt = torch.load(args.model_save_path, map_location="cpu")
         centralized = ckpt["model"] == "centralized_critic"
-        ac = ActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
+        spline = ckpt["model"] == "centralized_critic_spline"
+        ac = ActorCritic(
+            **ckpt["ac_kwargs"], centralized=centralized or spline
+        )
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
         ac = ac.to(device)
 
-    test_env = ENV_REGISTRY[args.env](**args.env_kwargs)
+        if spline:
+            if "spline_kwargs" in ckpt:
+                spline_kwargs = ckpt["spline_kwargs"]
+            else:
+                spline_kwargs = {
+                    "hdim": 64,
+                    "max_length": test_env.max_length,
+                    "max_width": test_env.max_width,
+                    "separate_goal_model": False,
+                }
+            spline_model = IterativeWayPointPredictor(**spline_kwargs)
+            spline_model.load_state_dict(ckpt["spline"])
 
     os.makedirs(args.save_dir, exist_ok=True)
 
     total_ret = 0.0
     for ep in range(args.num_test_episodes):
         o, done, ep_ret, ep_len = test_env.reset(), False, 0, 0
+        if not args.dummy_run:
+            if spline:
+                test_env.register_track(spline_model)
         while not done:
             # Take deterministic actions at test time
             a = {}
