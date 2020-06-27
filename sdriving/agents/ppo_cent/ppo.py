@@ -394,6 +394,12 @@ class PPO_Centralized_Critic:
             self.logger.log(
                 "The agent was trained with a different nagents", color="red",
             )
+            if "permutation_invariant" in self.ac_kwargs and self.ac_kwargs["permutation_invariant"]:
+                self.ac.v.load_state_dict(ckpt["critic"])
+                self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
+                self.logger.log(
+                    "Agent doesn't depend on nagents. So continuing finetuning", color="green",
+                )
         for state in self.vf_optimizer.state.values():
             for k, v in state.items():
                 if torch.is_tensor(v):

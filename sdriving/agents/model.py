@@ -339,6 +339,52 @@ class PPOLidarCentralizedCritic(nn.Module):
         )
 
 
+class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_sizes: Union[List[int], Tuple[int]],
+        activation: torch.nn.Module,
+        history_len: int,
+        feature_dim: int = 25,
+    ):
+        super().__init__()
+        self.feature_net = mlp(
+            [obs_dim + feature_dim] + [hidden_sizes[0]],
+            activation,
+        )
+        self.lidar_features = nn.Sequential(
+            nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
+            nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
+            nn.AdaptiveAvgPool1d(feature_dim),
+        )
+        self.v_net = mlp(
+            list(hidden_sizes) + [1],
+            activation,
+        )
+        self.history_len = history_len
+
+    def forward(
+        self, obs_list: List[Union[Tuple[torch.Tensor], List[torch.Tensor]]]
+    ):
+        f_vecs = []
+
+        for obs in obs_list:
+            bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
+            features = self.lidar_features(
+                obs[1].view(bsize, self.history_len, -1)
+            ).view(bsize, -1)
+            f_vecs.append(
+                self.feature_net(torch.cat([
+                    obs[0].view(bsize, -1),
+                    features
+                ], dim=-1))
+            )
+        state_vec = sum(f_vecs) / len(f_vecs)
+
+        return torch.squeeze(self.v_net(state_vec), -1)
+
+
 class PPOLidarDecentralizedCritic(PPOLidarCentralizedCritic):
     def __init__(self, *args, **kwargs):
         if len(args) >= 5:
@@ -372,6 +418,7 @@ class PPOLidarActorCritic(nn.Module):
         feature_dim: int = 25,
         nagents: int = 1,
         centralized: bool = False,
+        permutation_invariant: bool = False,
     ):
         super().__init__()
 
@@ -403,15 +450,28 @@ class PPOLidarActorCritic(nn.Module):
             )
 
         if centralized:
-            self.v = PPOLidarCentralizedCritic(
-                obs_dim,
-                hidden_sizes,
-                activation,
-                history_len,
-                nagents,
-                feature_dim,
-            )
+            if permutation_invariant:
+                self.v = PPOLidarPermutationInvariantCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation,
+                    history_len,
+                    feature_dim
+                )
+            else:
+                self.v = PPOLidarCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation,
+                    history_len,
+                    nagents,
+                    feature_dim,
+                )
         else:
+            if permutation_invariant:
+                raise Exception(
+                    "Permutation Invariance for Decentralized Training not available"
+                )
             self.v = PPOLidarDecentralizedCritic(
                 obs_dim, hidden_sizes, activation, history_len, feature_dim
             )
