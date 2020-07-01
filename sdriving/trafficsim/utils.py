@@ -52,7 +52,7 @@ def transform_2d_coordinates(
 def transform_2d_coordinates_rotation_matrix(
     coordinates: torch.Tensor, rot_matrix: torch.Tensor, offset: torch.Tensor
 ) -> torch.Tensor:
-    if coordinates.ndim == 2:
+    if not coordinates.ndim == 3:
         return torch.matmul(coordinates, rot_matrix) + offset
     else:
         return torch.bmm(coordinates, rot_matrix) + offset

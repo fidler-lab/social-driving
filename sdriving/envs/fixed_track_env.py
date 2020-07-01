@@ -233,6 +233,39 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             return super().end_road_sampler(n)
         return np.random.choice(list(set(range(4)) - set([n])))
 
+    def transform_state_action_single_agent(
+        self, a_id: str, action: torch.Tensor, state, timesteps: int
+    ):
+        agent = self.agents[a_id]["vehicle"]
+
+        x, y = agent.position
+        v = agent.speed
+        t = agent.orientation
+
+        start_state = torch.as_tensor([x, y, v, t])
+        action = self.actions_list[action]
+        dynamics = self.agents[a_id]["dynamics"]
+        nominal_states = [start_state.unsqueeze(0)]
+        nominal_actions = [action]
+
+        for _ in range(timesteps):
+            start_state = nominal_states[-1]
+            new_state = dynamics(start_state, action)
+            nominal_states.append(new_state.cpu())
+            nominal_actions.append(action)
+
+        nominal_states, nominal_actions = (
+            torch.cat(nominal_states),
+            torch.cat(nominal_actions),
+        )
+        na = torch.zeros(4)
+        ns = torch.zeros(4)
+        ex = (nominal_states, nominal_actions)
+
+        self.curr_actions[a_id] = action[0]
+
+        return na, ns, ex
+
     def post_process_rewards(self, rewards, now_dones):
         # Encourage the agents to make smoother transitions
         for a_id in self.get_agent_ids_list():
