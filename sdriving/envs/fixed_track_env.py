@@ -233,6 +233,26 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
             return super().end_road_sampler(n)
         return np.random.choice(list(set(range(4)) - set([n])))
 
+    def transform_state_action(self, actions, states, timesteps):
+        nactions = {}
+        nstates = {}
+        extras = {}
+        for id in self.get_agent_ids_list():
+            self.check_in_space(self.action_space, actions[id])
+            self.check_in_space(self.observation_space, states[id])
+            # actions --> Goal State for MPC
+            # states  --> Start State for MPC
+            # extras  --> None if using MPC, else tuple of
+            #             nominal states, actions
+            (
+                nactions[id],
+                nstates[id],
+                extras[id],
+            ) = self.transform_state_action_single_agent(
+                id, actions[id], states[id], timesteps
+            )
+        return nactions, nstates, extras
+
     def transform_state_action_single_agent(
         self, a_id: str, action: torch.Tensor, state, timesteps: int
     ):
