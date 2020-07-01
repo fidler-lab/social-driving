@@ -252,7 +252,7 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
                 return
             cac = self.curr_actions[a_id]
             diff = torch.abs(pac - cac)
-            penalty = diff[0] / (4 * self.max_accln * self.horizon)
+            penalty = diff[0] / (2 * self.max_accln * self.horizon)
             rewards[a_id] = rew - penalty
 
 

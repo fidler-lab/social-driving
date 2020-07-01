@@ -95,19 +95,10 @@ class Vehicle:
 
     def get_edges(self):
         coordinates = self.get_coordinates()
-        pt1 = torch.cat(
-            [
-                coordinates[0:1],
-                coordinates[1:2],
-                coordinates[2:3],
-                coordinates[3:],
-            ]
-        )
+        pt1 = coordinates
         pt2 = torch.cat(
             [
-                coordinates[1:2],
-                coordinates[2:3],
-                coordinates[3:],
+                coordinates[1:],
                 coordinates[0:1],
             ]
         )
@@ -134,15 +125,15 @@ class Vehicle:
 
     def optimal_heading_to_point(self, point: torch.Tensor):
         vec = point - self.position
-        vec /= torch.norm(vec) + 1e-10
+        vec = vec / (torch.norm(vec) + 1e-10)
         cur_vec = torch.as_tensor(
             [
-                torch.cos(self.orientation).item(),
-                torch.sin(self.orientation).item(),
+                torch.cos(self.orientation),
+                torch.sin(self.orientation),
             ]
         )
         opt_angle = angle_normalize(
-            torch.acos(vec.dot(cur_vec).clamp_(-1.0, 1.0))
+            torch.acos(vec.dot(cur_vec).clamp(-1.0, 1.0))
         )
         return opt_angle
 

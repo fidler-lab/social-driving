@@ -566,7 +566,6 @@ class RoadIntersectionEnv(BaseEnv):
     def reset(self):
         # Keep the environment fixed for now
         self.world = self.generate_world_without_agents()
-        self.world.compile()
 
         self.queue1 = {
             a_id: deque(maxlen=self.history_len)
@@ -583,6 +582,7 @@ class RoadIntersectionEnv(BaseEnv):
             self.setup_nagents_2()
         else:
             self.setup_nagents(self.nagents)
+        self.world.compile()
 
         return super().reset()
 
@@ -681,14 +681,16 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
     def transform_state_action_single_agent(
         self, a_id, action, state, timesteps
     ):
+        # This function is no longer used. The batched implementation used
+        # now is way faster
         agent = self.agents[a_id]["vehicle"]
 
-        x, y = agent.position
-        v = agent.speed
-        t = agent.orientation
-
         action = self.actions_list[action]
-        start_state = torch.as_tensor([x, y, v, t])
+        start_state = torch.cat([
+            agent.position,
+            agent.speed.unsqueeze(0),
+            agent.orientation.unsqueeze(0)
+        ])
         dynamics = self.agents[a_id]["dynamics"]
         nominal_states = [start_state.unsqueeze(0)]
         nominal_actions = [action]
@@ -709,6 +711,43 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
 
         return na, ns, ex
 
+    def transform_state_action(self, actions, states, timesteps):
+        action = []
+        start_state = []
+        for a_id in self.get_agent_ids_list():
+            self.check_in_space(self.action_space, actions[a_id])
+            self.check_in_space(self.observation_space, states[a_id])
+            agent = self.agents[a_id]["vehicle"]
+            action.append(self.actions_list[actions[a_id]])
+            start_state.append(
+                torch.cat([
+                    agent.position,
+                    agent.speed.unsqueeze(0),
+                    agent.orientation.unsqueeze(0)
+                ]).unsqueeze(0)
+            )
+        action = torch.cat(action, dim=0)
+        state = torch.cat(start_state, dim=0)
+
+        un_action = action.unsqueeze(1)
+        nominal_actions = [un_action for _ in range(timesteps)]
+        nominal_states = [state.unsqueeze(1)]
+
+        for _ in range(timesteps):
+            state = self.world.global_dynamics(state, action)
+            nominal_states.append(state.unsqueeze(1))
+
+        nominal_actions = torch.cat(nominal_actions, dim=1)
+        nominal_states = torch.cat(nominal_states, dim=1)
+
+        return_val = {}
+        for i, a_id in enumerate(self.get_agent_ids_list()):
+            return_val[a_id] = (
+                nominal_states[i, :, :], nominal_actions[i, :, :]
+            )
+            self.curr_actions[a_id] = action[i]
+        return None, None, return_val
+
 
 class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
     def get_action_space(self):
@@ -719,163 +758,39 @@ class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
             high=np.array([self.max_steering, self.max_accln]),
         )
 
-    def transform_state_action_single_agent(
-        self, a_id: str, action: torch.Tensor, state, timesteps: int
-    ):
-        agent = self.agents[a_id]["vehicle"]
-
-        x, y = agent.position
-        v = agent.speed
-        t = agent.orientation
-
-        start_state = torch.as_tensor([x, y, v, t])
-        dynamics = self.agents[a_id]["dynamics"]
-        nominal_states = [start_state.unsqueeze(0)]
-        nominal_actions = [action]
-
-        action.unsqueeze_(0)
-        for _ in range(timesteps):
-            start_state = nominal_states[-1]
-            new_state = dynamics(start_state, action)
-            nominal_states.append(new_state.cpu())
-            nominal_actions.append(action)
-
-        nominal_states, nominal_actions = (
-            torch.cat(nominal_states),
-            torch.cat(nominal_actions),
-        )
-        na = torch.zeros(4)
-        ns = torch.zeros(4)
-        ex = (nominal_states, nominal_actions)
-
-        self.curr_actions[a_id] = action[0]
-        return na, ns, ex
-
-
-class RoadIntersectionControlImitateEnv(RoadIntersectionControlEnv):
-    def __init__(self, base_model: str, *args, lam: float = 2.0, **kwargs):
-        super().__init__(*args, **kwargs)
-        device = kwargs.get("device", torch.device("cpu"))
-        ckpt = torch.load(base_model, map_location="cpu")
-        if "model" not in ckpt or ckpt["model"] == "centralized_critic":
-            from sdriving.agents.ppo_cent.model import ActorCritic
-        ac = ActorCritic(**ckpt["ac_kwargs"])
-        ac.v = None
-        ac.pi.load_state_dict(ckpt["actor"])
-        ac = ac.to(device)
-        self.base_model = ac
-        # We need to store the history to stack them. 1 queue stores the
-        # observation and the other stores the lidar data
-        self.queue1_bm = {a_id: None for a_id in self.get_agent_ids_list()}
-        self.queue2_bm = {a_id: None for a_id in self.get_agent_ids_list()}
-        self.recompute_base_model_actions = True
-        self.base_model_actions = None
-        self.lam = lam
-
-    def post_process_rewards(self, rewards, now_dones):
-        super().post_process_rewards(rewards, now_dones)
-        if now_dones is None:
-            self.recompute_base_model_actions = True
-            return
-
-        if self.recompute_base_model_actions:
-            base_model_state = self._get_state_base_model()
-            self.base_model_actions = dict()
-            for key, obs in base_model_state.items():
-                base_model_state[key] = [t.to(self.device) for t in obs]
-                # Get the deterministic actions from the base model
-                self.base_model_actions[key] = self.actions_list[
-                    self.base_model.act(base_model_state[key], True).item()
-                ][0]
-
-        # Try to imitate the behavior of an agent as if it is driving
-        # in an empty environment
-        for a_id, rew in rewards.items():
-            bac = self.base_model_actions[a_id]
-            cac = self.curr_actions[a_id]
-            diff = torch.abs(bac - cac)
-            # TODO: Tune the weight on this penalty.
-            penalty = (
-                self.lam
-                * (
-                    diff[0] / (2 * self.max_steering)
-                    + diff[1] / (2 * self.max_accln)
-                )
-                / (2 * self.horizon)
+    def transform_state_action(self, actions, states, timesteps):
+        action = []
+        start_state = []
+        for a_id in self.get_agent_ids_list():
+            self.check_in_space(self.action_space, actions[a_id])
+            self.check_in_space(self.observation_space, states[a_id])
+            agent = self.agents[a_id]["vehicle"]
+            action.append(actions[a_id].unsqueeze(0))
+            start_state.append(
+                torch.cat([
+                    agent.position,
+                    agent.speed.unsqueeze(0),
+                    agent.orientation.unsqueeze(0)
+                ]).unsqueeze(0)
             )
-            rewards[a_id] = rew - penalty
+        action = torch.cat(action, dim=0)
+        state = torch.cat(start_state, dim=0)
 
-    def reset(self):
-        self.queue1_bm = {
-            a_id: deque(maxlen=self.history_len)
-            for a_id in self.get_agent_ids_list()
-        }
-        self.queue2_bm = {
-            a_id: deque(maxlen=self.history_len)
-            for a_id in self.get_agent_ids_list()
-        }
-        return super().reset()
+        un_action = action.unsqueeze(1)
+        nominal_actions = [un_action for _ in range(timesteps)]
+        nominal_states = [state.unsqueeze(1)]
 
-    def _get_state_base_model(self):
-        return {
-            a_id: self._get_state_single_agent_base_model(a_id)
-            for a_id in self.get_agent_ids_list()
-        }
+        for _ in range(timesteps):
+            state = self.world.global_dynamics(state, action)
+            nominal_states.append(state.unsqueeze(1))
 
-    def _get_state_single_agent_base_model(self, a_id):
-        agent = self.agents[a_id]["vehicle"]
-        v_lim = self.agents[a_id]["v_lim"]
+        nominal_actions = torch.cat(nominal_actions, dim=1)
+        nominal_states = torch.cat(nominal_states, dim=1)
 
-        if self.agents[a_id]["prev_point"] < len(
-            self.agents[a_id]["intermediate_goals"]
-        ):
-            xg, yg, vg, _ = self.agents[a_id]["intermediate_goals"][
-                self.agents[a_id]["prev_point"]
-            ]
-            dest = torch.as_tensor([xg, yg])
-        else:
-            dest = agent.destination
-            vg = 0.0
-
-        inv_dist = 1 / agent.distance_from_point(dest)
-        pt1, pt2 = self.get_next_two_goals(a_id)
-        if self.has_lane_distance:
-            obs = [
-                self.world.get_distance_from_road_axis(
-                    a_id, pt1, self.agents[a_id]["original_destination"]
-                ),
-                self.world.get_traffic_signal(
-                    pt1, pt2, agent.position, agent.vision_range
-                ),
-                (vg - agent.speed) / (2 * v_lim),
-                agent.optimal_heading_to_point(dest) / math.pi,
-                inv_dist if torch.isfinite(inv_dist) else 0.0,
-            ]
-        else:
-            obs = [
-                self.world.get_traffic_signal(
-                    pt1, pt2, agent.position, agent.vision_range
-                ),
-                (vg - agent.speed) / (2 * v_lim),
-                agent.optimal_heading_to_point(dest) / math.pi,
-                inv_dist if torch.isfinite(inv_dist) else 0.0,
-            ]
-        cur_state = [
-            torch.as_tensor(obs),
-            1
-            / self.world.get_lidar_data(agent.name, self.npoints, cars=False),
-        ]
-
-        if self.lidar_noise != 0.0:
-            cur_state[1] *= torch.rand(self.npoints) > self.lidar_noise
-
-        while len(self.queue1_bm[a_id]) <= self.history_len - 1:
-            self.queue1_bm[a_id].append(cur_state[0])
-            self.queue2_bm[a_id].append(cur_state[1])
-        self.queue1_bm[a_id].append(cur_state[0])
-        self.queue2_bm[a_id].append(cur_state[1])
-
-        return (
-            torch.cat(list(self.queue1_bm[a_id])),
-            torch.cat(list(self.queue2_bm[a_id])),
-        )
+        return_val = {}
+        for i, a_id in enumerate(self.get_agent_ids_list()):
+            return_val[a_id] = (
+                nominal_states[i, :, :], nominal_actions[i, :, :]
+            )
+            self.curr_actions[a_id] = action[i]
+        return None, None, return_val

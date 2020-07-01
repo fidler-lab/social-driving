@@ -147,12 +147,12 @@ class World:
         visible_distance: float = 15.0,
     ):
         if node1 == -1 or node2 == -1:
-            return self.no_signal_val
+            return torch.as_tensor(self.no_signal_val)
         signal = self.traffic_signals.get((node1, node2), None)
         if signal:
             if ((signal[1] - pt) ** 2).sum().sqrt() < visible_distance:
-                return signal[0].get_value()
-        return self.no_signal_val
+                return torch.as_tensor(signal[0].get_value())
+        return torch.as_tensor(self.no_signal_val)
 
     def point_to_node(self, pt: torch.Tensor):
         return self.road_network.maps[self.road_network.point_to_node[pt]]

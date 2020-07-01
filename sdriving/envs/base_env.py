@@ -60,6 +60,10 @@ class BaseEnv:
     def get_agent_ids_list(self):
         return self.agent_ids
 
+    def check_in_space(self, space, val):
+        val = self.convert_to_numpy(val)
+        assert space.contains(val), f"{val} doesn't lie in space"
+
     @staticmethod
     def convert_to_numpy(tensor):
         if isinstance(tensor, tuple) or isinstance(tensor, list):
@@ -80,12 +84,8 @@ class BaseEnv:
         nstates = {}
         extras = {}
         for id in self.get_agent_ids_list():
-            assert self.action_space.contains(
-                self.convert_to_numpy(actions[id])
-            ), f"{self.convert_to_numpy(actions[id])} doesn't lie in {self.action_space}"
-            assert self.observation_space.contains(
-                self.convert_to_numpy(states[id])
-            ), f"{self.convert_to_numpy(states[id])} doesn't lie in {self.observation_space}"
+            self.check_in_space(self.action_space, actions[id])
+            self.check_in_space(self.observation_space, states[id])
             # actions --> Goal State for MPC
             # states  --> Start State for MPC
             # extras  --> None if using MPC, else tuple of
@@ -310,13 +310,15 @@ class BaseEnv:
                             < self.goal_tolerance
                         ):
                             self.agents[a_id]["prev_point"] += 1
-                    if (
-                        (state[:2] - actions[a_id][:2]) ** 2
-                    ).sum().sqrt() < tolerance:
-                        self.world.update_state(
-                            a_id, state, change_road_association=True,
-                        )
-                        continue
+                    # This is needed only for the MPC code which we are
+                    # not using currently
+                    # if (
+                    #     (state[:2] - actions[a_id][:2]) ** 2
+                    # ).sum().sqrt() < tolerance:
+                    #     self.world.update_state(
+                    #         a_id, state, change_road_association=True,
+                    #     )
+                    #     continue
                     if i != timesteps - 1:
                         self.world.update_state(a_id, state)
                     else:
