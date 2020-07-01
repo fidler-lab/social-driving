@@ -17,7 +17,6 @@ from sdriving.envs.fixed_track_env import (
 from sdriving.envs.intersection_env import (
     RoadIntersectionContinuousControlEnv,
     RoadIntersectionControlEnv,
-    RoadIntersectionControlImitateEnv,
     RoadIntersectionEnv,
 )
 from sdriving.envs.spline_env import RoadIntersectionSplineControlEnv
