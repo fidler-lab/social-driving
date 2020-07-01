@@ -86,6 +86,7 @@ class PPO_Centralized_Critic:
         )
 
         self.entropy_coeff = entropy_coeff
+        self.entropy_coeff_decay = entropy_coeff / epochs
 
         if torch.cuda.is_available():
             # From emperical results, 8 tasks can use a single gpu
@@ -261,6 +262,7 @@ class PPO_Centralized_Critic:
 
         # TODO: Search for a good set of coeffs
         loss = loss_pi - ent * self.entropy_coeff + value_loss
+        self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().item()
@@ -365,8 +367,8 @@ class PPO_Centralized_Critic:
             "model": "centralized_critic",
         }
         ckpt.update(ckpt_extra)
-        filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
-        torch.save(ckpt, filename)
+        # filename = os.path.join(self.ckpt_dir, f"ckpt_{epoch}.pth")
+        # torch.save(ckpt, filename)
         torch.save(ckpt, self.softlink)
         wandb.save(self.softlink)
 
@@ -394,7 +396,7 @@ class PPO_Centralized_Critic:
             self.logger.log(
                 "The agent was trained with a different nagents", color="red",
             )
-            if "permutation_invariant" in self.ac_kwargs and self.ac_kwargs["permutation_invariant"]:
+            if "permutation_invariant" in self.ac_params and self.ac_params["permutation_invariant"]:
                 self.ac.v.load_state_dict(ckpt["critic"])
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
                 self.logger.log(

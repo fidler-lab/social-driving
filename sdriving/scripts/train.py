@@ -53,6 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("--target-kl", type=float, default=0.01)
     parser.add_argument("--vf-lr", type=float, default=1e-3)
     parser.add_argument("--pi-lr", type=float, default=3e-4)
+    parser.add_argument("--entropy-coeff", type=float, default=1e-2)
     parser.add_argument("--clip-ratio", type=float, default=0.2)
     parser.add_argument("-se", "--steps-per-epoch", type=int, default=4000)
     parser.add_argument("--lam", type=float, default=0.97)
@@ -120,6 +121,7 @@ if __name__ == "__main__":
         render_test=args.render_test,
         wandb_id=args.wandb_id,
         tboard=args.tboard,
+        entropy_coeff=args.entropy_coeff,
     )
 
     ppo.train()

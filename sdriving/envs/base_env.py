@@ -291,7 +291,7 @@ class BaseEnv:
                 if a_id not in intermediates:
                     continue
                 if not self.is_agent_done(a_id):
-                    state = intermediates[a_id][0][i, :]
+                    state = intermediates[a_id][0][i + 1, :]
                     no_updates = False
                     if self.astar_nav and self.agents[a_id][
                         "prev_point"

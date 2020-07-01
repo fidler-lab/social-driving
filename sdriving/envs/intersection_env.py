@@ -688,7 +688,6 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         t = agent.orientation
 
         action = self.actions_list[action]
-        #         print(action)
         start_state = torch.as_tensor([x, y, v, t])
         dynamics = self.agents[a_id]["dynamics"]
         nominal_states = [start_state.unsqueeze(0)]
