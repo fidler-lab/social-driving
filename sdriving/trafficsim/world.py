@@ -279,13 +279,11 @@ class World:
         ventity = self.vehicles[vname]
 
         return self.get_lidar_data_from_state(
-            torch.as_tensor(
-                [
-                    *ventity.vehicle.position,
-                    ventity.vehicle.speed,
-                    ventity.vehicle.orientation,
-                ]
-            ),
+            torch.cat([
+                ventity.vehicle.position,
+                ventity.vehicle.speed.unsqueeze(0),
+                ventity.vehicle.orientation.unsqueeze(0),
+            ]),
             vname,
             npoints,
             cars,

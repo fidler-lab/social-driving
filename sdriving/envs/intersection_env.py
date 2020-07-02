@@ -258,15 +258,16 @@ class RoadIntersectionEnv(BaseEnv):
             ]
         else:
             obs = [
-                self.world.get_traffic_signal(
+                torch.as_tensor(self.world.get_traffic_signal(
                     pt1, pt2, agent.position, agent.vision_range
-                ),
-                (vg - agent.speed) / (2 * v_lim),
-                agent.optimal_heading_to_point(dest) / math.pi,
-                inv_dist if torch.isfinite(inv_dist) else 0.0,
+                )).unsqueeze(0),
+                ((vg - agent.speed) / (2 * v_lim)).unsqueeze(0),
+                agent.optimal_heading_to_point(dest).unsqueeze(0) / math.pi,
+                inv_dist.unsqueeze(0) if torch.isfinite(inv_dist) else torch.zeros(1),
             ]
+            obs = torch.cat(obs)
         cur_state = [
-            torch.as_tensor(obs),
+            obs,
             1 / self.world.get_lidar_data(agent.name, self.npoints),
         ]
 
@@ -466,7 +467,7 @@ class RoadIntersectionEnv(BaseEnv):
     def setup_nagents_1(self):
         # Start at the road "traffic_signal_0" as the state space is
         # invariant to rotation and start position
-        erd = np.random.choice([1, 2, 3])
+        erd = np.random.choice([2])
         a_id = self.get_agent_ids_list()[0]
 
         if self.mode == 1:

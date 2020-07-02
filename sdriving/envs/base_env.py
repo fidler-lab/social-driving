@@ -62,7 +62,7 @@ class BaseEnv:
 
     def check_in_space(self, space, val):
         val = self.convert_to_numpy(val)
-        assert space.contains(val), f"{val} doesn't lie in space"
+        assert space.contains(val), f"{val} doesn't lie in {space}"
 
     @staticmethod
     def convert_to_numpy(tensor):

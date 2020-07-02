@@ -226,6 +226,67 @@ class PPOGaussianActor(PPOActor):
         return logp.view(-1)
 
 
+class LidarContinuousActor(nn.Module):
+    def __init__(
+        self,
+        obs_dim: int,
+        act_space: Box,
+        hidden_sizes: Union[List[int], Tuple[int]],
+        activation: torch.nn.Module,
+        history_len: int,
+        feature_dim: int = 25,
+    ):
+        super().__init__()
+        act_dim = act_space.shape[0]
+        self.act_high = torch.as_tensor(act_space.high)
+        self.act_low = torch.as_tensor(act_space.low)
+        self.net = mlp(
+            [obs_dim + feature_dim] + list(hidden_sizes) + [act_dim],
+            activation,
+            # nn.Tanh,
+        )
+        self.lidar_features = nn.Sequential(
+            nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
+            nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
+            nn.AdaptiveAvgPool1d(feature_dim),
+        )
+        self.history_len = history_len
+
+    def act_scale(self, act):
+        act[0] = 0.0
+        return (act / self.act_high).tanh() * self.act_high
+        # act[0] = 0.0
+        # return torch.max(torch.min(act, self.act_high), self.act_low)
+        # if not act.device == self.act_high.device:
+        #     self.act_high = self.act_high.to(act.device)
+        #     self.act_low = self.act_low.to(act.device)
+        # return (act + 1) * 0.5 * (self.act_high - self.act_low) + self.act_low
+
+    def act_rescale(self, act):
+        return self.atanh(
+            2 * (act - self.act_low) / (self.act_high - self.act_low) - 1.0
+        )
+
+    @staticmethod
+    def atanh(x):
+        return 0.5 * torch.log(torch.abs((1 + x + 1e-7) / (1 - x + 1e-7)))
+
+    def forward(
+        self,
+        obs: Union[Tuple[torch.Tensor], List[torch.Tensor]],
+    ):
+        bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
+        features = self.lidar_features(
+            obs[1].view(bsize, self.history_len, -1)
+        ).view(bsize, -1)
+        if obs[1].ndim == 1:
+            features = features.view(-1)
+
+        return self.act_scale(
+            self.net(torch.cat([obs[0], features], dim=-1))
+        )
+
+
 class PPOLidarGaussianActor(PPOGaussianActor):
     def __init__(
         self,
