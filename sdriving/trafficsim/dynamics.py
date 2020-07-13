@@ -15,6 +15,10 @@ from spinup.utils.mpi_tools import proc_id
 EPS = 1e-7
 
 
+def softclamp(x, lim):
+    return (x / lim).tanh() * lim
+
+
 class BicycleKinematicsModel(nn.Module):
     """
     Kinematic Bicycle Model from `"Kinematic and Dynamic Vehicle Models for
@@ -27,11 +31,14 @@ class BicycleKinematicsModel(nn.Module):
         dt: float = 0.10,
         dim: Union[float, List[float]] = 4.48,
         v_lim: Union[float, List[float]] = 8.0,
+        accln_lim: Union[float, List[float]] = 1.5,
     ):
         if isinstance(dim, float):
             dim = [dim]
         if isinstance(v_lim, float):
             v_lim = [v_lim]
+        if isinstance(accln_lim, float):
+            accln_lim = [accln_lim]
 
         assert len(dim) == len(v_lim)
 
@@ -40,6 +47,7 @@ class BicycleKinematicsModel(nn.Module):
         self.dt = dt
         self.dim = torch.as_tensor(dim).unsqueeze(1)
         self.v_lim = torch.as_tensor(v_lim).unsqueeze(1)
+        self.accln_lim = torch.as_tensor(accln_lim).unsqueeze(1)
 
         self.device = torch.device("cpu")
         self.nbatch = len(dim)
@@ -78,6 +86,7 @@ class BicycleKinematicsModel(nn.Module):
         if state.size(0) == self.nbatch:
             v_lim = self.v_lim
             dim = self.dim
+            a_lim = self.accln_lim
         elif state.size(0) > self.nbatch:
             v_lim = (
                 self.v_lim.unsqueeze(0)
@@ -86,6 +95,11 @@ class BicycleKinematicsModel(nn.Module):
             )
             dim = (
                 self.dim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+            a_lim = (
+                self.accln_lim.unsqueeze(0)
                 .repeat(state.size(0) // self.nbatch, 1, 1)
                 .view(-1, 1)
             )
@@ -96,97 +110,6 @@ class BicycleKinematicsModel(nn.Module):
         theta = angle_normalize(theta)
 
         return torch.cat([x, y, v, theta], dim=1)
-
-    def grad_input(self, state: torch.Tensor, action: torch.Tensor):
-        nbatch = state.size(0)
-        dt = self.dt
-        v = state[:, 2:3]
-        theta = state[:, 3:4]
-        steering = action[:, 0:1]
-        acceleration = action[:, 1:2]
-        v2 = v + acceleration * dt  # N x 1
-
-        if state.size(0) == self.nbatch:
-            v_lim = self.v_lim  # N x 1
-            dim = self.dims  # N x 1
-        elif state.size(0) > self.nbatch:
-            v_lim = (
-                self.v_lim.unsqueeze(0)
-                .repeat(state.size(0) // self.nbatch, 1, 1)
-                .view(-1, 1)
-            )  # N x 1
-            dim = (
-                self.dim.unsqueeze(0)
-                .repeat(state.size(0) // self.nbatch, 1, 1)
-                .view(-1, 1)
-            )  # N x 1
-
-        beta = torch.atan(torch.tan(steering) / 2)  # N x 1
-        c = (2 * torch.sin(beta) / dim)[:, :, None]  # N x 1
-        stb = torch.sin(theta + beta)  # N x 1
-        ctb = torch.cos(theta + beta)  # N x 1
-
-        dbeta_dsteer = (
-            1 / (1 + 3 * (torch.cos(steering) ** 2))[:, :, None]
-        )  # N x 1 x 1
-
-        do_dx = torch.as_tensor([[[1.0, 0.0, 0.0, 0.0]]]).repeat(
-            nbatch, 1, 1
-        )  # N x 1 x 4
-        do_dy = torch.as_tensor([[[0.0, 1.0, 0.0, 0.0]]]).repeat(
-            nbatch, 1, 1
-        )  # N x 1 x 4
-
-        dx_dv = (ctb * dt)[:, :, None]  # N x 1 x 1
-        dy_dv = (stb * dt)[:, :, None]  # N x 1 x 1
-        dv_dv = torch.where(
-            (v2 > v_lim) + (v2 < -v_lim),
-            torch.zeros(nbatch, 1),
-            torch.ones(nbatch, 1),
-        )[
-            :, :, None
-        ]  # N x 1 x 1
-        dt_dv = c * dv_dv  # N x 1 x 1
-        do_dv = torch.cat([dx_dv, dy_dv, dv_dv, dt_dv], dim=-1)  # N x 1 x 4
-
-        dx_dt = (-stb * v * dt)[:, :, None]  # N x 1 x 1
-        dy_dt = (ctb * v * dt)[:, :, None]  # N x 1 x 1
-        do_dt = torch.cat(
-            [
-                dx_dt,
-                dy_dt,
-                torch.zeros(nbatch, 1, 1),
-                torch.ones(nbatch, 1, 1),
-            ],
-            dim=-1,
-        )  # N x 1 x 4
-
-        do_ds = torch.cat([do_dx, do_dy, do_dv, do_dt], dim=1).permute(
-            0, 2, 1
-        )  # N x 4 x 4
-
-        dv_da = dv_dv * dt  # N x 1 x 1
-        dt_da = c * dv_da  # N x 1 x 1
-        do_da = torch.cat(
-            [torch.zeros(nbatch, 1, 2), dv_da, dt_da], dim=-1
-        )  # N x 1 x 4
-
-        dx_dst = dx_dt
-        dy_dst = dy_dt
-        dt_dst = (
-            2 * torch.min(torch.max(v2, -v_lim), v_lim) * torch.cos(beta)
-        ) / dim  # N x 1
-        dt_dst = dt_dst[:, :, None]
-        do_dst = (
-            torch.cat(
-                [dx_dst, dy_dst, torch.zeros(nbatch, 1, 1), dt_dst], dim=-1
-            )
-            * dbeta_dsteer
-        )  # N x 1 x 4
-
-        do_du = torch.cat([do_dst, do_da], dim=1).permute(0, 2, 1)  # N x 4 x 2
-
-        return do_ds, do_du
 
 
 class FixedTrackAccelerationModel(nn.Module):
@@ -291,6 +214,87 @@ class FixedTrackAccelerationModel(nn.Module):
                 theta = angle_normalize(math.pi / 2 + phi)
 
         return torch.cat([x, y, v, theta], dim=1)
+
+
+class CatmullRomSplineAccelerationModel(BicycleKinematicsModel):
+    def register_track(self, track: torch.Tensor, dummy_point: bool = True, **kwargs):
+        assert self.nbatch == 1
+        self.motion = CatmullRomSplineMotion(track, **kwargs)
+        diff = self.motion.diff
+        ratio = diff[:, 1] / (diff[:, 0] + EPS)  # (k - 1)
+        self.arc_lengths = self.motion.arc_lengths
+        self.theta = angle_normalize(
+            torch.where(
+                diff[:, 0] > 0,
+                torch.atan(ratio),
+                math.pi + torch.atan(ratio),
+            )
+        )
+        if dummy_point:
+            self.distance = self.motion.arc_lengths[self.motion.p_num]
+            self.track_num = torch.ones(1).long() * self.motion.p_num
+        else:
+            self.distance = torch.zeros(1)
+            self.track_num = torch.zeros(1).long()
+
+    def _get_track(self, state):
+        # To ensure the end is < self.motion.curve_length
+        s = (
+            self.distance % self.motion.curve_length
+        ) % self.motion.curve_length
+        sg = self.track_num
+        while s < 0:
+            s = s + self.arc_lengths[0, -1]
+        while (
+            s > self.arc_lengths[(sg + 1) % self.motion.npoints]
+            or s < self.arc_lengths[sg]
+        ):
+            sg = (sg + 1) % self.motion.npoints
+
+        self.track_num = sg
+
+        return (sg.unsqueeze(0), self.theta[sg])
+
+    def forward(self, state: torch.Tensor, action: torch.Tensor):
+        """
+        Args:
+            state: N x 4 Dimensional Tensor
+            action: N x 1 Dimensional Tensor
+        """
+        dt = self.dt
+        x = state[:, 0:1]
+        y = state[:, 1:2]
+        v = state[:, 2:3]
+        theta = state[:, 3:4]
+        acceleration = action[:, 0:1]
+
+        self.distance = self.distance + v * dt
+
+        sg, theta = self._get_track(state)
+        ts = self.motion.map_s_to_t(
+            self.distance % self.motion.curve_length, sg
+        )
+        s_t = self.motion(ts)
+        theta = theta.unsqueeze(-1)
+
+        if state.size(0) == self.nbatch:
+            v_lim = self.v_lim
+            dim = self.dim
+        elif state.size(0) > self.nbatch:
+            v_lim = (
+                self.v_lim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+            dim = (
+                self.dim.unsqueeze(0)
+                .repeat(state.size(0) // self.nbatch, 1, 1)
+                .view(-1, 1)
+            )
+
+        v = torch.min(torch.max(v + acceleration * dt, -v_lim), v_lim)
+
+        return torch.cat([s_t, v, theta], dim=1)
 
 
 class ParametricBicycleKinematicsModel(BicycleKinematicsModel):

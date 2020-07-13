@@ -118,6 +118,7 @@ class CatmullRomSplineMotion(nn.Module):
         self.t = t
         self.cps = cps
         self.cp_num = cp_num
+        self.p_num = p_num
         self.auxillary_cps = auxillary_cps
         self.device = device
 

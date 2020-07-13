@@ -176,6 +176,7 @@ class CentralizedPPOBufferVariableNagents:
         self.val_buf = {}
         self.ret_buf = {}
         self.logp_buf = {}
+        self.rew_buf = {}
 
         self.lidar_dim, self.state_dim, self.act_dim = lidar_dim, state_dim, act_dim
         self.gamma, self.lam = gamma, lam
@@ -194,12 +195,12 @@ class CentralizedPPOBufferVariableNagents:
         self.act_buf[a_id] = torch.zeros(
             combined_shape(self.max_size, self.act_dim), dtype=torch.float32
         )
-        self.vest_buf[a_id] = torch.zeros(size, dtype=torch.float32)
-        self.adv_buf[a_id] = torch.zeros(size, dtype=torch.float32)
-        self.rew_buf[a_id] = torch.zeros(size, dtype=torch.float32)
-        self.ret_buf[a_id] = torch.zeros(size, dtype=torch.float32)
-        self.val_buf[a_id] = torch.zeros(size, dtype=torch.float32)
-        self.logp_buf[a_id] = torch.zeros(size, dtype=torch.float32)
+        self.vest_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
+        self.adv_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
+        self.rew_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
+        self.ret_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
+        self.val_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
+        self.logp_buf[a_id] = torch.zeros(self.max_size, dtype=torch.float32)
         self.ptr[a_id] = 0
         self.path_start_idx[a_id] = 0
 

@@ -314,19 +314,14 @@ class World:
         # Try to change road association after a fixed iterations.
         # No need to try to do it everytime
         self.vehicles[vname].vehicle.update_state(new_state)
-        # prev_road = self.vehicles[vname].road
-        # prev_road = self.road_network.roads[prev_road]
-        # print(f"Prev Road: {prev_road}")
         if change_road_association:
-            # print(self.vehicles[vname])
             prev_road = self.vehicles[vname].road
-            new_pos = self.vehicles[vname].vehicle.position
+            new_pos = self.vehicles[vname].vehicle.position.detach()
             ga = self.vehicles[vname].grayarea
             if ga:
                 prev_road = self.road_network.gareas[prev_road]
             else:
                 prev_road = self.road_network.roads[prev_road]
-                # print(prev_road)
                 if prev_road.lies_in(new_pos):
                     return
                 else:

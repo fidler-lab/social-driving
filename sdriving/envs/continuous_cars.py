@@ -9,7 +9,10 @@ from gym.spaces import Box, Discrete, Tuple
 from sdriving.envs.fixed_track_env import (
     RoadIntersectionControlAccelerationEnv,
 )
-from sdriving.envs.intersection_env import RoadIntersectionControlEnv
+from sdriving.envs.intersection_env import (
+    RoadIntersectionControlEnv,
+    RoadIntersectionEnv
+)
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
@@ -217,7 +220,7 @@ class RoadIntersectionContinuousFlowControlEnv(RoadIntersectionControlEnv):
         else:
             self.setup_nagents(self.start_agents)
 
-        return super(RoadIntersectionControlEnv, self).reset()
+        return super(RoadIntersectionEnv, self).reset()
 
 
 class RoadIntersectionContinuousFlowControlAccelerationEnv(

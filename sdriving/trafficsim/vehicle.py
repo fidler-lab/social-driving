@@ -67,6 +67,13 @@ class Vehicle:
 
         self.render_utils = None
 
+        self.old_states = []
+        self.old_states.append(torch.cat([
+            self.position,
+            self.speed.unsqueeze(0),
+            self.orientation.unsqueeze(0),
+        ]))
+
     def to(self, device):
         if device == self.device:
             return
@@ -109,6 +116,7 @@ class Vehicle:
         Args:
             state: {x coordinate, y coordinate, speed, orientation}
         """
+        self.old_states.append(state)
         self.position = state[:2]
         self.speed = state[2]
         self.orientation = state[3]
@@ -126,14 +134,14 @@ class Vehicle:
     def optimal_heading_to_point(self, point: torch.Tensor):
         vec = point - self.position
         vec = vec / (torch.norm(vec) + 1e-10)
-        cur_vec = torch.as_tensor(
+        cur_vec = torch.cat(
             [
-                torch.cos(self.orientation),
-                torch.sin(self.orientation),
+                torch.cos(self.orientation).unsqueeze(0),
+                torch.sin(self.orientation).unsqueeze(0),
             ]
         )
         opt_angle = angle_normalize(
-            torch.acos(vec.dot(cur_vec).clamp(-1.0, 1.0))
+            torch.acos(vec.dot(cur_vec).clamp(-1.0 + 1e-5, 1.0 - 1e-5))
         )
         return opt_angle
 
@@ -155,47 +163,6 @@ class Vehicle:
                 obj.safety_circle,
             )
         raise NotImplementedError
-
-    """
-    def render_pyglet(self, viewer, zoom_factor=10.0):
-        if self.render_utils is None:
-            # The bottom left corner is (0, 0)
-            trans_factor = torch.as_tensor(
-                [viewer.width / 2, viewer.height / 2]
-            )
-
-            coord = self.base_coordinates * zoom_factor + trans_factor
-            box = rendering.FilledPolygon(coord.numpy())
-            box.set_color(0.0, 1.0, 0.0)
-            transform = rendering.Transform()
-            box.add_attr(transform)
-            viewer.add_geom(box)
-
-            head_coord = torch.as_tensor(
-                [[0.0, 0.0], [self.dimensions[0], 0.0]]
-            )
-            head_coord = head_coord * zoom_factor + trans_factor
-            heading = rendering.PolyLine(head_coord, close=True)
-            heading.set_color(0.0, 0.0, 1.0)
-            heading.add_attr(transform)
-            viewer.add_geom(heading)
-
-            # TODO: Add the lidar range circles
-            self.render_utils = {
-                "transform": transform,
-                "zoom_factor": zoom_factor,
-                "trans_factor": trans_factor,
-            }
-
-        transform = self.render_utils["transform"]
-        zoom_factor = self.render_utils["zoom_factor"]
-        trans_factor = self.render_utils["trans_factor"]
-
-        translation = (self.position * zoom_factor + trans_factor).numpy()
-        print(translation)
-        transform.set_translation(*translation)
-        transform.set_rotation(self.orientation.numpy())
-    """
 
     def render(
         self,

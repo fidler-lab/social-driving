@@ -7,7 +7,10 @@ import gym
 import numpy as np
 import torch
 import wandb
-from sdriving.agents.buffer import CentralizedPPOBuffer as PPOBuffer
+from sdriving.agents.buffer import (
+    CentralizedPPOBuffer,
+    CentralizedPPOBufferVariableNagents
+)
 from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
 from sdriving.agents.model import IterativeWayPointPredictor
 from sdriving.agents.utils import (
@@ -179,15 +182,26 @@ class PPO_Centralized_Critic:
         # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
         self.local_steps_per_epoch = int(steps_per_epoch / num_procs())
-        self.buf = PPOBuffer(
-            self.env.observation_space[0].shape,
-            self.env.observation_space[1].shape,
-            self.env.action_space.shape,
-            self.local_steps_per_epoch,
-            gamma,
-            lam,
-            self.env.nagents,
-        )
+        if "permutation_invariant" in self.ac_params and self.ac_params["permutation_invariant"]:
+            self.buf = CentralizedPPOBuffer(  # VariableNagents(
+                self.env.observation_space[0].shape,
+                self.env.observation_space[1].shape,
+                self.env.action_space.shape,
+                self.local_steps_per_epoch,
+                gamma,
+                lam,
+                self.env.nagents
+            )
+        else:
+            self.buf = CentralizedPPOBuffer(
+                self.env.observation_space[0].shape,
+                self.env.observation_space[1].shape,
+                self.env.action_space.shape,
+                self.local_steps_per_epoch,
+                gamma,
+                lam,
+                self.env.nagents,
+            )
 
         self.gamma = gamma
         self.clip_ratio = clip_ratio

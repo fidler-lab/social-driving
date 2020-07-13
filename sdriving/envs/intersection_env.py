@@ -196,6 +196,7 @@ class RoadIntersectionEnv(BaseEnv):
             "original_destination": dest,
             "dest_orientation": dest_orientation,
             "original_distance": vehicle.distance_from_destination(),
+            "original_distance_squared": vehicle.distance_from_destination() ** 2,
             "intermediate_nodes": intermediate_nodes,
             "intermediate_goals": [
                 *[
@@ -333,7 +334,7 @@ class RoadIntersectionEnv(BaseEnv):
 
     def handle_goal_tolerance(self, agent):
         if (
-            agent["vehicle"].distance_from_destination() < self.goal_tolerance
+            agent["vehicle"].distance_from_destination() < 4.0  # self.goal_tolerance
         ) or (
             self.world.road_network.is_perpendicular(
                 self.world.vehicles[agent["vehicle"].name].road,
@@ -467,7 +468,7 @@ class RoadIntersectionEnv(BaseEnv):
     def setup_nagents_1(self):
         # Start at the road "traffic_signal_0" as the state space is
         # invariant to rotation and start position
-        erd = np.random.choice([2])
+        erd = np.random.choice([1, 2, 3])
         a_id = self.get_agent_ids_list()[0]
 
         if self.mode == 1:
@@ -475,6 +476,8 @@ class RoadIntersectionEnv(BaseEnv):
             self.add_vehicle_path(a_id, 0, erd, False)
         elif self.mode == 2:
             self.add_vehicle_path(a_id, 0, erd, True)
+        elif self.mode == 3:
+            self.add_vehicle_path(a_id, 0, 2, True)
         else:
             raise NotImplementedError
 
@@ -678,39 +681,6 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
                 + diff[1] / (2 * self.max_accln)
             ) / (2 * self.horizon)
             rewards[a_id] = rew - penalty
-
-    def transform_state_action_single_agent(
-        self, a_id, action, state, timesteps
-    ):
-        # This function is no longer used. The batched implementation used
-        # now is way faster
-        agent = self.agents[a_id]["vehicle"]
-
-        action = self.actions_list[action]
-        start_state = torch.cat([
-            agent.position,
-            agent.speed.unsqueeze(0),
-            agent.orientation.unsqueeze(0)
-        ])
-        dynamics = self.agents[a_id]["dynamics"]
-        nominal_states = [start_state.unsqueeze(0)]
-        nominal_actions = [action]
-        for _ in range(timesteps):
-            start_state = nominal_states[-1]
-            new_state = dynamics(start_state, action)
-            nominal_states.append(new_state.cpu())
-            nominal_actions.append(action)
-        nominal_states, nominal_actions = (
-            torch.cat(nominal_states),
-            torch.cat(nominal_actions),
-        )
-        na = torch.zeros(4).to(self.device)
-        ns = torch.zeros(4).to(self.device)
-        ex = (nominal_states, nominal_actions)
-
-        self.curr_actions[a_id] = action[0]
-
-        return na, ns, ex
 
     def transform_state_action(self, actions, states, timesteps):
         action = []

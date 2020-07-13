@@ -64,7 +64,9 @@ def circle_segment_area(
     if dist.size(0) == 1:
         if dist > radius:
             return torch.zeros(1)
-        theta = 2 * torch.acos(dist / radius)
+        theta = 2 * torch.acos(
+            torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5)
+        )
         return (theta - torch.sin(theta)) * (radius ** 2) / 2
     else:
         theta = 2 * torch.acos(
@@ -165,7 +167,7 @@ def distance_from_point_direction(
 
     ndir = (num * dir2).sum(1, keepdim=True).permute(1, 0)  # 1 x N
     vdir = dir1 @ dir2.permute(1, 0)  # B x N
-    distances = ndir / vdir  # B x N
+    distances = ndir / (vdir + 1e-7)  # B x N
 
     t1 = (point[0] + distances * dir1[:, 1:] - pt2[:, 0:1].T) / dir2[:, 0:1].T
     t2 = (point[1] - distances * dir1[:, 0:1] - pt2[:, 1:].T) / dir2[:, 1:].T
