@@ -196,6 +196,7 @@ class RoadIntersectionEnv(BaseEnv):
             "original_destination": dest,
             "dest_orientation": dest_orientation,
             "original_distance": vehicle.distance_from_destination(),
+            "straight_distance": vehicle.distance_from_destination(),
             "original_distance_squared": vehicle.distance_from_destination() ** 2,
             "intermediate_nodes": intermediate_nodes,
             "intermediate_goals": [
@@ -378,9 +379,10 @@ class RoadIntersectionEnv(BaseEnv):
         )
         dist = (dist ** 2 - ld ** 2).sqrt()
 
-        return (dist + add_dist) / (
+        ret = (dist + add_dist) / (
             (agent["original_distance"] + 1e-12) * self.horizon
         )
+        return ret
 
     def add_vehicle_path(
         self,

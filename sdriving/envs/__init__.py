@@ -19,6 +19,10 @@ from sdriving.envs.intersection_env import (
     RoadIntersectionControlEnv,
     RoadIntersectionEnv,
 )
+from sdriving.envs.spline_env import (
+    RoadIntersectionLeftRightControlEnv,
+    RoadIntersectionSplineEnv
+)
 
 # Legacy code for experimentaion
 from sdriving.envs.meta_control import MetaControlEnv

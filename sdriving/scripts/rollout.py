@@ -9,7 +9,7 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
+from sdriving.agents.model import PPOLidarActorCritic, PPOWaypointActorCritic
 from sdriving.agents.model import IterativeWayPointPredictor
 from sdriving.envs import REGISTRY as ENV_REGISTRY
 
@@ -56,35 +56,20 @@ if __name__ == "__main__":
     if not args.dummy_run:
         ckpt = torch.load(args.model_save_path, map_location="cpu")
         centralized = ckpt["model"] == "centralized_critic"
-        spline = ckpt["model"] == "centralized_critic_spline"
-        ac = ActorCritic(
-            **ckpt["ac_kwargs"], centralized=centralized or spline
-        )
+        spline = "type" in ckpt and ckpt["type"] == "spline"
+        if spline:
+            ac = PPOWaypointActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
+        else:
+            ac = PPOLidarActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
         ac = ac.to(device)
-
-        if spline:
-            if "spline_kwargs" in ckpt:
-                spline_kwargs = ckpt["spline_kwargs"]
-            else:
-                spline_kwargs = {
-                    "hdim": 64,
-                    "max_length": test_env.max_length,
-                    "max_width": test_env.max_width,
-                    "separate_goal_model": False,
-                }
-            spline_model = IterativeWayPointPredictor(**spline_kwargs)
-            spline_model.load_state_dict(ckpt["spline"])
 
     os.makedirs(args.save_dir, exist_ok=True)
 
     total_ret = 0.0
     for ep in range(args.num_test_episodes):
         o, done, ep_ret, ep_len = test_env.reset(), False, 0, 0
-        if not args.dummy_run:
-            if spline:
-                test_env.register_track(spline_model)
         while not done:
             # Take deterministic actions at test time
             a = {}
@@ -102,18 +87,22 @@ if __name__ == "__main__":
                     print(
                         f"Agent: {key} || Observation: {obs[0]} || Action: {a[key]}"
                     )
-            pts = {}
             o, r, d, _ = test_env.step(
                 a,
                 render=not args.no_render,
-                pts=pts,
                 lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
             )
-            ep_ret += sum([rwd for _, rwd in r.items()])
-            ep_len += 1
-            done = d["__all__"]
-            if args.verbose:
-                print(f"Reward: {sum(r.values())}")
+            if isinstance(d, dict):
+                ep_ret += sum([rwd for _, rwd in r.items()])
+                ep_len += 1
+                done = d["__all__"]
+                if args.verbose:
+                    print(f"Reward: {sum(r.values())}")
+            else:
+                done = d
+                if not r == 0:
+                    ep_ret += sum([rwd for _, rwd in r.items()])
+                    ep_len += 1
         total_ret += ep_ret
         print(
             f"Episode {ep} : Total Length: {ep_len} | Total Return: {ep_ret}"

@@ -13,12 +13,8 @@ def episode_runner(
     env,
     ac: torch.nn.Module,
     logger,
-    spline_model: Optional[torch.nn.Module] = None,
 ):
     o, ep_ret, ep_len = env.reset(), 0, 0
-
-    if spline_model is not None:
-        env.register_track(spline_model)
 
     for t in range(total_timesteps):
         a, v, logp, o_list = {}, {}, {}, []
@@ -83,5 +79,59 @@ def episode_runner(
                         }
                     )
             o, ep_ret, ep_len = env.reset(), 0, 0
-            if spline_model is not None:
-                env.register_track(spline_model)
+
+            
+def episode_runner_one_step(
+    total_timesteps: int,
+    device,
+    buffer,
+    env,
+    ac: torch.nn.Module,
+    logger,
+):
+    o, ep_ret, ep_len = env.reset(), 0, 0
+
+    for t in range(total_timesteps):
+        done = False
+        stores = []
+        o, ep_ret, ep_len = env.reset(), 0, 0
+        while not done:
+            a, v, logp, o_list = {}, {}, {}, []
+            for k, obs in o.items():
+                obs = obs.to(device)
+                o[k] = obs
+                o_list.append(obs)
+
+            actions, val_f, log_probs = ac.step(o_list)
+            for i, key in enumerate(o.keys()):
+                a[key] = actions[i].cpu()
+                v[key] = val_f
+                logp[key] = log_probs[i]
+
+            next_o, r, done, _ = env.step(a)
+
+            for k in o.keys():
+                stores.append([k, o[k].cpu(), a[k].cpu(), v[key].cpu(), logp[key].cpu()])
+
+            o = next_o
+
+        rlist = [torch.as_tensor(rwd).detach().cpu() for _, rwd in r.items()]
+        ret = sum(rlist)
+        rlen = len(rlist)
+        ep_ret += ret / rlen
+        ep_len += 1
+
+        for (k, o, a, v, lp) in stores:
+            buffer.store(
+                k, o, None, a, torch.as_tensor(r[key]).detach().cpu(), v, lp
+            )
+
+        logger.store(VVals=val_f)
+        logger.store(EpRet=ep_ret, EpLen=ep_len)
+        if proc_id() == 0:
+             wandb.log({
+                "Episode Return (Train)": ep_ret,
+                "Episode Length (Train)": ep_len,
+            })
+        buffer.finish_path(0)
+

@@ -168,6 +168,24 @@ class PPOCategoricalActor(PPOActor):
 
     def _distribution(self, obs):
         return Categorical(logits=self._get_logits(obs))
+    
+
+class PPOWaypointCategoricalActor(PPOCategoricalActor):
+    def __init__(
+        self,
+        obs_dim: int,
+        act_space: Discrete,
+        hidden_sizes: Union[List[int], Tuple[int]],
+        activation: torch.nn.Module,
+    ):
+        super().__init__()
+        self.deviation_net = mlp(
+            [obs_dim] + list(hidden_sizes) + [act_space.n],
+            activation,
+        )
+    
+    def _get_logits(self, obs: torch.Tensor):
+        return self.deviation_net(obs)
 
 
 class PPOLidarCategoricalActor(PPOCategoricalActor):
@@ -294,6 +312,27 @@ class PPOLidarGaussianActor(PPOGaussianActor):
             return self.mu_layer(out)
 
 
+class PPOWaypointCentralizedCritic(nn.Module):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_sizes: Union[List[int], Tuple[int]],
+        activation: torch.nn.Module,
+        nagents: int,
+    ):
+        super().__init__()
+        self.v_net = mlp(
+            [obs_dim * nagents] + list(hidden_sizes) + [1],
+            activation,
+        )
+        self.nagents = nagents
+        
+    def forward(self, obs_list: List[torch.Tensor]):
+        assert len(obs_list) == self.nagents
+        obs = torch.cat(obs_list, dim=-1)
+        return self.v_net(obs).squeeze(-1)
+
+
 class PPOLidarCentralizedCritic(nn.Module):
     def __init__(
         self,
@@ -338,6 +377,29 @@ class PPOLidarCentralizedCritic(nn.Module):
         return torch.squeeze(
             self.v_net(torch.cat([state_vec, f_vecs], dim=-1)), -1
         )
+    
+
+class PPOWaypointPermutationInvariantCentralizedCritic(nn.Module):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_sizes: Union[List[int], Tuple[int]],
+        activation: torch.nn.Module,
+    ):
+        super().__init__()
+        self.f_net = mlp(
+            [obs_dim, hidden_sizes[0]], activation,
+        )
+        self.v_net = mlp(
+            list(hidden_sizes[1:]) + [1], activation
+        )
+        
+    def forward(self, obs_list: List[torch.Tensor]):
+        f_vecs = []
+        for obs in obs_list:
+            f_vecs.append(self.f_net(obs))
+        state_vec = sum(f_vecs) / len(f_vecs)
+        return self.v_net(state_vec).squeeze(-1)
 
 
 class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
@@ -408,76 +470,14 @@ class PPOLidarDecentralizedCritic(PPOLidarCentralizedCritic):
         )
 
 
-class PPOLidarActorCritic(nn.Module):
-    def __init__(
-        self,
-        observation_space: GSTuple,
-        action_space: Union[Discrete, Box],
-        hidden_sizes: Union[List[int], Tuple[int]] = (64, 64),
-        activation: torch.nn.Module = nn.Tanh,
-        history_len: int = 1,
-        feature_dim: int = 25,
-        nagents: int = 1,
-        centralized: bool = False,
-        permutation_invariant: bool = False,
-    ):
+class PPOActorCritic(nn.Module):
+    def __init__(self, actor, critic, centralized):
         super().__init__()
-
-        obs_dim = observation_space[0].shape[0]
+        self.pi = actor
+        self.v  = critic
         self.centralized = centralized
-        self.nagents = nagents
 
-        if isinstance(action_space, Box):
-            self.pi = PPOLidarGaussianActor(
-                obs_dim,
-                action_space,
-                hidden_sizes,
-                activation,
-                history_len,
-                feature_dim,
-            )
-        elif isinstance(action_space, Discrete):
-            self.pi = PPOLidarCategoricalActor(
-                obs_dim,
-                action_space,
-                hidden_sizes,
-                activation,
-                history_len,
-                feature_dim,
-            )
-        else:
-            raise Exception(
-                "Only Box and Discrete Action Spaces are supported"
-            )
-
-        if centralized:
-            if permutation_invariant:
-                self.v = PPOLidarPermutationInvariantCentralizedCritic(
-                    obs_dim,
-                    hidden_sizes,
-                    activation,
-                    history_len,
-                    feature_dim
-                )
-            else:
-                self.v = PPOLidarCentralizedCritic(
-                    obs_dim,
-                    hidden_sizes,
-                    activation,
-                    history_len,
-                    nagents,
-                    feature_dim,
-                )
-        else:
-            if permutation_invariant:
-                raise Exception(
-                    "Permutation Invariance for Decentralized Training not available"
-                )
-            self.v = PPOLidarDecentralizedCritic(
-                obs_dim, hidden_sizes, activation, history_len, feature_dim
-            )
-
-    def _step_centralized(self, obs):
+    def _step_centralized(self, obs: list):
         actions = []
         log_probs = []
         with torch.no_grad():
@@ -500,20 +500,133 @@ class PPOLidarActorCritic(nn.Module):
             v = self.v(obs)
             return a, v, logp_a
 
-    def step(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
+    def step(self, obs):
         if self.centralized:
             return self._step_centralized(obs)
         else:
             return self._step_decentralized(obs)
 
-    def act(
-        self,
-        obs: Union[Tuple[torch.Tensor], List[torch.Tensor]],
-        deterministic: bool = True,
-    ):
+    def act(self, obs, deterministic: bool = True):
         if deterministic:
             return self.pi._deterministic(obs)
         return self.pi.sample(self.pi._distribution(obs))
+
+
+class PPOWaypointActorCritic(PPOActorCritic):
+    def __init__(
+        self,
+        observation_space: GSTuple,
+        action_space: Union[Discrete, Box],
+        hidden_sizes: Union[List[int], Tuple[int]] = (64, 64),
+        activation: torch.nn.Module = nn.Tanh,
+        nagents: int = 1,
+        centralized: bool = False,
+        permutation_invariant: bool = False,
+    ):
+
+        obs_dim = observation_space.shape[0]
+
+        if isinstance(action_space, Box):
+            raise NotImplementedError
+        elif isinstance(action_space, Discrete):
+            pi = PPOWaypointCategoricalActor(
+                obs_dim,
+                action_space,
+                hidden_sizes,
+                activation,
+            )
+        else:
+            raise Exception(
+                "Only Box and Discrete Action Spaces are supported"
+            )
+
+        if centralized:
+            if permutation_invariant:
+                v = PPOWaypointPermutationInvariantCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation
+                )
+            else:
+                v = PPOWaypointCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation,
+                    nagents
+                )
+        else:
+            raise Exception("Decentralized Training not available")
+            
+        super().__init__(pi, v, centralized)
+
+
+class PPOLidarActorCritic(PPOActorCritic):
+    def __init__(
+        self,
+        observation_space: GSTuple,
+        action_space: Union[Discrete, Box],
+        hidden_sizes: Union[List[int], Tuple[int]] = (64, 64),
+        activation: torch.nn.Module = nn.Tanh,
+        history_len: int = 1,
+        feature_dim: int = 25,
+        nagents: int = 1,
+        centralized: bool = False,
+        permutation_invariant: bool = False,
+    ):
+
+        obs_dim = observation_space[0].shape[0]
+
+        if isinstance(action_space, Box):
+            pi = PPOLidarGaussianActor(
+                obs_dim,
+                action_space,
+                hidden_sizes,
+                activation,
+                history_len,
+                feature_dim,
+            )
+        elif isinstance(action_space, Discrete):
+            pi = PPOLidarCategoricalActor(
+                obs_dim,
+                action_space,
+                hidden_sizes,
+                activation,
+                history_len,
+                feature_dim,
+            )
+        else:
+            raise Exception(
+                "Only Box and Discrete Action Spaces are supported"
+            )
+
+        if centralized:
+            if permutation_invariant:
+                v = PPOLidarPermutationInvariantCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation,
+                    history_len,
+                    feature_dim
+                )
+            else:
+                v = PPOLidarCentralizedCritic(
+                    obs_dim,
+                    hidden_sizes,
+                    activation,
+                    history_len,
+                    nagents,
+                    feature_dim,
+                )
+        else:
+            if permutation_invariant:
+                raise Exception(
+                    "Permutation Invariance for Decentralized Training not available"
+                )
+            v = PPOLidarDecentralizedCritic(
+                obs_dim, hidden_sizes, activation, history_len, feature_dim
+            )
+            
+        super().__init__(pi, v, centralized)
 
 
 class IterativeWayPointPredictor(nn.Module):

@@ -72,6 +72,7 @@ if __name__ == "__main__":
     parser.add_argument("--tboard", action="store_true")
     parser.add_argument("-wid", "--wandb-id", type=str, default=None)
     parser.add_argument("--centralized-critic", "-cc", action="store_true")
+    parser.add_argument("--spline", "-spl", action="store_true")
     parser.add_argument("--altopt", "-ao", action="store_true")
 
     args = parser.parse_args()
@@ -84,18 +85,19 @@ if __name__ == "__main__":
     test_observation_space = env(**args.env_kwargs).observation_space
     if isinstance(test_observation_space, gym.spaces.Tuple):
         if args.centralized_critic:
-            if args.altopt:
-                from sdriving.agents.ppo_cent.ppo import (
-                    PPO_Centralized_Critic_AltOpt as PPO,
-                )
-            else:
-                from sdriving.agents.ppo_cent.ppo import (
-                    PPO_Centralized_Critic as PPO,
-                )
+            from sdriving.agents.ppo_cent.ppo import (
+                PPO_Centralized_Critic as PPO,
+            )
         else:
             from sdriving.agents.ppo_indiv.ppo import (
                 PPO_Decentralized_Critic as PPO,
             )
+    elif isinstance(test_observation_space, gym.spaces.Box):
+        if args.centralized_critic:
+            if args.spline:
+                from sdriving.agents.ppo_cent.ppo import (
+                    PPO_Centralized_Critic_Waypoint_Predictor as PPO,
+                )
     del test_observation_space
 
     ppo = PPO(

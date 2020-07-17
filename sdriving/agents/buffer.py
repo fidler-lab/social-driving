@@ -82,7 +82,8 @@ class CentralizedPPOBuffer:
             self.ptr[a_id] < self.max_size
         )  # buffer has to have room so you can store
         self.state_buf[a_id][self.ptr[a_id]] = obs
-        self.lidar_buf[a_id][self.ptr[a_id]] = lidar
+        if lidar is not None:
+            self.lidar_buf[a_id][self.ptr[a_id]] = lidar
         self.act_buf[a_id][self.ptr[a_id]] = act
         self.rew_buf[a_id][self.ptr[a_id]] = rew
         self.val_buf[a_id][self.ptr[a_id]] = val
