@@ -9,32 +9,8 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.agents.model import PPOLidarActorCritic, PPOWaypointActorCritic
-from sdriving.agents.model import IterativeWayPointPredictor
 from sdriving.envs import REGISTRY as ENV_REGISTRY
-
-
-# Handles the irritating convergence message from mpc pytorch
-class CustomPrint:
-    def __init__(self):
-        self.old_stdout = sys.stdout
-
-    def write(self, text):
-        text = text.rstrip()
-        if len(text) == 0:
-            return
-        if "pnqp warning" in text:
-            return
-        self.old_stdout.write(text + "\n")
-
-    def flush(self):
-        self.old_stdout.flush()
-
-
-# Not a big fan of doing this, but don't know any other way to
-# handle it
-sys.stdout = CustomPrint()
-
+from sdriving.scripts.ckpt_parser import checkpoint_parser
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -54,15 +30,7 @@ if __name__ == "__main__":
     test_env = ENV_REGISTRY[args.env](**args.env_kwargs)
 
     if not args.dummy_run:
-        ckpt = torch.load(args.model_save_path, map_location="cpu")
-        centralized = ckpt["model"] == "centralized_critic"
-        spline = "type" in ckpt and ckpt["type"] == "spline"
-        if spline:
-            ac = PPOWaypointActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
-        else:
-            ac = PPOLidarActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
-        ac.v = None
-        ac.pi.load_state_dict(ckpt["actor"])
+        ac = checkpoint_parser(args.model_save_path)
         ac = ac.to(device)
 
     os.makedirs(args.save_dir, exist_ok=True)

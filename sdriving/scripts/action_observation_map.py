@@ -10,30 +10,8 @@ import gym
 import numpy as np
 import pandas as pd
 import torch
-from sdriving.agents.model import PPOLidarActorCritic as ActorCritic
+from sdriving.scripts.ckpt_parser import checkpoint_parser
 from sdriving.envs import REGISTRY as ENV_REGISTRY
-
-
-# Handles the irritating convergence message from mpc pytorch
-class CustomPrint:
-    def __init__(self):
-        self.old_stdout = sys.stdout
-
-    def write(self, text):
-        text = text.rstrip()
-        if len(text) == 0:
-            return
-        if "pnqp warning" in text:
-            return
-        self.old_stdout.write(text + "\n")
-
-    def flush(self):
-        self.old_stdout.flush()
-
-
-# Not a big fan of doing this, but don't know any other way to
-# handle it
-sys.stdout = CustomPrint()
 
 
 if __name__ == "__main__":
@@ -51,11 +29,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if not args.dummy_run:
-        ckpt = torch.load(args.model_save_path, map_location="cpu")
-        centralized = ckpt["model"] == "centralized_critic"
-        ac = ActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
-        ac.v = None
-        ac.pi.load_state_dict(ckpt["actor"])
+        ac = checkpoint_parser(args.model_save_path)
         ac = ac.to(device)
 
     test_env = ENV_REGISTRY[args.env](**args.env_kwargs)

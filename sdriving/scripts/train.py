@@ -18,28 +18,6 @@ logging.basicConfig(
 )
 
 
-# Handles the irritating convergence message from mpc pytorch
-class CustomPrint:
-    def __init__(self):
-        self.old_stdout = sys.stdout
-
-    def write(self, text):
-        text = text.rstrip()
-        if len(text) == 0:
-            return
-        if "pnqp warning" in text:
-            return
-        self.old_stdout.write(text + "\n")
-
-    def flush(self):
-        self.old_stdout.flush()
-
-
-# Not a big fan of doing this, but don't know any other way to
-# handle it
-sys.stdout = CustomPrint()
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -73,7 +51,12 @@ if __name__ == "__main__":
     parser.add_argument("-wid", "--wandb-id", type=str, default=None)
     parser.add_argument("--centralized-critic", "-cc", action="store_true")
     parser.add_argument("--spline", "-spl", action="store_true")
-    parser.add_argument("--altopt", "-ao", action="store_true")
+    parser.add_argument(
+        "--algo",
+        help="Currently only 2 are supported: [PPO, Reinforce]",
+        default="PPO",
+        type=str,
+    )
 
     args = parser.parse_args()
 
@@ -83,47 +66,70 @@ if __name__ == "__main__":
     mpi_fork(args.cpu)  # run parallel code with mpi
 
     test_observation_space = env(**args.env_kwargs).observation_space
-    if isinstance(test_observation_space, gym.spaces.Tuple):
-        if args.centralized_critic:
-            from sdriving.agents.ppo_cent.ppo import (
-                PPO_Centralized_Critic as PPO,
-            )
-        else:
-            from sdriving.agents.ppo_indiv.ppo import (
-                PPO_Decentralized_Critic as PPO,
-            )
-    elif isinstance(test_observation_space, gym.spaces.Box):
-        if args.centralized_critic:
-            if args.spline:
+
+    if args.algo == "PPO":
+        if isinstance(test_observation_space, gym.spaces.Tuple):
+            if args.centralized_critic:
                 from sdriving.agents.ppo_cent.ppo import (
-                    PPO_Centralized_Critic_Waypoint_Predictor as PPO,
+                    PPO_Centralized_Critic as PPO,
                 )
+            else:
+                from sdriving.agents.ppo_indiv.ppo import (
+                    PPO_Decentralized_Critic as PPO,
+                )
+        elif isinstance(test_observation_space, gym.spaces.Box):
+            if args.centralized_critic:
+                if args.spline:
+                    from sdriving.agents.ppo_cent.ppo import (
+                        PPO_Centralized_Critic_Waypoint_Predictor as PPO,
+                    )
+    elif args.algo == "Reinforce":
+        from sdriving.agents.reinforce.reinforce import Reinforce
+
     del test_observation_space
 
-    ppo = PPO(
-        env,
-        args.env_kwargs,
-        log_dir,
-        ac_kwargs=args.ac_kwargs,
-        seed=args.seed,
-        steps_per_epoch=args.steps_per_epoch,
-        epochs=args.epochs,
-        gamma=args.gamma,
-        clip_ratio=args.clip_ratio,
-        pi_lr=args.pi_lr,
-        vf_lr=args.vf_lr,
-        train_pi_iters=args.train_pi_iters,
-        train_v_iters=args.train_v_iters,
-        lam=args.lam,
-        target_kl=args.target_kl,
-        logger_kwargs=args.logger_kwargs,
-        save_freq=args.save_freq,
-        load_path=args.model_checkpoint if args.resume else None,
-        render_train=args.render_train,
-        render_test=args.render_test,
-        wandb_id=args.wandb_id,
-        tboard=args.tboard,
-        entropy_coeff=args.entropy_coeff,
-    )
+    if args.algo == "PPO":
+        trainer = PPO(
+            env,
+            args.env_kwargs,
+            log_dir,
+            ac_kwargs=args.ac_kwargs,
+            seed=args.seed,
+            steps_per_epoch=args.steps_per_epoch,
+            epochs=args.epochs,
+            gamma=args.gamma,
+            clip_ratio=args.clip_ratio,
+            pi_lr=args.pi_lr,
+            vf_lr=args.vf_lr,
+            train_pi_iters=args.train_pi_iters,
+            train_v_iters=args.train_v_iters,
+            lam=args.lam,
+            target_kl=args.target_kl,
+            logger_kwargs=args.logger_kwargs,
+            save_freq=args.save_freq,
+            load_path=args.model_checkpoint if args.resume else None,
+            render_train=args.render_train,
+            render_test=args.render_test,
+            wandb_id=args.wandb_id,
+            tboard=args.tboard,
+            entropy_coeff=args.entropy_coeff,
+        )
+    elif args.algo == "Reinforce":
+        trainer = Reinforce(
+            env,
+            args.env_kwargs,
+            log_dir,
+            actor_kwargs=args.ac_kwargs,
+            seed=args.seed,
+            steps_per_epoch=args.steps_per_epoch,
+            epochs=args.epochs,
+            pi_lr=args.pi_lr,
+            train_pi_iters=args.train_pi_iters,
+            entropy_coeff=args.entropy_coeff,
+            logger_kwargs=args.logger_kwargs,
+            render_train=args.render_train,
+            wandb_id=args.wandb_id,
+            load_path=args.model_checkpoint if args.resume else None,
+        )
 
-    ppo.train()
+    trainer.train()
