@@ -328,7 +328,7 @@ class BaseEnv:
             if no_updates:
                 break
             if render:
-                self.world.render(**kwargs)
+                self.render(**kwargs)
             intermediate_rewards = self.get_reward()
             for a_id in id_list:
                 if a_id not in rewards or a_id not in intermediate_rewards:

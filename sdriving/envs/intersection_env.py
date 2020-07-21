@@ -197,7 +197,8 @@ class RoadIntersectionEnv(BaseEnv):
             "dest_orientation": dest_orientation,
             "original_distance": vehicle.distance_from_destination(),
             "straight_distance": vehicle.distance_from_destination(),
-            "original_distance_squared": vehicle.distance_from_destination() ** 2,
+            "original_distance_squared": vehicle.distance_from_destination()
+            ** 2,
             "intermediate_nodes": intermediate_nodes,
             "intermediate_goals": [
                 *[
@@ -260,12 +261,16 @@ class RoadIntersectionEnv(BaseEnv):
             ]
         else:
             obs = [
-                torch.as_tensor(self.world.get_traffic_signal(
-                    pt1, pt2, agent.position, agent.vision_range
-                )).unsqueeze(0),
+                torch.as_tensor(
+                    self.world.get_traffic_signal(
+                        pt1, pt2, agent.position, agent.vision_range
+                    )
+                ).unsqueeze(0),
                 ((vg - agent.speed) / (2 * v_lim)).unsqueeze(0),
                 agent.optimal_heading_to_point(dest).unsqueeze(0) / math.pi,
-                inv_dist.unsqueeze(0) if torch.isfinite(inv_dist) else torch.zeros(1),
+                inv_dist.unsqueeze(0)
+                if torch.isfinite(inv_dist)
+                else torch.zeros(1),
             ]
             obs = torch.cat(obs)
         cur_state = [
@@ -335,7 +340,8 @@ class RoadIntersectionEnv(BaseEnv):
 
     def handle_goal_tolerance(self, agent):
         if (
-            agent["vehicle"].distance_from_destination() < 4.0  # self.goal_tolerance
+            agent["vehicle"].distance_from_destination()
+            < 4.0  # self.goal_tolerance
         ) or (
             self.world.road_network.is_perpendicular(
                 self.world.vehicles[agent["vehicle"].name].road,
@@ -693,11 +699,13 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
             agent = self.agents[a_id]["vehicle"]
             action.append(self.actions_list[actions[a_id]])
             start_state.append(
-                torch.cat([
-                    agent.position,
-                    agent.speed.unsqueeze(0),
-                    agent.orientation.unsqueeze(0)
-                ]).unsqueeze(0)
+                torch.cat(
+                    [
+                        agent.position,
+                        agent.speed.unsqueeze(0),
+                        agent.orientation.unsqueeze(0),
+                    ]
+                ).unsqueeze(0)
             )
         action = torch.cat(action, dim=0)
         state = torch.cat(start_state, dim=0)
@@ -716,7 +724,8 @@ class RoadIntersectionControlEnv(RoadIntersectionEnv):
         return_val = {}
         for i, a_id in enumerate(self.get_agent_ids_list()):
             return_val[a_id] = (
-                nominal_states[i, :, :], nominal_actions[i, :, :]
+                nominal_states[i, :, :],
+                nominal_actions[i, :, :],
             )
             self.curr_actions[a_id] = action[i]
         return None, None, return_val
@@ -740,11 +749,13 @@ class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
             agent = self.agents[a_id]["vehicle"]
             action.append(actions[a_id].unsqueeze(0))
             start_state.append(
-                torch.cat([
-                    agent.position,
-                    agent.speed.unsqueeze(0),
-                    agent.orientation.unsqueeze(0)
-                ]).unsqueeze(0)
+                torch.cat(
+                    [
+                        agent.position,
+                        agent.speed.unsqueeze(0),
+                        agent.orientation.unsqueeze(0),
+                    ]
+                ).unsqueeze(0)
             )
         action = torch.cat(action, dim=0)
         state = torch.cat(start_state, dim=0)
@@ -763,7 +774,8 @@ class RoadIntersectionContinuousControlEnv(RoadIntersectionControlEnv):
         return_val = {}
         for i, a_id in enumerate(self.get_agent_ids_list()):
             return_val[a_id] = (
-                nominal_states[i, :, :], nominal_actions[i, :, :]
+                nominal_states[i, :, :],
+                nominal_actions[i, :, :],
             )
             self.curr_actions[a_id] = action[i]
         return None, None, return_val

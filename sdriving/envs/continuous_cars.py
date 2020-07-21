@@ -11,7 +11,7 @@ from sdriving.envs.fixed_track_env import (
 )
 from sdriving.envs.intersection_env import (
     RoadIntersectionControlEnv,
-    RoadIntersectionEnv
+    RoadIntersectionEnv,
 )
 from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
