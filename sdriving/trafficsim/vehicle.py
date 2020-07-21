@@ -68,11 +68,15 @@ class Vehicle:
         self.render_utils = None
 
         self.old_states = []
-        self.old_states.append(torch.cat([
-            self.position,
-            self.speed.unsqueeze(0),
-            self.orientation.unsqueeze(0),
-        ]))
+        self.old_states.append(
+            torch.cat(
+                [
+                    self.position,
+                    self.speed.unsqueeze(0),
+                    self.orientation.unsqueeze(0),
+                ]
+            )
+        )
 
     def to(self, device):
         if device == self.device:
@@ -103,12 +107,7 @@ class Vehicle:
     def get_edges(self):
         coordinates = self.get_coordinates()
         pt1 = coordinates
-        pt2 = torch.cat(
-            [
-                coordinates[1:],
-                coordinates[0:1],
-            ]
-        )
+        pt2 = torch.cat([coordinates[1:], coordinates[0:1],])
         return pt1, pt2
 
     def update_state(self, state: torch.Tensor):

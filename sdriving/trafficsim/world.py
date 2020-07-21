@@ -279,11 +279,13 @@ class World:
         ventity = self.vehicles[vname]
 
         return self.get_lidar_data_from_state(
-            torch.cat([
-                ventity.vehicle.position,
-                ventity.vehicle.speed.unsqueeze(0),
-                ventity.vehicle.orientation.unsqueeze(0),
-            ]),
+            torch.cat(
+                [
+                    ventity.vehicle.position,
+                    ventity.vehicle.speed.unsqueeze(0),
+                    ventity.vehicle.orientation.unsqueeze(0),
+                ]
+            ),
             vname,
             npoints,
             cars,
@@ -420,12 +422,18 @@ class World:
 
         if pts is None:
             pts = {}
-        for key, point in pts.items():
-            if len(point) != 2:
-                break
-            plt.plot(
-                point[0], point[1], color="r", marker="x", markersize=5,
-            )
+        for key, pt in pts.items():
+            if isinstance(pt, list):
+                for point in pt:
+                    if len(point) != 2:
+                        break
+                    plt.plot(
+                        point[0],
+                        point[1],
+                        color="r",
+                        marker="x",
+                        markersize=5,
+                    )
 
         for key in self.vehicles:
             render_vehicle(key, self.ax)

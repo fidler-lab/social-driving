@@ -8,9 +8,8 @@ from sdriving.trafficsim.parametric_curves import (
     LinearSplineMotion,
 )
 from sdriving.trafficsim.utils import angle_normalize
-from torch import nn
-
 from spinup.utils.mpi_tools import proc_id
+from torch import nn
 
 EPS = 1e-7
 
@@ -217,7 +216,9 @@ class FixedTrackAccelerationModel(nn.Module):
 
 
 class CatmullRomSplineAccelerationModel(BicycleKinematicsModel):
-    def register_track(self, track: torch.Tensor, dummy_point: bool = True, **kwargs):
+    def register_track(
+        self, track: torch.Tensor, dummy_point: bool = True, **kwargs
+    ):
         assert self.nbatch == 1
         self.motion = CatmullRomSplineMotion(track, **kwargs)
         diff = self.motion.diff
@@ -225,9 +226,7 @@ class CatmullRomSplineAccelerationModel(BicycleKinematicsModel):
         self.arc_lengths = self.motion.arc_lengths
         self.theta = angle_normalize(
             torch.where(
-                diff[:, 0] > 0,
-                torch.atan(ratio),
-                math.pi + torch.atan(ratio),
+                diff[:, 0] > 0, torch.atan(ratio), math.pi + torch.atan(ratio),
             )
         )
         if dummy_point:

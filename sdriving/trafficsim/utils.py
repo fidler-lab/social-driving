@@ -26,9 +26,9 @@ def get_2d_rotation_matrix(theta: torch.Tensor) -> torch.Tensor:
     ctheta = torch.cos(theta)
     stheta = torch.sin(theta)
     if theta.shape == torch.Size([]) or theta.shape == torch.Size([1]):
-        return torch.as_tensor([
-            [ctheta, stheta], [-stheta, ctheta]
-        ], device=theta.device)
+        return torch.as_tensor(
+            [[ctheta, stheta], [-stheta, ctheta]], device=theta.device
+        )
     else:
         rot_matrix = torch.zeros(
             (theta.size(0), 2, 2), dtype=torch.float, device=theta.device
@@ -56,6 +56,15 @@ def transform_2d_coordinates_rotation_matrix(
         return torch.matmul(coordinates, rot_matrix) + offset
     else:
         return torch.bmm(coordinates, rot_matrix) + offset
+
+
+def invtransform_2d_coordinates_rotation_matrix(
+    coordinates: torch.Tensor, rot_matrix: torch.Tensor, offset: torch.Tensor
+) -> torch.Tensor:
+    if not coordinates.ndim == 3:
+        return torch.matmul(coordinates - offset, rot_matrix.inverse())
+    else:
+        return torch.bmm(coordinates - offset, rot_matrix.inverse())
 
 
 def circle_segment_area(
@@ -182,7 +191,9 @@ def distance_from_point_direction(
             torch.as_tensor(np.inf),
         ),
         dim=1,
-    )[0]  # B x 1
+    )[
+        0
+    ]  # B x 1
 
 
 def generate_lidar_data(
