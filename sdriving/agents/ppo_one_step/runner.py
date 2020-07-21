@@ -6,7 +6,7 @@ from spinup.utils.mpi_tools import proc_id
 
 
 def episode_runner(
-    total_timesteps: int, device, buffer, env, actor: torch.nn.Module, logger
+    total_timesteps: int, device, buffer, env, actor: torch.nn.Module, logger,
 ):
     o, ep_ret, ep_len = env.reset(), 0, 0
 
@@ -25,10 +25,10 @@ def episode_runner(
 
         for a_id, obs in o.items():
             buffer.store(
-                obs.cpu(),
+                obs.cpu().detach(),
                 a[a_id].cpu().detach(),
                 torch.as_tensor(r[a_id]).detach().cpu(),
-                logp[a_id].cpu(),
+                logp[a_id].cpu().detach(),
             )
 
         logger.store(EpRet=epret)

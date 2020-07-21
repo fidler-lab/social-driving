@@ -3,21 +3,20 @@ import time
 import warnings
 from typing import Optional
 
+from mpi4py import MPI
+
 import gym
 import numpy as np
 import torch
 import wandb
-from sdriving.agents.buffer import ReinforceBuffer
-from sdriving.agents.model import (
-    PPOWaypointCategoricalActor,
-    PPOWaypointGaussianActor,
-)
-from sdriving.agents.reinforce.runner import episode_runner
+from sdriving.agents.buffer import *
+from sdriving.agents.model import *
 from sdriving.agents.utils import (
     count_vars,
     mpi_avg_grads,
     trainable_parameters,
 )
+from sdriving.agents.ppo_one_step.runner import episode_runner
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
@@ -26,12 +25,14 @@ from spinup.utils.mpi_tools import (
     mpi_statistics_scalar,
     num_procs,
     proc_id,
+    mpi_op,
 )
 from spinup.utils.serialization_utils import convert_json
 from torch.optim import SGD, Adam
+from torch.utils.tensorboard import SummaryWriter
 
 
-class Reinforce:
+class PPO_OneStep:
     def __init__(
         self,
         env,
@@ -41,14 +42,16 @@ class Reinforce:
         seed: int = 0,
         steps_per_epoch: int = 4000,
         epochs: int = 50,
-        pi_lr: float = 1e-4,
+        clip_ratio: float = 0.2,
+        pi_lr: float = 3e-4,
         train_pi_iters: int = 80,
         entropy_coeff: float = 1e-2,
+        target_kl: float = 0.01,
         logger_kwargs: dict = {},
         save_freq: int = 10,
         load_path=None,
         render_train: bool = False,
-        wandb_id: Optional[str] = None,
+        wandb_id: Optional[str] = None,  # Optional exists for legacy code
         **kwargs,
     ):
         # Special function to avoid certain slowdowns from PyTorch + MPI combo.
@@ -101,12 +104,14 @@ class Reinforce:
                 "Rendering the training is not implemented", color="red"
             )
 
+        self.nagents = self.env.nagents
         if isinstance(self.env.action_space, gym.spaces.Discrete):
             self.actor = PPOWaypointCategoricalActor(**self.actor_params)
         elif isinstance(self.env.action_space, gym.spaces.Box):
             self.actor = PPOWaypointGaussianActor(**self.actor_params)
 
         self.device = device
+
         self.pi_lr = pi_lr
 
         self.load_path = load_path
@@ -152,62 +157,86 @@ class Reinforce:
         # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
         self.local_steps_per_epoch = int(steps_per_epoch / num_procs())
-
-        self.buffer = ReinforceBuffer(
-            self.env.observation_space.shape[0],
+        self.buf = OneStepPPOBuffer(
+            self.env.observation_space.shape,
             self.env.action_space.shape,
             self.local_steps_per_epoch,
             self.env.nagents,
         )
 
+        self.clip_ratio = clip_ratio
         self.train_pi_iters = train_pi_iters
+        self.target_kl = target_kl
         self.epochs = epochs
         self.save_freq = save_freq
-
-    def compute_loss(self, data, idx):
+        
+    def compute_loss(self, data: dict, idx):
         device = self.device
+        clip_ratio = self.clip_ratio
 
-        data = {key: value[idx] for (key, value) in data.items()}
+        # Random subset sampling
+        data = {key: val[idx] for key, val in data.items()}
+        obs, rew, act, logp_old = map(
+            lambda x: data[x].to(device), ["obs", "rew", "act", "logp"],
+        )
+        rew = (rew - rew.mean()) / (rew.std() + 1e-7)
 
-        # Return Normalization
-        reward_mean, reward_std = data["reward"].mean(), data["reward"].std()
-        data["reward"] = (data["reward"] - reward_mean) / (reward_std + 1e-7)
-
-        # Policy Loss
-        pi, logp = self.actor(data["observation"], data["action"])
-        loss_pi = -(data["reward"] * logp).mean()
+        # Policy loss
+        pi, logp = self.actor(obs, act)
+        ratio = torch.exp((logp - logp_old).clamp(-20.0, 2.0))
+        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * rew
+        loss_pi = -(torch.min(ratio * rew, clip_adv)).mean()
 
         # Entropy Loss
         ent = pi.entropy().mean()
 
-        loss = loss_pi  # - ent * self.entropy_coeff
-        self.entropy_coeff -= self.entropy_coeff_decay
+        # TODO: Search for a good set of coeffs
+        loss = loss_pi - ent * self.entropy_coeff
 
-        return loss, {"pi_loss": loss_pi.item(), "ent": ent.item()}
+        # Logging Utilities
+        approx_kl = (logp_old - logp).mean().item()
+        clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
+        clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
+        info = dict(
+            kl=approx_kl,
+            ent=ent.item(),
+            cf=clipfrac,
+            pi_loss=loss_pi.item(),
+        )
 
-    def update(self):
-        data = self.buffer.get()
-        local_steps_per_epoch = self.local_steps_per_epoch
+        return loss, info
+    
+    def update(self, lspe=None):
+        data = self.buf.get()
+        local_steps_per_epoch = (
+            self.local_steps_per_epoch if lspe is None else lspe
+        )
 
-        batch_size = local_steps_per_epoch // self.train_pi_iters
+        train_iters = self.train_pi_iters
+        size = int(mpi_op(data["obs"].size(0), MPI.MIN))
+        batch_size = size // train_iters
 
         sampler = torch.utils.data.BatchSampler(
-            torch.utils.data.SubsetRandomSampler(range(local_steps_per_epoch)),
+            torch.utils.data.SubsetRandomSampler(range(size)),
             batch_size,
             drop_last=True,
         )
 
-        data = {key: value.to(self.device) for key, value in data.items()}
-
         with torch.no_grad():
-            _, info = self.compute_loss(data, range(local_steps_per_epoch))
+            _, info = self.compute_loss(data, range(size))
             pi_l_old = info["pi_loss"]
-            ent = info["ent"]
 
         for i, idx in enumerate(sampler):
             self.pi_optimizer.zero_grad()
 
             loss, info = self.compute_loss(data, idx)
+
+            kl = mpi_avg(info["kl"])
+            if kl > 1.5 * self.target_kl:
+                self.logger.log(
+                    f"Early stopping at step {i} due to reaching max kl."
+                )
+                break
             loss.backward()
 
             self.actor = self.actor.cpu()
@@ -216,23 +245,35 @@ class Reinforce:
 
             self.pi_optimizer.step()
 
+        self.logger.store(StopIter=i)
+
+        # Log changes from update
+        kl, ent, cf = info["kl"], info["ent"], info["cf"]
         self.logger.store(
             LossPi=pi_l_old,
+            KL=kl,
             Entropy=ent,
+            ClipFrac=cf,
             DeltaLossPi=(info["pi_loss"] - pi_l_old),
         )
         if proc_id() == 0:
             wandb.log(
-                {"Loss Actor": pi_l_old, "Entropy": ent,}
+                {
+                    "Loss Actor": pi_l_old,
+                    "KL Divergence": kl,
+                    "Entropy": ent,
+                    "Clip Factor": cf,
+                }
             )
-
+            
     def save_model(self, epoch: int, ckpt_extra: dict = {}):
         ckpt = {
             "actor": self.actor.state_dict(),
-            "nagents": self.env.nagents,
+            "nagents": self.nagents,
             "pi_optimizer": self.pi_optimizer.state_dict(),
             "actor_kwargs": self.actor_params,
-            "model": "reinforce",
+            "model": "centralized_critic",
+            "type": "one_step_ppo",
         }
         ckpt.update(ckpt_extra)
         torch.save(ckpt, self.softlink)
@@ -249,7 +290,7 @@ class Reinforce:
             for k, v in state.items():
                 if torch.is_tensor(v):
                     state[k] = v.to(self.device)
-
+                    
     def dump_logs(self, epoch, start_time):
         self.logger.log_tabular("Epoch", epoch)
         self.logger.log_tabular("EpRet", with_min_and_max=True)
@@ -259,9 +300,12 @@ class Reinforce:
         self.logger.log_tabular("LossPi", average_only=True)
         self.logger.log_tabular("DeltaLossPi", average_only=True)
         self.logger.log_tabular("Entropy", average_only=True)
+        self.logger.log_tabular("KL", average_only=True)
+        self.logger.log_tabular("ClipFrac", average_only=True)
+        self.logger.log_tabular("StopIter", average_only=True)
         self.logger.log_tabular("Time", time.time() - start_time)
         self.logger.dump_tabular()
-
+        
     def train(self):
         # Prepare for interaction with environment
         start_time = time.time()
@@ -270,7 +314,7 @@ class Reinforce:
             episode_runner(
                 self.local_steps_per_epoch,
                 self.device,
-                self.buffer,
+                self.buf,
                 self.env,
                 self.actor,
                 self.logger,

@@ -9,15 +9,18 @@ import torch
 import wandb
 from sdriving.agents.buffer import (
     CentralizedPPOBuffer,
-    CentralizedPPOBufferVariableNagents
+    CentralizedPPOBufferVariableNagents,
 )
 from sdriving.agents.model import PPOLidarActorCritic, PPOWaypointActorCritic
+from sdriving.agents.ppo_cent.runner import (
+    episode_runner,
+    episode_runner_one_step,
+)
 from sdriving.agents.utils import (
     count_vars,
     mpi_avg_grads,
     trainable_parameters,
 )
-from sdriving.agents.ppo_cent.runner import episode_runner, episode_runner_one_step
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
 from spinup.utils.mpi_tools import (
@@ -178,7 +181,10 @@ class PPO_Centralized_Critic:
         # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
         self.local_steps_per_epoch = int(steps_per_epoch / num_procs())
-        if "permutation_invariant" in self.ac_params and self.ac_params["permutation_invariant"]:
+        if (
+            "permutation_invariant" in self.ac_params
+            and self.ac_params["permutation_invariant"]
+        ):
             self.buf = CentralizedPPOBuffer(  # VariableNagents(
                 self.env.observation_space[0].shape,
                 self.env.observation_space[1].shape,
@@ -186,7 +192,7 @@ class PPO_Centralized_Critic:
                 self.local_steps_per_epoch,
                 gamma,
                 lam,
-                self.env.nagents
+                self.env.nagents,
             )
         else:
             self.buf = CentralizedPPOBuffer(
@@ -304,7 +310,9 @@ class PPO_Centralized_Critic:
 
     def update(self, lspe=None):
         data = self.buf.get()
-        local_steps_per_epoch = self.local_steps_per_epoch if lspe is None else lspe
+        local_steps_per_epoch = (
+            self.local_steps_per_epoch if lspe is None else lspe
+        )
 
         train_iters = max(self.train_pi_iters, self.train_v_iters)
         batch_size = local_steps_per_epoch // train_iters
@@ -413,11 +421,15 @@ class PPO_Centralized_Critic:
             self.logger.log(
                 "The agent was trained with a different nagents", color="red",
             )
-            if "permutation_invariant" in self.ac_params and self.ac_params["permutation_invariant"]:
+            if (
+                "permutation_invariant" in self.ac_params
+                and self.ac_params["permutation_invariant"]
+            ):
                 self.ac.v.load_state_dict(ckpt["critic"])
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
                 self.logger.log(
-                    "Agent doesn't depend on nagents. So continuing finetuning", color="green",
+                    "Agent doesn't depend on nagents. So continuing finetuning",
+                    color="green",
                 )
         for state in self.vf_optimizer.state.values():
             for k, v in state.items():
@@ -468,7 +480,7 @@ class PPO_Centralized_Critic:
             # Log info about epoch
             self.dump_logs(epoch, start_time)
 
-            
+
 class PPO_Centralized_Critic_Waypoint_Predictor(PPO_Centralized_Critic):
     def __init__(
         self,
@@ -615,7 +627,10 @@ class PPO_Centralized_Critic_Waypoint_Predictor(PPO_Centralized_Critic):
         # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
         self.local_steps_per_epoch = int(steps_per_epoch / num_procs())
-        if "permutation_invariant" in self.ac_params and self.ac_params["permutation_invariant"]:
+        if (
+            "permutation_invariant" in self.ac_params
+            and self.ac_params["permutation_invariant"]
+        ):
             self.buf = CentralizedPPOBuffer(  # VariableNagents(
                 self.env.observation_space.shape,
                 1,
@@ -623,7 +638,7 @@ class PPO_Centralized_Critic_Waypoint_Predictor(PPO_Centralized_Critic):
                 self.local_steps_per_epoch * self.env.num_stores_per_rollout,
                 gamma,
                 lam,
-                self.env.nagents
+                self.env.nagents,
             )
         else:
             self.buf = CentralizedPPOBuffer(
@@ -664,7 +679,9 @@ class PPO_Centralized_Critic_Waypoint_Predictor(PPO_Centralized_Critic):
             ) and proc_id() == 0:
                 self.save_model(epoch)
 
-            self.update(self.local_steps_per_epoch * self.env.num_stores_per_rollout)
+            self.update(
+                self.local_steps_per_epoch * self.env.num_stores_per_rollout
+            )
 
             # Log info about epoch
             self.dump_logs(epoch, start_time)

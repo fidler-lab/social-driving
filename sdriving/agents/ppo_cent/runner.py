@@ -2,17 +2,11 @@ from typing import Optional
 
 import torch
 import wandb
-
 from spinup.utils.mpi_tools import proc_id
 
 
 def episode_runner(
-    total_timesteps: int,
-    device,
-    buffer,
-    env,
-    ac: torch.nn.Module,
-    logger,
+    total_timesteps: int, device, buffer, env, ac: torch.nn.Module, logger,
 ):
     o, ep_ret, ep_len = env.reset(), 0, 0
 
@@ -80,14 +74,9 @@ def episode_runner(
                     )
             o, ep_ret, ep_len = env.reset(), 0, 0
 
-            
+
 def episode_runner_one_step(
-    total_timesteps: int,
-    device,
-    buffer,
-    env,
-    ac: torch.nn.Module,
-    logger,
+    total_timesteps: int, device, buffer, env, ac: torch.nn.Module, logger,
 ):
     o, ep_ret, ep_len = env.reset(), 0, 0
 
@@ -111,7 +100,9 @@ def episode_runner_one_step(
             next_o, r, done, _ = env.step(a)
 
             for k in o.keys():
-                stores.append([k, o[k].cpu(), a[k].cpu(), v[key].cpu(), logp[key].cpu()])
+                stores.append(
+                    [k, o[k].cpu(), a[k].cpu(), v[key].cpu(), logp[key].cpu()]
+                )
 
             o = next_o
 
@@ -129,9 +120,10 @@ def episode_runner_one_step(
         logger.store(VVals=val_f)
         logger.store(EpRet=ep_ret, EpLen=ep_len)
         if proc_id() == 0:
-             wandb.log({
-                "Episode Return (Train)": ep_ret,
-                "Episode Length (Train)": ep_len,
-            })
+            wandb.log(
+                {
+                    "Episode Return (Train)": ep_ret,
+                    "Episode Length (Train)": ep_len,
+                }
+            )
         buffer.finish_path(0)
-
