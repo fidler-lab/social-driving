@@ -20,7 +20,7 @@ logging.basicConfig(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument("--eid", required=True, type=str)
     parser.add_argument("-s", "--save-dir", required=True, type=str)
     parser.add_argument("-e", "--epochs", type=int, default=100)
@@ -40,14 +40,14 @@ if __name__ == "__main__":
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--model-checkpoint", type=str, default="")
     parser.add_argument("-wid", "--wandb-id", type=str, default=None)
-    
+
     args = parser.parse_args()
 
     env = ENV_REGISTRY[args.env]
     log_dir = os.path.join(args.save_dir, args.eid)
 
     mpi_fork(args.cpu)  # run parallel code with mpi
-    
+
     trainer = PPO_OneStep(
         env,
         args.env_kwargs,
@@ -64,5 +64,5 @@ if __name__ == "__main__":
         wandb_id=args.wandb_id,
         load_path=args.model_checkpoint if args.resume else None,
     )
-    
+
     trainer.train()

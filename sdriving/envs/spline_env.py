@@ -17,7 +17,7 @@ from sdriving.trafficsim.utils import (
     angle_normalize,
     get_2d_rotation_matrix,
     transform_2d_coordinates_rotation_matrix,
-    invtransform_2d_coordinates_rotation_matrix
+    invtransform_2d_coordinates_rotation_matrix,
 )
 from sdriving.trafficsim.vehicle import Vehicle
 from sdriving.trafficsim.world import World
@@ -192,10 +192,10 @@ class RoadIntersectionSplineEnv(RoadIntersectionControlEnv):
         self.prev_state = states
         return self.prev_state
 
-#     def distance_reward_function(self, agent):
-#         # FIXME: A bug prevents the original version
-#         dist = agent["vehicle"].distance_from_destination()
-#         return dist / (agent["straight_distance"] * self.horizon)
+    #     def distance_reward_function(self, agent):
+    #         # FIXME: A bug prevents the original version
+    #         dist = agent["vehicle"].distance_from_destination()
+    #         return dist / (agent["straight_distance"] * self.horizon)
 
     def step(self, actions: dict, **kwargs):
         completed = False
@@ -333,10 +333,12 @@ class RoadIntersectionSplineNPointsNavigationEnv(RoadIntersectionSplineEnv):
         for pt in self.agents[a_id]["intermediate_goals"][:-1]:
             pts.append(pt[:2].clone())
 
-        rot_mat = get_2d_rotation_matrix(self.agents[a_id]["vehicle"].orientation)
+        rot_mat = get_2d_rotation_matrix(
+            self.agents[a_id]["vehicle"].orientation
+        )
         offset = self.agents[a_id]["vehicle"].position
         pts = torch.cat(pts + [self.agents[a_id]["vehicle"].destination])
-        
+
         pts = transform_2d_coordinates_rotation_matrix(
             pts.reshape(-1, 2), rot_mat, offset
         ).reshape(-1)
@@ -360,11 +362,17 @@ class RoadIntersectionSplineNPointsNavigationEnv(RoadIntersectionSplineEnv):
             deviations = torch.zeros_like(action)
             for i in range(action.size(0) // 2):
                 deviations[2 * i] = (
-                    action[2 * i] * self.width * torch.cos(math.pi * action[2 * i + 1]) / 2
+                    action[2 * i]
+                    * self.width
+                    * torch.cos(math.pi * action[2 * i + 1])
+                    / 2
                     + pts[2 * i]
                 )
                 deviations[2 * i + 1] = (
-                    action[2 * i] * self.width * torch.sin(math.pi * action[2 * i + 1]) / 2
+                    action[2 * i]
+                    * self.width
+                    * torch.sin(math.pi * action[2 * i + 1])
+                    / 2
                     + pts[2 * i + 1]
                 )
             track = invtransform_2d_coordinates_rotation_matrix(

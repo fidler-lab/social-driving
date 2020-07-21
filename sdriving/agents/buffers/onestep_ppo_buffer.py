@@ -11,11 +11,7 @@ from sdriving.agents.utils import (
 
 class OneStepPPOBuffer:
     def __init__(
-        self,
-        state_dim: int,
-        act_dim: int,
-        size: int,
-        max_agents: float = 1,
+        self, state_dim: int, act_dim: int, size: int, max_agents: float = 1,
     ):
         size = size * max_agents
         self.state_buf = torch.zeros(
@@ -29,7 +25,7 @@ class OneStepPPOBuffer:
 
         self.max_size = size
         self.ptr = 0
-        
+
     def store(self, obs, act, rew, logp):
         """Append one timestep of agent-environment interaction to the
         buffer."""
@@ -41,7 +37,7 @@ class OneStepPPOBuffer:
         self.rew_buf[self.ptr] = rew
         self.logp_buf[self.ptr] = logp
         self.ptr = self.ptr + 1
-        
+
     def get(self):
         ptr_copy = self.ptr
         self.ptr = 0

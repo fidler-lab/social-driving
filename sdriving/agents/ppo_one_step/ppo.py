@@ -169,7 +169,7 @@ class PPO_OneStep:
         self.target_kl = target_kl
         self.epochs = epochs
         self.save_freq = save_freq
-        
+
     def compute_loss(self, data: dict, idx):
         device = self.device
         clip_ratio = self.clip_ratio
@@ -198,19 +198,13 @@ class PPO_OneStep:
         clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
         clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
         info = dict(
-            kl=approx_kl,
-            ent=ent.item(),
-            cf=clipfrac,
-            pi_loss=loss_pi.item(),
+            kl=approx_kl, ent=ent.item(), cf=clipfrac, pi_loss=loss_pi.item(),
         )
 
         return loss, info
-    
+
     def update(self, lspe=None):
         data = self.buf.get()
-        local_steps_per_epoch = (
-            self.local_steps_per_epoch if lspe is None else lspe
-        )
 
         train_iters = self.train_pi_iters
         size = int(mpi_op(data["obs"].size(0), MPI.MIN))
@@ -265,7 +259,7 @@ class PPO_OneStep:
                     "Clip Factor": cf,
                 }
             )
-            
+
     def save_model(self, epoch: int, ckpt_extra: dict = {}):
         ckpt = {
             "actor": self.actor.state_dict(),
@@ -290,7 +284,7 @@ class PPO_OneStep:
             for k, v in state.items():
                 if torch.is_tensor(v):
                     state[k] = v.to(self.device)
-                    
+
     def dump_logs(self, epoch, start_time):
         self.logger.log_tabular("Epoch", epoch)
         self.logger.log_tabular("EpRet", with_min_and_max=True)
@@ -305,7 +299,7 @@ class PPO_OneStep:
         self.logger.log_tabular("StopIter", average_only=True)
         self.logger.log_tabular("Time", time.time() - start_time)
         self.logger.dump_tabular()
-        
+
     def train(self):
         # Prepare for interaction with environment
         start_time = time.time()

@@ -22,9 +22,7 @@ from sdriving.envs.spline_env import (
     RoadIntersectionSplineEnv,
     RoadIntersectionSplineNPointsNavigationEnv,
 )
-from sdriving.envs.spline_two_objectives import (
-    RoadIntersectionDualObjective
-)
+from sdriving.envs.spline_two_objectives import RoadIntersectionDualObjective
 
 REGISTRY = {}
 
