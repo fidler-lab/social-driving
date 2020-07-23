@@ -203,7 +203,7 @@ class PPO_OneStep:
 
         return loss, info
 
-    def update(self, lspe=None):
+    def update(self):
         data = self.buf.get()
 
         train_iters = self.train_pi_iters

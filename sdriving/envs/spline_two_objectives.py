@@ -129,6 +129,8 @@ class RoadIntersectionDualObjective(RoadIntersectionControlEnv):
         return super().get_state_single_agent(a_id)
 
     def get_spline_state_single_agent(self, a_id: str):
+        if "shortest_path_points" in self.agents[a_id]:
+            return None
         lw = 2 * (self.length + self.width / 2)
         pts = []
         for pt in self.agents[a_id]["intermediate_goals"][:-1]:
@@ -139,14 +141,13 @@ class RoadIntersectionDualObjective(RoadIntersectionControlEnv):
         )
         offset = self.agents[a_id]["vehicle"].position
         pts = torch.cat(pts + [self.agents[a_id]["vehicle"].destination])
+        pts = pts.reshape(-1, 2)
 
-        pts = transform_2d_coordinates_rotation_matrix(
-            pts.reshape(-1, 2), rot_mat, offset
-        ).reshape(-1)
+        pts = torch.matmul(pts - offset, rot_mat.T)
 
         self.agents[a_id]["shortest_path_points"] = pts
         self.agents[a_id]["transformation"] = [rot_mat, offset]
-        return pts / lw
+        return pts.reshape(-1) / lw
 
     def transform_state_action(self, actions, states, timesteps):
         nactions = {}
@@ -208,21 +209,17 @@ class RoadIntersectionDualObjective(RoadIntersectionControlEnv):
             # deviations = action
             pts = self.agents[a_id]["shortest_path_points"]
             deviations = torch.zeros_like(pts)
-            for i in range(pts.size(0) // 2):
-                # TODO: Predict Generic Waypoints
-                r = action[0]  # 2 * i]
-                theta = action[1]  # 2 * i + 1]
-                deviations[2 * i] = (
-                    r * self.width * torch.cos(math.pi * theta) / 2
-                    + pts[2 * i]
+            for i in range(pts.size(0)):
+                r = action[0]
+                theta = action[1]
+                deviations[i, 0] = (
+                    r * self.width * torch.cos(math.pi * theta) / 2 + pts[i, 0]
                 )
-                deviations[2 * i + 1] = (
-                    r * self.width * torch.sin(math.pi * theta) / 2
-                    + pts[2 * i + 1]
+                deviations[i, 1] = (
+                    r * self.width * torch.sin(math.pi * theta) / 2 + pts[i, 1]
                 )
-            track = invtransform_2d_coordinates_rotation_matrix(
-                deviations.reshape(-1, 2), *self.agents[a_id]["transformation"]
-            )
+            rotmat, offset = self.agents[a_id]["transformation"]
+            track = torch.matmul(deviations, torch.inverse(rotmat.T)) + offset
             self.agents[a_id]["track"].append(track)
             self.agents[a_id]["track"].append(
                 self.get_dummy_point(self.agents[a_id]["track"][-1][-1])

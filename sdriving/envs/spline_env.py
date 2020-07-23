@@ -188,7 +188,9 @@ class RoadIntersectionSplineEnv(RoadIntersectionControlEnv):
         agent_ids = self.get_agent_ids_list()
         states = {}
         for a_id in agent_ids:
-            states[a_id] = super().get_state_single_agent(a_id)
+            states[a_id] = RoadIntersectionControlEnv.get_state_single_agent(
+                self, a_id
+            )
         self.prev_state = states
         return self.prev_state
 
@@ -328,6 +330,8 @@ class RoadIntersectionSplineNPointsNavigationEnv(RoadIntersectionSplineEnv):
         )
 
     def get_state_single_agent(self, a_id):
+        if "shortest_path_points" in self.agents[a_id]:
+            return None
         lw = 2 * (self.length + self.width / 2)
         pts = []
         for pt in self.agents[a_id]["intermediate_goals"][:-1]:
@@ -338,17 +342,16 @@ class RoadIntersectionSplineNPointsNavigationEnv(RoadIntersectionSplineEnv):
         )
         offset = self.agents[a_id]["vehicle"].position
         pts = torch.cat(pts + [self.agents[a_id]["vehicle"].destination])
+        pts = pts.reshape(-1, 2)
 
-        pts = transform_2d_coordinates_rotation_matrix(
-            pts.reshape(-1, 2), rot_mat, offset
-        ).reshape(-1)
+        pts = torch.matmul(pts - offset, rot_mat.T)
 
         self.agents[a_id]["shortest_path_points"] = pts
         self.agents[a_id]["transformation"] = [rot_mat, offset]
         return torch.cat(
             [
                 # self.agents[a_id]["vehicle"].position / lw,
-                pts / lw,
+                pts.reshape(-1) / lw,
                 # self.agents[a_id]["vehicle"].orientation.unsqueeze(0)
                 # / math.pi,
                 # torch.as_tensor([1 / self.length, 1 / self.width]),
@@ -359,25 +362,24 @@ class RoadIntersectionSplineNPointsNavigationEnv(RoadIntersectionSplineEnv):
         for a_id, action in actions.items():
             # deviations = action
             pts = self.agents[a_id]["shortest_path_points"]
-            deviations = torch.zeros_like(action)
+            deviations = torch.zeros_like(pts)
             for i in range(action.size(0) // 2):
-                deviations[2 * i] = (
+                deviations[i, 0] = (
                     action[2 * i]
                     * self.width
                     * torch.cos(math.pi * action[2 * i + 1])
                     / 2
-                    + pts[2 * i]
+                    + pts[i, 0]
                 )
-                deviations[2 * i + 1] = (
+                deviations[i, 1] = (
                     action[2 * i]
                     * self.width
                     * torch.sin(math.pi * action[2 * i + 1])
                     / 2
-                    + pts[2 * i + 1]
+                    + pts[i, 1]
                 )
-            track = invtransform_2d_coordinates_rotation_matrix(
-                deviations.reshape(-1, 2), *self.agents[a_id]["transformation"]
-            )
+            rotmat, offset = self.agents[a_id]["transformation"]
+            track = torch.matmul(deviations, torch.inverse(rotmat.T)) + offset
             # track = torch.reshape(action, (-1, 2))
             self.agents[a_id]["track"].append(track)
             self.agents[a_id]["track"].append(
