@@ -149,11 +149,14 @@ class BaseEnv:
         if agent["done"]:
             return reward, False
 
-        reward -= self.distance_reward_function(agent)
+        dist_rew = self.distance_reward_function(agent)
+        reward -= dist_rew
 
         if self.world.check_collision(a_id):
             agent["done"] = True
-            reward -= self.object_collision_penalty
+            reward -= self.object_collision_penalty + (
+                dist_rew * (self.horizon - self.nsteps)
+            )
             return reward, True
 
         reward += self.handle_goal_tolerance(agent)
@@ -193,7 +196,6 @@ class BaseEnv:
         return self.get_state()
 
     def intervehicle_collision(self, key, rewards, now_done, penalty):
-        id_list = self.get_agent_ids_list()
         id1 = key[0]
         id2 = key[1]
         agent1 = self.agents[id1]
@@ -213,10 +215,14 @@ class BaseEnv:
                     break
             if collided:
                 if id1 in rewards:
-                    rewards[id1] -= penalty
+                    rewards[id1] -= penalty + (
+                        rewards[id1] * (self.horizon - self.nsteps)
+                    )
                     now_done[id1] = True
                 if id2 in rewards:
-                    rewards[id2] -= penalty
+                    rewards[id2] -= penalty + (
+                        rewards[id2] * (self.horizon - self.nsteps)
+                    )
                     now_done[id2] = True
                 agent1["done"] = True
                 agent2["done"] = True

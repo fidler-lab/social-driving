@@ -507,6 +507,7 @@ class PPO_Alternating_Optimization:
             "pi_optimizer": self.pi_optimizer.state_dict(),
             "vf_optimizer": self.vf_optimizer.state_dict(),
             "actor_kwargs": self.actor_params,
+            "ac_kwargs": self.ac_params,
             "model": "centralized_critic",
             "type": "alt_opt",
         }
