@@ -216,12 +216,14 @@ class BaseEnv:
             if collided:
                 if id1 in rewards:
                     rewards[id1] -= penalty + (
-                        rewards[id1] * (self.horizon - self.nsteps)
+                        self.distance_reward_function(agent1)
+                        * (self.horizon - self.nsteps)
                     )
                     now_done[id1] = True
                 if id2 in rewards:
                     rewards[id2] -= penalty + (
-                        rewards[id2] * (self.horizon - self.nsteps)
+                        self.distance_reward_function(agent2)
+                        * (self.horizon - self.nsteps)
                     )
                     now_done[id2] = True
                 agent1["done"] = True
