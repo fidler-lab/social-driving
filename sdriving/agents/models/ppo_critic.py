@@ -56,21 +56,26 @@ class PPOLidarCentralizedCritic(nn.Module):
     ):
         assert len(obs_list) == self.nagents
 
-        f_vecs = []
-        state_vec = torch.cat([o for o, _ in obs_list], dim=-1)
+        state_vec, lidar_vec = [], []
+        for o, l in obs_list:
+            state_vec.append(o)
+            lidar_vec.append(l)
+        state_vec = torch.cat(state_vec, dim=-1)
+        lidar_vec = torch.cat(lidar_vec, dim=0)
 
-        for obs in obs_list:
-            bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
-            features = self.lidar_features(
-                obs[1].view(bsize, self.history_len, -1)
-            ).view(bsize, -1)
-            if obs[1].ndim == 1:
-                features = features.view(-1)
-            f_vecs.append(features)
-        f_vecs = torch.cat(f_vecs, dim=-1)
+        bsize = state_vec.size(0) if state_vec.ndim > 1 else 1
 
+        lidar_vec = lidar_vec.view(bsize * self.nagents, self.history_len, -1)
+        features = (
+            self.lidar_features(lidar_vec)
+            .view(self.nagents, bsize, -1)
+            .permute(1, 0, 2)
+            .reshape(bsize, -1)
+        )
+        if state_vec.ndim == 1:
+            features = features.view(-1)
         return torch.squeeze(
-            self.v_net(torch.cat([state_vec, f_vecs], dim=-1)), -1
+            self.v_net(torch.cat([state_vec, features], dim=-1)), -1
         )
 
 
@@ -86,11 +91,20 @@ class PPOWaypointPermutationInvariantCentralizedCritic(nn.Module):
         self.v_net = mlp(list(hidden_sizes[1:]) + [1], activation)
 
     def forward(self, obs_list: List[torch.Tensor]):
+        x = obs_list[0]
+        bsize, no_batch = (1, True) if x.ndim == 1 else (x.size(0), False)
         f_vecs = []
         for obs in obs_list:
-            f_vecs.append(self.f_net(obs))
-        state_vec = sum(f_vecs) / len(f_vecs)
-        return self.v_net(state_vec).squeeze(-1)
+            if no_batch:
+                obs = obs.unsqueeze(0)
+            f_vecs.append(obs)
+        state_vec = (
+            self.f_net(torch.cat(f_vecs, dim=0))
+            .view(len(obs_list), bsize, -1)
+            .mean(0)
+        )
+        val_est = self.v_net(state_vec).squeeze(-1)
+        return val_est.squeeze(0) if no_batch else val_est
 
 
 class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
@@ -114,43 +128,21 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
         self.v_net = mlp(list(hidden_sizes) + [1], activation,)
         self.history_len = history_len
 
-    def forward(
-        self, obs_list: List[Union[Tuple[torch.Tensor], List[torch.Tensor]]]
-    ):
-        f_vecs = []
-
-        for obs in obs_list:
-            bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
-            features = self.lidar_features(
-                obs[1].view(bsize, self.history_len, -1)
-            ).view(bsize, -1)
-            f_vecs.append(
-                self.feature_net(
-                    torch.cat([obs[0].view(bsize, -1), features], dim=-1)
-                )
-            )
-        state_vec = sum(f_vecs) / len(f_vecs)
-
-        return torch.squeeze(self.v_net(state_vec), -1)
-
-
-class PPOLidarDecentralizedCritic(PPOLidarCentralizedCritic):
-    def __init__(self, *args, **kwargs):
-        if len(args) >= 5:
-            args = list(args)
-            args[4] = 1
-        else:
-            kwargs["nagents"] = 1
-        super().__init__(*args, **kwargs)
-
-    def forward(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
-        bsize = obs[1].size(0) if obs[1].ndim > 1 else 1
-        features = self.lidar_features(
-            obs[1].view(bsize, self.history_len, -1)
-        ).view(bsize, -1)
-        if obs[1].ndim == 1:
-            features = features.view(-1)
-
-        return torch.squeeze(
-            self.v_net(torch.cat([obs[0], features], dim=-1)), -1
+    def forward(self, obs: Tuple[torch.Tensor]):
+        state_vec, lidar_vec = obs
+        state_vec = state_vec.view(-1, state_vec.size(-1))
+        bsize, no_batch = (
+            (1, True) if lidar_vec.ndim == 2 else (lidar_vec.size(1), False)
         )
+        nagents = lidar_vec.size(0)
+
+        lidar_vec = lidar_vec.view(bsize * nagents, -1).view(
+            bsize * nagents, self.history_len, -1
+        )
+        feature_vec = self.lidar_features(lidar_vec).squeeze(1)
+
+        val_est = self.feature_net(torch.cat([state_vec, feature_vec], dim=-1))
+        val_est = val_est.view(nagents, bsize, val_est.size(-1)).mean(0)
+        val_est = torch.squeeze(self.v_net(val_est), -1)
+
+        return val_est

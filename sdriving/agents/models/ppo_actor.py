@@ -24,16 +24,38 @@ class PPOActor(nn.Module):
         return pi.log_prob(act)
 
     def forward(self, obs, act=None):
+        x = obs if isinstance(obs, torch.Tensor) else obs[0]
         pi = self._distribution(obs)
         logp_a = None
         if act is not None:
+            if x.ndim == 3:
+                prev_shape = act.shape[:2]
+                act = (
+                    act.view(-1)
+                    if act.ndim == 2
+                    else act.view(-1, act.size(-1))
+                )
             logp_a = self._log_prob_from_distribution(pi, act)
-        return pi, logp_a
+            if x.ndim == 3:
+                logp_a = logp_a.view(*prev_shape)
+        else:
+            act = self.sample(pi)
+            logp_a = self._log_prob_from_distribution(pi, act)
+            if x.ndim == 3:
+                act = act.view(x.size(0), x.size(1), -1)
+                logp_a = logp_a.view(*x.shape[:2])
+        return pi, act, logp_a
 
     def act(self, obs, deterministic: bool = True):
         if deterministic:
-            return self._deterministic(obs)
-        return self.sample(self._distribution(obs))
+            ret_val = self._deterministic(obs)
+        else:
+            ret_val = self.sample(self._distribution(obs))
+        x = obs if isinstance(obs, torch.Tensor) else obs[0]
+        # {N or N x A} or {N x B x (1 or A)} when batched
+        return (
+            ret_val if x.ndim == 2 else ret_val.view(x.size(0), x.size(1), -1)
+        )
 
 
 class PPOCategoricalActor(PPOActor):
@@ -64,7 +86,9 @@ class PPOWaypointCategoricalActor(PPOCategoricalActor):
         )
 
     def _get_logits(self, obs: torch.Tensor):
-        return self.deviation_net(obs)
+        return self.deviation_net(
+            obs if obs.ndim == 2 else obs.view(-1, obs.size(-1))
+        )
 
 
 class PPOLidarCategoricalActor(PPOCategoricalActor):
@@ -89,17 +113,22 @@ class PPOLidarCategoricalActor(PPOCategoricalActor):
         )
         self.history_len = history_len
 
-    def _get_logits(self, obs: Union[Tuple[torch.Tensor], List[torch.Tensor]]):
-        bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
+    def _get_logits(self, obs: Tuple[torch.Tensor]):
+        state_vec, lidar_vec = obs
+        bsize = 1 if lidar_vec.ndim == 2 else lidar_vec.size(1)
+        nagents = lidar_vec.size(0)
+        state_vec = state_vec.view(-1, state_vec.size(-1))
+        lidar_vec = lidar_vec.view(-1, lidar_vec.size(-1))
         features = self.lidar_features(
-            obs[1].view(bsize, self.history_len, -1)
-        ).view(bsize, -1)
-        if obs[1].ndim == 1:
-            features = features.view(-1)
+            lidar_vec.view(bsize * nagents, self.history_len, -1)
+        ).squeeze(1)
 
-        return self.logits_net(torch.cat([obs[0], features], dim=-1))
+        return self.logits_net(
+            torch.cat([state_vec, features], dim=-1)
+        )  # (N x B) x L
 
 
+# TODO: Update to batched format
 class PPOGaussianActor(PPOActor):
     def sample(self, pi):
         return self.act_scale(torch.tanh(pi.rsample()))

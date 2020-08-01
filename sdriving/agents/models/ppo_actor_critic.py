@@ -18,34 +18,20 @@ class PPOActorCritic(nn.Module):
         self.v = critic
         self.centralized = centralized
 
-    def _step_centralized(self, obs: list):
-        actions = []
-        log_probs = []
+    def _step_centralized(self, obs):
+        """
+            obs: Should be of a valid format which can be given as input
+                 to both Actor and Critic. The standard input involves
+                 every tensor to be of shape (N x B x O) or (N x O)
+                 where N is the number of agents and B is the batch size
+        """
         with torch.no_grad():
-            for o in obs:
-                pi = self.pi._distribution(o)
-                a = self.pi.sample(pi)
-                logp_a = self.pi._log_prob_from_distribution(pi, a)
-
-                actions.append(a)
-                log_probs.append(logp_a)
+            _, actions, log_probs = self.pi(obs)
             v = self.v(obs)
         return actions, v, log_probs
 
-    def _step_decentralized(self, obs):
-        with torch.no_grad():
-            pi = self.pi._distribution(obs)
-            a = pi.sample()
-            logp_a = self.pi._log_prob_from_distribution(pi, a)
-
-            v = self.v(obs)
-            return a, v, logp_a
-
     def step(self, obs):
-        if self.centralized:
-            return self._step_centralized(obs)
-        else:
-            return self._step_decentralized(obs)
+        return self._step_centralized(obs)
 
     def act(self, obs, deterministic: bool = True):
         if deterministic:
@@ -149,12 +135,6 @@ class PPOLidarActorCritic(PPOActorCritic):
                     feature_dim,
                 )
         else:
-            if permutation_invariant:
-                raise Exception(
-                    "Permutation Invariance for Decentralized Training not available"
-                )
-            v = PPOLidarDecentralizedCritic(
-                obs_dim, hidden_sizes, activation, history_len, feature_dim
-            )
+            raise Exception("Decentralized Training not available")
 
         super().__init__(pi, v, centralized)
