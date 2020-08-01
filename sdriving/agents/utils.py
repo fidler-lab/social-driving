@@ -1,10 +1,27 @@
 from typing import Optional, Union
+import random
 
 import numpy as np
 import scipy.signal
 import torch
 import torch.nn as nn
+import horovod.torch as hvd
 from spinup.utils.mpi_tools import mpi_avg, mpi_statistics_scalar, num_procs
+
+
+def find_free_port():
+    import socket
+
+    s = socket.socket()
+    s.bind(("", 0))  # Bind to a free port provided by the host.
+    return s.getsockname()[1]  # Return the port number assigned.
+
+
+def seed_everything(seed: int):
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    np.random.seed(seed)
+    random.seed(seed)
 
 
 def trainable_parameters(net):
@@ -22,10 +39,22 @@ def mpi_avg_grads(module):
         p_grad_numpy[:] = avg_p_grad[:]
 
 
-def combined_shape(length, shape=None):
-    if shape is None:
-        return (length,)
-    return (length, shape) if np.isscalar(shape) else (length, *shape)
+def combined_shape(length, shape=None, batch=None):
+    if batch is None:
+        if shape is None:
+            return (length,)
+        return (length, shape) if np.isscalar(shape) else (length, *shape)
+    else:
+        if shape is None:
+            return (
+                batch,
+                length,
+            )
+        return (
+            (batch, length, shape)
+            if np.isscalar(shape)
+            else (batch, length, *shape)
+        )
 
 
 def initialize_weights_orthogonal(layer):
@@ -46,7 +75,7 @@ def count_vars(module):
     return sum([np.prod(p.shape) for p in module.parameters()])
 
 
-def discount_cumsum(x, discount):
+def discount_cumsum(x: torch.Tensor, discount: float):
     """
     magic from rllab for computing discounted cumulative sums of vectors.
     input:
@@ -59,7 +88,14 @@ def discount_cumsum(x, discount):
          x1 + discount * x2,
          x2]
     """
-    val = scipy.signal.lfilter([1], [1, float(-discount)], x[::-1], axis=0)[
-        ::-1
-    ]
-    return torch.as_tensor(val.copy())
+    val = scipy.signal.lfilter(
+        [1], [1, float(-discount)], x.detach().cpu().numpy()[::-1], axis=0
+    )[::-1]
+    return torch.from_numpy(np.ascontiguousarray(val)).to(x.device)
+
+
+def hvd_scalar_statistics(x: torch.Tensor):
+    N = x.nelement() * hvd.size()
+    mean = hvd.allreduce(x.mean(), op=hvd.Average)
+    std = torch.sqrt(hvd.allreduce((x - mean).pow(2).sum(), op=hvd.Sum) / N)
+    return mean, std
