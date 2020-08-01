@@ -13,7 +13,7 @@ from sdriving.trafficsim import (
     angle_normalize,
     Vehicle,
     World,
-    Pedestrian
+    Pedestrian,
 )
 
 
@@ -63,9 +63,7 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
         self.length = 140.0
         self.width = 20.0
         net = generate_straight_road(
-            length=self.length,
-            road_width=self.width,
-            name="pedestrian_world",
+            length=self.length, road_width=self.width, name="pedestrian_world",
         )
         net.construct_graph()
         return World(net)
@@ -82,7 +80,7 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
         self.max_accln = 1.5
         self.max_steering = 0.1
         return Discrete(len(self.actions_list))
-    
+
     def get_observation_space(self):
         return Tuple(
             [
@@ -94,7 +92,7 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
                 Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
             ]
         )
-    
+
     def add_vehicle(
         self,
         a_id,
@@ -114,7 +112,7 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
             dest_orientation=dest_orientation,
             name=a_id,
             max_lidar_range=self.lidar_range,
-            initial_speed=torch.rand(1).item() * v_lim
+            initial_speed=torch.rand(1).item() * v_lim,
         )
         dynamics = dynamics_model(
             dim=[vehicle.dimensions[0]],
@@ -136,7 +134,7 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
             "original_distance": vehicle.distance_from_destination(),
             "goal_reach_bonus": False,
         }
-        
+
     def get_state_single_agent(self, a_id):
         agent = self.agents[a_id]["vehicle"]
         v_lim = self.agents[a_id]["v_lim"]
@@ -195,12 +193,12 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
                     )
                 ).item()
         return 0.0
-    
+
     def distance_reward_function(self, agent):
         return torch.abs(
             agent["vehicle"].destination[0] - agent["vehicle"].position[0]
         ) / (self.length * self.horizon)
-    
+
     def reset(self):
         self.world = self.generate_world_without_agents()
 
@@ -215,16 +213,18 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
 
         self.add_vehicle(
             "agent_0",
-            torch.as_tensor([
-                -self.length * 0.5 * 0.75 + torch.randn(1) * 3.0,
-                (torch.rand(1).item() - 0.5) * self.width * 0.75
-            ]),
+            torch.as_tensor(
+                [
+                    -self.length * 0.5 * 0.75 + torch.randn(1) * 3.0,
+                    (torch.rand(1).item() - 0.5) * self.width * 0.75,
+                ]
+            ),
             torch.as_tensor(12.0),
             0.0,
             torch.as_tensor([self.length * 0.5 * 0.75, 0.0]),
             0.0,
         )
-        
+
         for i in range(10):
             if torch.rand(1) < 0.1:
                 continue
@@ -236,13 +236,13 @@ class StraightRoadPedestrianAvoidanceEnv(BaseEnv):
                 f"person_{i}",
                 pos,
                 orientation=torch.as_tensor(math.pi / 2),
-                velocity=torch.rand(1) + 1.0
+                velocity=torch.rand(1) + 1.0,
             )
             self.world.add_object(pedestrian)
 
         self.world.compile()
         return super().reset()
-    
+
     def transform_state_action(self, actions, states, timesteps):
         action = []
         start_state = []

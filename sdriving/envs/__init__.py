@@ -24,7 +24,7 @@ from sdriving.envs.spline_env import (
 )
 from sdriving.envs.spline_two_objectives import (
     RoadIntersectionDualObjective,
-    RoadIntersectionDualObjectiveNWaypoints
+    RoadIntersectionDualObjectiveNWaypoints,
 )
 from sdriving.envs.straight_road import StraightRoadPedestrianAvoidanceEnv
 

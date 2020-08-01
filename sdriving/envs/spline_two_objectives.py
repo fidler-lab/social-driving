@@ -209,9 +209,14 @@ class RoadIntersectionDualObjective(RoadIntersectionControlEnv):
             # deviations = action
             pts = self.agents[a_id]["shortest_path_points"]
             deviations = torch.zeros_like(pts)
+            action = action.reshape(-1, 2)
             for i in range(pts.size(0)):
-                r = action[0]
-                theta = action[1]
+                if action.size(0) == 1:
+                    r = action[0, 0]
+                    theta = action[0, 1]
+                else:
+                    r = action[i, 0]
+                    theta = action[i, 1]
                 deviations[i, 0] = (
                     r * self.width * torch.cos(math.pi * theta) / 2 + pts[i, 0]
                 )
@@ -266,3 +271,13 @@ class RoadIntersectionDualObjective(RoadIntersectionControlEnv):
             pts[a_id] = pts[a_id][1:-1]
         kwargs.update({"pts": pts})
         super().render(*args, **kwargs)
+
+
+class RoadIntersectionDualObjectiveNWaypoints(RoadIntersectionDualObjective):
+    def get_spline_action_space(self):
+        # TODO: Once this works experiment with more deviation patterns
+        self.nwaypoints = 3
+        return Box(
+            low=np.array([0.0, -1.0] * self.nwaypoints),
+            high=np.array([1.0, 1.0] * self.nwaypoints),
+        )

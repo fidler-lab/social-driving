@@ -50,7 +50,9 @@ if __name__ == "__main__":
                 if not args.dummy_run:
                     a[key] = ac.act(obs, True).cpu()
                 else:
-                    a[key] = torch.as_tensor(test_env.action_space.sample())
+                    a[key] = torch.as_tensor(
+                        14
+                    )  # test_env.action_space.sample())
                 if args.verbose:
                     print(
                         f"Agent: {key} || Observation: {obs[0]} || Action: {a[key]}"

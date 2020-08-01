@@ -11,7 +11,6 @@ from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
 )
-from sdriving.trafficsim.controller import HybridController
 from sdriving.trafficsim.dynamics import FixedTrackAccelerationModel
 from sdriving.trafficsim.utils import angle_normalize
 from sdriving.trafficsim.vehicle import Vehicle
@@ -24,10 +23,14 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
         *args,
         fast_model: bool = False,
         has_turns: bool = False,
+        no_local_goals: bool = False,
+        no_signal: bool = False,
         **kwargs,
     ):
+        self.no_local_goals = no_local_goals
         self.fast_model = fast_model
         self.has_turns = has_turns
+        self.no_signal = no_signal
         super().__init__(*args, **kwargs)
 
     def generate_world_without_agents(self):

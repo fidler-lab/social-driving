@@ -11,13 +11,12 @@ from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
 )
-from sdriving.trafficsim.controller import HybridController
+
+# from sdriving.trafficsim.controller import HybridController
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,
 )
-from sdriving.trafficsim.utils import angle_normalize
-from sdriving.trafficsim.vehicle import Vehicle
-from sdriving.trafficsim.world import World
+from sdriving.trafficsim import angle_normalize, Vehicle, World
 
 
 class RoadIntersectionEnv(BaseEnv):
@@ -245,29 +244,36 @@ class RoadIntersectionEnv(BaseEnv):
             dest = agent.destination
             vg = 0.0
 
-        inv_dist = 1 / agent.distance_from_point(dest)
+        if hasattr(self, "no_local_goals") and self.no_local_goals:
+            d = agent.destination
+        else:
+            d = dest
+
+        inv_dist = 1 / agent.distance_from_point(d)
+        opt_head = agent.optimal_heading_to_point(d) / math.pi
         pt1, pt2 = self.get_next_two_goals(a_id)
+        signal = self.world.get_traffic_signal(
+            pt1, pt2, agent.position, agent.vision_range
+        )
+
+        if hasattr(self, "no_signal") and self.no_signal:
+            signal = 0.5
+
         if self.has_lane_distance:
             obs = [
                 self.world.get_distance_from_road_axis(
                     a_id, pt1, self.agents[a_id]["original_destination"]
                 ),
-                self.world.get_traffic_signal(
-                    pt1, pt2, agent.position, agent.vision_range
-                ),
+                signal,
                 (vg - agent.speed) / (2 * v_lim),
-                agent.optimal_heading_to_point(dest) / math.pi,
+                opt_head,
                 inv_dist if torch.isfinite(inv_dist) else 0.0,
             ]
         else:
             obs = [
-                torch.as_tensor(
-                    self.world.get_traffic_signal(
-                        pt1, pt2, agent.position, agent.vision_range
-                    )
-                ).unsqueeze(0),
+                torch.as_tensor(signal).unsqueeze(0),
                 ((vg - agent.speed) / (2 * v_lim)).unsqueeze(0),
-                agent.optimal_heading_to_point(dest).unsqueeze(0) / math.pi,
+                opt_head.unsqueeze(0),
                 inv_dist.unsqueeze(0)
                 if torch.isfinite(inv_dist)
                 else torch.zeros(1),

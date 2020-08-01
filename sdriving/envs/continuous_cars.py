@@ -17,7 +17,6 @@ from sdriving.trafficsim.common_networks import (
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
 )
-from sdriving.trafficsim.controller import HybridController
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,
 )
