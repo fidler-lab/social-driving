@@ -1,5 +1,7 @@
 import logging as lg
+import math
 import os
+from collections import OrderedDict
 from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib
@@ -11,12 +13,14 @@ from celluloid import Camera
 from sdriving.trafficsim.dynamics import (
     BicycleKinematicsModel as VehicleDynamics,
 )
-from sdriving.trafficsim.mpc import MPCController
+
+# from sdriving.trafficsim.mpc_controller import MPCController
 from sdriving.trafficsim.road import RoadNetwork
 from sdriving.trafficsim.traffic_signal import TrafficSignal
 from sdriving.trafficsim.utils import (
     check_intersection_lines,
     generate_lidar_data,
+    angle_normalize,
 )
 from sdriving.trafficsim.vehicle import Vehicle, VehicleEntity
 
@@ -34,9 +38,10 @@ class World:
         no_signal_val: float = 0.75,
     ):
         # Name ---> VehicleEntity
-        self.vehicles = {}
-        self.traffic_signals = {}
+        self.vehicles = OrderedDict()
+        self.traffic_signals = OrderedDict()
         self.road_network = road_network
+        self.objects = OrderedDict()
 
         self.no_signal_val = no_signal_val
 
@@ -49,12 +54,12 @@ class World:
         self.global_dynamics = None
         self.global_mpc_controller = None
 
-        self.vlims_map = {}
-        self.dims_map = {}
+        self.vlims_map = OrderedDict()
+        self.dims_map = OrderedDict()
 
         self.nbatch = 0
 
-        self.axis_cache = {}
+        self.axis_cache = OrderedDict()
         self.device = torch.device("cpu")
 
     def to(self, device):
@@ -157,6 +162,9 @@ class World:
     def point_to_node(self, pt: torch.Tensor):
         return self.road_network.maps[self.road_network.point_to_node[pt]]
 
+    def add_object(self, obj):
+        self.objects[obj.name] = obj
+
     def add_vehicle(self, vehicle: Vehicle, road: str, v_lim: float):
         assert (
             road in self.road_network.roads.keys()
@@ -184,8 +192,8 @@ class World:
             dim=list(self.dims_map.values()),
         )
         nbatch = len(self.vlims_map.keys())
-        self.vlims_map = {}
-        self.dims_map = {}
+        self.vlims_map = OrderedDict()
+        self.dims_map = OrderedDict()
 
         # Create the MPC Controller
         self.global_mpc_controller = MPCController(nbatch=nbatch)
@@ -247,6 +255,15 @@ class World:
         if ventity.grayarea:
             return False
         p1, p2 = self.road_network.roads[ventity.road].get_edges()
+
+        p1s, p2s = [p1], [p2]
+        for obj in self.objects.values():
+            edges = obj.get_edges()
+            p1s.append(edges[0])
+            p2s.append(edges[1])
+        p1 = torch.cat(p1s, dim=0)
+        p2 = torch.cat(p2s, dim=0)
+
         p21 = p2 - p1
         p3, p4 = ventity.vehicle.get_edges()
         for i in range(4):
@@ -277,6 +294,8 @@ class World:
 
     def get_lidar_data(self, vname: str, npoints: int, cars: bool = True):
         ventity = self.vehicles[vname]
+        # Record npoints
+        self.npoints = npoints
 
         return self.get_lidar_data_from_state(
             torch.cat(
@@ -298,6 +317,13 @@ class World:
         p1, p2 = self.road_network.get_neighbouring_edges(
             ventity.road, vname, "garea" if ventity.grayarea else "road", cars
         )
+        p1s, p2s = [p1], [p2]
+        for obj in self.objects.values():
+            edges = obj.get_edges()
+            p1s.append(edges[0])
+            p2s.append(edges[1])
+        p1 = torch.cat(p1s, dim=0)
+        p2 = torch.cat(p2s, dim=0)
         return generate_lidar_data(
             state[:2],
             state[3],
@@ -309,6 +335,8 @@ class World:
         )
 
     def update_world_state(self, tstep=1):
+        for obj in self.objects.values():
+            obj.step(tstep)
         for ts, _ in self.traffic_signals.values():
             ts.update_lights(tstep)
 
@@ -348,8 +376,8 @@ class World:
                 self.vehicles[vname].grayarea = True
 
     def reset(self):
-        self.vlims_map = {}
-        self.dims_map = {}
+        self.vlims_map = OrderedDict()
+        self.dims_map = OrderedDict()
         for rd in self.road_network.roads.values():
             keys = list(rd.vehicles.keys())
             for k in keys:
@@ -385,11 +413,43 @@ class World:
                 )
             )
 
-    def _render_vehicle(self, vname, ax):
-        self.vehicles[vname].vehicle.render(ax, color="black")
+    def _render_vehicle(self, vname, ax, render_lidar):
+        vehicle = self.vehicles[vname].vehicle
+        vehicle.render(ax, color="blue")
+
+        if render_lidar:
+            npoints = self.npoints if hasattr(self, "npoints") else 360
+            lidar = self.get_lidar_data(vname, npoints)
+            angles = angle_normalize(
+                vehicle.orientation
+                + torch.linspace(
+                    0.0, 2 * math.pi * (1 - 1 / npoints), npoints,
+                )
+            )
+            lidar = torch.where(
+                torch.isinf(lidar), torch.zeros_like(lidar), lidar
+            )
+            ca = torch.cos(angles)
+            sa = torch.sin(angles)
+
+            pt_x = (vehicle.position[0] + lidar * ca).numpy()
+            pt_y = (vehicle.position[1] + lidar * sa).numpy()
+
+            for i in range(npoints):
+                ax.plot(
+                    [vehicle.position[0].item(), pt_x[i].item()],
+                    [vehicle.position[1].item(), pt_y[i].item()],
+                    "b:",
+                    markersize=0.01,
+                )
 
     def render_matplotlib(
-        self, pts=None, path=None, render_vehicle=None, lims=None
+        self,
+        pts=None,
+        path=None,
+        render_vehicle=None,
+        lims=None,
+        render_lidar=False,
     ):
         if render_vehicle is None:
             render_vehicle = self._render_vehicle
@@ -412,6 +472,8 @@ class World:
             self.fig = plt.figure(figsize=self.figsize)
             self.ax = self.fig.add_subplot(1, 1, 1)
             self.cam = Camera(self.fig)
+            plt.xlim(-100.0, 100.0)
+            plt.ylim(-100.0, 100.0)
             plt.grid(True)
 
         if lims is not None:
@@ -436,6 +498,8 @@ class World:
                     )
 
         for key in self.vehicles:
-            render_vehicle(key, self.ax)
+            render_vehicle(key, self.ax, render_lidar)
+        for obj in self.objects.values():
+            obj.render(self.ax)
 
         self.cam.snap()

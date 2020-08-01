@@ -51,9 +51,9 @@ class StaticObject:
     def get_edges(self):
         coordinates = self.get_coordinates()
         pt1 = coordinates
-        pt2 = torch.cat([coordinates[1:], coordinates[0:1],])
+        pt2 = torch.cat([coordinates[1:], coordinates[0:1]])
         return pt1, pt2
-    
+
     def step(self, tstep: int = 1):
         # Static Objects don't change configuration
         return
@@ -88,10 +88,12 @@ class Pedestrian(StaticObject):
         dt: float = 0.1,
     ):
         # Orientation of the Pedestrian remains same
-        self.velocity = velocity * torch.cat([
-            torch.cos(orientation).unsqueeze(0),
-            torch.sin(orientation).unsqueeze(0)
-        ])
+        self.velocity = velocity * torch.cat(
+            [
+                torch.cos(orientation).unsqueeze(0),
+                torch.sin(orientation).unsqueeze(0),
+            ]
+        )
         self.dt = dt
         super(Pedestrian, self).__init__(name, loc, dims, orientation)
 

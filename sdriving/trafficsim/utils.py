@@ -23,22 +23,27 @@ def get_2d_rotation_matrix(theta: torch.Tensor) -> torch.Tensor:
     it is considered as a batched data and the returned value is a
     N x 2 x 2 tensor.
     """
-    ctheta = torch.cos(theta)
-    stheta = torch.sin(theta)
-    if theta.shape == torch.Size([]) or theta.shape == torch.Size([1]):
-        return torch.as_tensor(
-            [[ctheta, stheta], [-stheta, ctheta]], device=theta.device
-        )
+    # theta --> N
+    ctheta = torch.cos(theta)  # N
+    stheta = torch.sin(theta)  # N
+    cond1 = theta.shape == torch.Size([])
+    cond2 = theta.shape == torch.Size([1])
+    if cond1 or cond2:
+        if cond1:
+            ctheta = ctheta.unsqueeze(0).unsqueeze(0)
+            stheta = stheta.unsqueeze(0).unsqueeze(0)
+        else:
+            ctheta = ctheta.unsqueeze(0)
+            stheta = stheta.unsqueeze(0)
+        row1 = torch.cat([ctheta, stheta], dim=-1)
+        row2 = torch.cat([-stheta, ctheta], dim=-1)
+        return torch.cat([row1, row2], dim=0)
     else:
-        rot_matrix = torch.zeros(
-            (theta.size(0), 2, 2), dtype=torch.float, device=theta.device
-        )
-        for i in range(theta.size(0)):
-            rot_matrix[i, 0, 0] = ctheta[i]
-            rot_matrix[i, 0, 1] = stheta[i]
-            rot_matrix[i, 1, 0] = -stheta[i]
-            rot_matrix[i, 1, 1] = ctheta[i]
-        return rot_matrix
+        ctheta = ctheta.unsqueeze(1).unsqueeze(1)
+        stheta = stheta.unsqueeze(1).unsqueeze(1)
+        row1 = torch.cat([ctheta, stheta], dim=-1)
+        row2 = torch.cat([-stheta, ctheta], dim=-1)
+        return torch.cat([row1, row2], dim=1)
 
 
 def transform_2d_coordinates(
@@ -67,6 +72,7 @@ def invtransform_2d_coordinates_rotation_matrix(
         return torch.bmm(coordinates - offset, rot_matrix.inverse())
 
 
+# Not optimized yet
 def circle_segment_area(
     dist: torch.Tensor, radius: torch.Tensor
 ) -> torch.Tensor:
@@ -89,6 +95,7 @@ def circle_segment_area(
         )
 
 
+# Not optimized yet
 def circle_area_overlap(
     center1: torch.Tensor,
     center2: torch.Tensor,
@@ -122,6 +129,7 @@ def _is_bound(val: torch.Tensor):
     return ~torch.isfinite(val) + ((val >= 0.0) * (val <= 1.0))
 
 
+# Not optimized yet
 def check_intersection_lines(
     pt1_lines: torch.Tensor,
     pt2_lines: torch.Tensor,
@@ -153,6 +161,7 @@ def check_intersection_lines(
     return torch.any((ua >= 0.0) * (ua <= 1.0) * (ub >= 0.0) * (ub <= 1.0))
 
 
+# Not optimized yet
 def distance_from_point_direction(
     point: torch.Tensor,  # 2
     theta: torch.Tensor,  # B x 1
@@ -188,12 +197,12 @@ def distance_from_point_direction(
             * _is_bound(t1)
             * _is_bound(t2),
             distances,
-            torch.as_tensor(np.inf),
+            torch.as_tensor(np.inf).type_as(distances),
         ),
         dim=1,
     )[
         0
-    ]  # B x 1
+    ]  # B
 
 
 def generate_lidar_data(
@@ -208,7 +217,10 @@ def generate_lidar_data(
     return distance_from_point_direction(
         point,
         angle_normalize(
-            theta + torch.linspace(0.0, TWO_PI * (1 - 1 / npoints), npoints,)
+            theta
+            + torch.linspace(
+                0.0, TWO_PI * (1 - 1 / npoints), npoints, device=theta.device
+            )
         ),
         pt1,
         pt2,
