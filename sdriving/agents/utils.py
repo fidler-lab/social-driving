@@ -91,11 +91,21 @@ def discount_cumsum(x: torch.Tensor, discount: float):
     val = scipy.signal.lfilter(
         [1], [1, float(-discount)], x.detach().cpu().numpy()[::-1], axis=0
     )[::-1]
-    return torch.from_numpy(np.ascontiguousarray(val)).to(x.device)
+    return torch.from_numpy(val.copy()).to(x.device)
 
 
 def hvd_scalar_statistics(x: torch.Tensor):
+    # Horovod doesn't compile on GPU on my machine
+    dev = x.device
     N = x.nelement() * hvd.size()
-    mean = hvd.allreduce(x.mean(), op=hvd.Average)
-    std = torch.sqrt(hvd.allreduce((x - mean).pow(2).sum(), op=hvd.Sum) / N)
-    return mean, std
+    mean = hvd.allreduce(x.mean().cpu(), op=hvd.Average)
+    std = torch.sqrt(hvd.allreduce((x - mean).pow(2).sum().cpu(), op=hvd.Sum) / N)
+    return mean.to(dev), std.to(dev)
+
+
+def hvd_average_grad(x: torch.nn.Module):
+    for p in x.parameters():
+        if p.grad is not None:
+            dev = p.device
+            hvd.allreduce_(p.grad.cpu(), op=hvd.Average)
+            p.grad = p.grad.to(dev)

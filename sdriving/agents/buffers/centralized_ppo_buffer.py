@@ -6,7 +6,7 @@ import torch
 from sdriving.agents.utils import (
     combined_shape,
     discount_cumsum,
-    hvd_statistics_scalar,
+    hvd_scalar_statistics,
 )
 
 
@@ -16,7 +16,7 @@ BufferReturn = namedtuple(
 
 
 def allocate_zeros_tensor(size, device):
-    return torch.zeros(size, dtype=torch.float32, device=device).pin_memory()
+    return torch.zeros(size, dtype=torch.float32, device=device)
 
 
 class CentralizedPPOBuffer:
@@ -34,13 +34,13 @@ class CentralizedPPOBuffer:
         self.agent_list = [f"agent_{i}" for i in range(nagents)]
         self.agent_list_to_batch = {f"agent_{i}": i for i in range(nagents)}
 
-        func = lambda: allocate_zeros_tensor(
-            combined_shape(size, state_dim, batch=nagents), device
+        func = lambda x: allocate_zeros_tensor(
+            combined_shape(size, x, batch=nagents), device
         )
 
-        self.state_buf = func()
-        self.lidar_buf = func()
-        self.act_buf = func()
+        self.state_buf = func(state_dim)
+        self.lidar_buf = func(lidar_dim)
+        self.act_buf = func(act_dim)
 
         func = lambda: allocate_zeros_tensor(
             combined_shape(size, batch=nagents), device
@@ -74,7 +74,7 @@ class CentralizedPPOBuffer:
         self.rew_buf[b, idx] = rew
         self.val_buf[b, idx] = val
         self.logp_buf[b, idx] = logp
-        self.ptr[a_id] = idx + 1
+        self.ptr[b] = idx + 1
 
     def finish_path(
         self, last_val: Optional[Union[dict, int, torch.Tensor]] = None
@@ -82,13 +82,13 @@ class CentralizedPPOBuffer:
         if last_val is None:
             last_val = {a_id: 0 for a_id in self.agent_list}
         if isinstance(last_val, (int, torch.Tensor)):
-            last_val = [last_val] ** len(self.agent_list)
+            last_val = [last_val] * len(self.agent_list)
 
         for a_id in self.agent_list:
             b = self.agent_list_to_batch[a_id]
             path_slice = slice(self.path_start_idx[b], self.ptr[b])
-            rews = torch.cat([self.rew_buf[b, path_slice], last_val[a_id]])
-            vals = torch.cat([self.val_buf[b, path_slice], last_val[a_id]])
+            rews = torch.cat([self.rew_buf[b, path_slice], last_val[b]])
+            vals = torch.cat([self.val_buf[b, path_slice], last_val[b]])
 
             # the next two lines implement GAE-Lambda advantage calculation
             deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
@@ -115,14 +115,14 @@ class CentralizedPPOBuffer:
             self.ptr[b], self.path_start_idx[b] = 0, 0
 
             # the next two lines implement the advantage normalization trick
-            adv_mean, adv_std = hvd_statistics_scalar(self.adv_buf[b])
+            adv_mean, adv_std = hvd_scalar_statistics(self.adv_buf[b])
             self.adv_buf[b] = (self.adv_buf[b] - adv_mean) / (adv_std + 1e-7)
         return BufferReturn(
-            obs=self.state_buf[a_id],
-            lidar=self.lidar_buf[a_id],
-            act=self.act_buf[a_id],
-            ret=self.ret_buf[a_id],
-            adv=self.adv_buf[a_id],
-            logp=self.logp_buf[a_id],
-            vest=self.val_buf[a_id],
+            obs=self.state_buf,
+            lidar=self.lidar_buf,
+            act=self.act_buf,
+            ret=self.ret_buf,
+            adv=self.adv_buf,
+            logp=self.logp_buf,
+            vest=self.val_buf,
         )

@@ -54,12 +54,12 @@ class RoadIntersectionControlAccelerationEnv(RoadIntersectionControlEnv):
     def configure_action_list(self):
         if not self.fast_model:
             self.actions_list = [
-                torch.as_tensor([[ac]]) for ac in np.arange(-1.5, 1.75, 0.25)
+                torch.as_tensor([[ac]]).float() for ac in np.arange(-1.5, 1.75, 0.25)
             ]
             self.max_accln = 1.5
         else:
             self.actions_list = [
-                torch.as_tensor([[ac]]) for ac in np.arange(-3.0, 3.01, 0.25)
+                torch.as_tensor([[ac]]).float() for ac in np.arange(-3.0, 3.01, 0.25)
             ]
             self.max_accln = 3.0
 
