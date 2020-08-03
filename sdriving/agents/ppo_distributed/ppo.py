@@ -73,9 +73,14 @@ class PPO_Distributed_Centralized_Critic:
 
         if torch.cuda.is_available():
             # Horovod: pin GPU to local rank.
-            dev_id = hvd.local_rank() // 2
+            dev_id = int(
+                torch.cuda.device_count() * hvd.local_rank()
+                / hvd.local_size()
+            )
             torch.cuda.set_device(dev_id)
             device = torch.device(f"cuda:{dev_id}")
+            print(f"Rank: {hvd.rank()} | Local Rank: {hvd.local_rank()}"
+                  f" | Using GPU {dev_id}")
             torch.cuda.manual_seed(seed)
         else:
             device = torch.device("cpu")
