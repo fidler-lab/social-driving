@@ -99,7 +99,9 @@ def hvd_scalar_statistics(x: torch.Tensor):
     dev = x.device
     N = x.nelement() * hvd.size()
     mean = hvd.allreduce(x.mean().cpu(), op=hvd.Average)
-    std = torch.sqrt(hvd.allreduce((x - mean).pow(2).sum().cpu(), op=hvd.Sum) / N)
+    std = torch.sqrt(
+        hvd.allreduce((x - mean).pow(2).sum().cpu(), op=hvd.Sum) / N
+    )
     return mean.to(dev), std.to(dev)
 
 

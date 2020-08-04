@@ -196,7 +196,7 @@ class World:
         self.dims_map = OrderedDict()
 
         # Create the MPC Controller
-        self.global_mpc_controller = None # MPCController(nbatch=nbatch)
+        self.global_mpc_controller = None  # MPCController(nbatch=nbatch)
 
     def dynamic_environment(
         self, vehicles_remove: Optional[Union[str, List[str]]] = None

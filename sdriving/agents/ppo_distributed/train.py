@@ -10,7 +10,9 @@ import gym
 import numpy as np
 import torch
 from sdriving.envs import REGISTRY as ENV_REGISTRY
-from sdriving.agents.ppo_distributed.ppo import PPO_Distributed_Centralized_Critic
+from sdriving.agents.ppo_distributed.ppo import (
+    PPO_Distributed_Centralized_Critic,
+)
 import horovod.torch as hvd
 
 
@@ -45,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("-wid", "--wandb-id", type=str, default=None)
 
     args = parser.parse_args()
-    
+
     hvd.init()
 
     env = ENV_REGISTRY[args.env]

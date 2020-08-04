@@ -2,9 +2,6 @@ import math
 from typing import Dict, List, Tuple, Union
 
 import torch
-from sdriving.tsim.parametric_curves import (
-    CatmullRomSplineMotion,
-)
 from sdriving.tsim.utils import angle_normalize
 from torch import nn
 
@@ -16,7 +13,8 @@ class BicycleKinematics(nn.Module):
     Kinematic Bicycle Model from `"Kinematic and Dynamic Vehicle Models for
     Autonomous Driving Control Design" by Kong et. al.
     <https://borrelli.me.berkeley.edu/pdfpub/IV_KinematicMPC_jason.pdf>`_.
-    """    
+    """
+
     def __init__(
         self,
         dt: float = 0.10,
@@ -53,8 +51,8 @@ class BicycleKinematics(nn.Module):
                     {steering angle, acceleration}
         """
         dt = self.dt
-        x, y, v, theta = [state[:, i:(i + 1)] for i in range(4)]
-        steering, acceleration = [action[:, i:(i + 1)] for i in range(2)]
+        x, y, v, theta = [state[:, i : (i + 1)] for i in range(4)]
+        steering, acceleration = [action[:, i : (i + 1)] for i in range(2)]
 
         beta = torch.atan(torch.tan(steering) / 2)
 
@@ -65,17 +63,13 @@ class BicycleKinematics(nn.Module):
         y = y + vdt * torch.sin(tb)
 
         v = torch.min(
-            torch.max(v + acceleration * dt, self.v_lim_neg),
-            self.v_lim
+            torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
         )
 
         theta = theta + v * torch.sin(beta) * 2 / self.dim
         theta = angle_normalize(theta)
 
         return torch.cat([x, y, v, theta], dim=1)
-
-    def __call__(self, state: torch.Tensor, action: torch.Tensor):
-        return self.forward(state, action)
 
 
 def BicycleKinematicsModel(*args, **kwargs):
@@ -146,13 +140,13 @@ class FixedTrackAcceleration(nn.Module):
         """
 
         dt = self.dt
-        x, y, v, theta = [state[:, i:(i + 1)] for i in range(4)]
+        x, y, v, theta = [state[:, i : (i + 1)] for i in range(4)]
         acceleration = action
         vdt = v * dt
-        
+
         self.distances = self.distances + vdt
         arc = self.distances - self.distance1
-        
+
         stheta, ctheta = torch.sin(theta), torch.cos(theta)
 
         in_arc = (arc > 0) * (arc < self.circ_arc) * self.turns
@@ -164,11 +158,12 @@ class FixedTrackAcceleration(nn.Module):
             self.center[:, 1:2] - self.sign * self.radius * ctheta
         )
         v = torch.min(
-            torch.max(v + acceleration * dt, self.v_lim_neg),
-            self.v_lim
+            torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
         )
 
-        arc_part = torch.clamp(arc / (math.pi * self.radius / 2), 0, math.pi / 2)
+        arc_part = torch.clamp(
+            arc / (0.5 * math.pi * self.radius), 0, math.pi / 2
+        )
         theta = self.theta1 + self.sign * arc_part
 
         return torch.cat([x, y, v, theta], dim=1)

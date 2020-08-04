@@ -71,93 +71,76 @@ def invtransform_2d_coordinates_rotation_matrix(
         return torch.bmm(coordinates - offset, rot_matrix.inverse())
 
 
-# Not optimized yet
+@torch.jit.script
 def circle_segment_area(
     dist: torch.Tensor, radius: torch.Tensor
 ) -> torch.Tensor:
-    if dist.size(0) == 1:
-        if dist > radius:
-            return torch.zeros(1)
-        theta = 2 * torch.acos(
-            torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5)
-        )
-        return (theta - torch.sin(theta)) * (radius ** 2) / 2
-    else:
-        theta = 2 * torch.acos(
-            torch.clamp(dist / radius, -1.0 + 1e-5, 1.0 - 1e-5)
-        )
-        zeros = torch.zeros_like(dist)
-        return torch.where(
-            dist > radius,
-            zeros,
-            (theta - torch.sin(theta)) * (radius ** 2) / 2,
-        )
+    theta = 2 * torch.acos(torch.clamp(dist / radius, -1.0 + 1e-7, 1.0 - 1e-7))
+    return (dist < radius) * (theta - torch.sin(theta)) * 0.5 * (radius ** 2)
 
 
-# Not optimized yet
+@torch.jit.script
 def circle_area_overlap(
-    center1: torch.Tensor,
-    center2: torch.Tensor,
-    radius1: torch.Tensor,
-    radius2: torch.Tensor,
+    center1: torch.Tensor,  # N x 2
+    center2: torch.Tensor,  # N x 2
+    radius1: torch.Tensor,  # N x 1
+    radius2: torch.Tensor,  # N x 1
 ) -> torch.Tensor:
-    d_sq = ((center1 - center2) ** 2).sum()
-    d = torch.sqrt(d_sq)
+    d_sq = ((center1 - center2) ** 2).sum(1)  # N x 1
+    d = torch.sqrt(d_sq)  # N x 1
 
-    if d < radius1 + radius2:
-        a = radius1 ** 2
-        b = radius2 ** 2
+    d1 = (d_sq + radius1 ** 2 - radius2 ** 2) / (2 * d)  # N x 1
+    d2 = d - d1  # N x 1
 
-        x = (a - b + d_sq) / (2 * d)
-        z = x ** 2
+    seg_areas = (
+        circle_segment_area(torch.cat([radius1, radius2]), torch.cat([d1, d2]))
+        .view(2, d.size(0), 1)
+        .sum(0)
+    )  # N x 1
 
-        if d <= abs(radius2 - radius1):
-            return torch.as_tensor(math.pi * min(a, b))
-
-        y = torch.sqrt(a - z)
-        return (
-            a * torch.asin(y / radius1)
-            + b * torch.asin(y / radius2)
-            - y * (x + torch.sqrt(z + b - a))
-        )
-
-    return torch.zeros(1)
+    return (d < radius1 + radius2) * seg_areas  # N x 1
 
 
-def _is_bound(val: torch.Tensor):
+@torch.jit.script
+def _is_bound(val: torch.Tensor) -> torch.Tensor:
     return ~torch.isfinite(val) + ((val >= 0.0) * (val <= 1.0))
 
 
-# Not optimized yet
+@torch.jit.script
 def check_intersection_lines(
     pt1_lines: torch.Tensor,
     pt2_lines: torch.Tensor,
     point1: torch.Tensor,
     point2: torch.Tensor,
-    pt_diff_lines: torch.Tensor,
 ) -> torch.Tensor:
     """
     Args:
         pt1_lines: End Point 1 of the Lines (N x 2)
         pt2_lines: End Point 2 of the Lines (N x 2)
-        point1: End Point 1 (2)
-        point2: End Point 2 (2)
-        pt_diff_lines: pt2_lines - pt1_lines (N x 2)
+        point1: End Point 1 (B x 2)
+        point2: End Point 2 (B x 2)
     """
-    diff = point2 - point1
-    diff_ends_1 = pt1_lines - point1
+    pt_diff_lines = pt2_lines - pt1_lines  # N x 2
+    diff = point2 - point1  # B x 2
+    diff_ends_1 = pt1_lines.unsqueeze(0) - point1.unsqueeze(1)  # B x N x 2
 
-    denominator = diff[1] * pt_diff_lines[:, 0] - diff[0] * pt_diff_lines[:, 1]
+    denominator = (
+        diff[:, 1:2] * pt_diff_lines[:, 0:1].T
+        - diff[:, 0:1] * pt_diff_lines[:, 1:2].T
+    )  # B x N
 
     ua = (
-        diff[0] * diff_ends_1[:, 1] - diff[1] * diff_ends_1[:, 0]
+        diff[:, 0:1] * diff_ends_1[:, :, 1]
+        - diff[:, 1:2] * diff_ends_1[:, :, 0]
     ) / denominator
     ub = (
-        pt_diff_lines[:, 0] * diff_ends_1[:, 1]
-        - pt_diff_lines[:, 1] * diff_ends_1[:, 0]
+        pt_diff_lines[None, :, 0] * diff_ends_1[:, :, 1]
+        - pt_diff_lines[None, :, 1] * diff_ends_1[:, :, 0]
     ) / denominator
 
-    return torch.any((ua >= 0.0) * (ua <= 1.0) * (ub >= 0.0) * (ub <= 1.0))
+    return torch.any(
+        (ua >= 0.0) * (ua <= 1.0) * (ub >= 0.0) * (ub <= 1.0), dim=1
+    )  # B
 
 
 @torch.jit.script
@@ -218,7 +201,7 @@ def generate_lidar_data(
                 0.0,
                 2 * math.pi * (1 - 1 / npoints),
                 npoints,
-                device=theta.device
+                device=theta.device,
             )
         ),
         pt1,

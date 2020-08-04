@@ -13,7 +13,7 @@ from sdriving.agents.utils import (
     count_vars,
     trainable_parameters,
     hvd_scalar_statistics,
-    hvd_average_grad
+    hvd_average_grad,
 )
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
@@ -74,13 +74,14 @@ class PPO_Distributed_Centralized_Critic:
         if torch.cuda.is_available():
             # Horovod: pin GPU to local rank.
             dev_id = int(
-                torch.cuda.device_count() * hvd.local_rank()
-                / hvd.local_size()
+                torch.cuda.device_count() * hvd.local_rank() / hvd.local_size()
             )
             torch.cuda.set_device(dev_id)
             device = torch.device(f"cuda:{dev_id}")
-            print(f"Rank: {hvd.rank()} | Local Rank: {hvd.local_rank()}"
-                  f" | Using GPU {dev_id}")
+            print(
+                f"Rank: {hvd.rank()} | Local Rank: {hvd.local_rank()}"
+                f" | Using GPU {dev_id}"
+            )
             torch.cuda.manual_seed(seed)
         else:
             device = torch.device("cpu")
@@ -286,7 +287,7 @@ class PPO_Distributed_Centralized_Critic:
                     "Value Estimate": v_est,
                 }
             )
-            
+
     def move_optimizer_to_device(self, opt):
         for state in opt.state.values():
             for k, v in state.items():
@@ -324,9 +325,7 @@ class PPO_Distributed_Centralized_Critic:
             self.vf_optimizer = Adam(
                 trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
             )
-            print(
-                "The agent was trained with a different nagents"
-            )
+            print("The agent was trained with a different nagents")
             if (
                 "permutation_invariant" in self.ac_params
                 and self.ac_params["permutation_invariant"]
@@ -385,7 +384,13 @@ class PPO_Distributed_Centralized_Critic:
 
             for key, obs in o.items():
                 self.buf.store(
-                    key, obs[0], obs[1], a[key].to(self.device), r[key], v[key], logp[key],
+                    key,
+                    obs[0],
+                    obs[1],
+                    a[key].to(self.device),
+                    r[key],
+                    v[key],
+                    logp[key],
                 )
 
             o = next_o
