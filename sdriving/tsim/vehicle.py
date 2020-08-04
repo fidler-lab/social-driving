@@ -17,6 +17,7 @@ class _BatchedVehicle(torch.nn.Module):
         A fleet of vehicles. A single vehicle is a batched vehicle with
         1 as the batch size
     """
+
     def __init__(
         self,
         position: torch.Tensor,  # N x 2
@@ -38,22 +39,25 @@ class _BatchedVehicle(torch.nn.Module):
         self.destination = destination
         self.dest_orientation = angle_normalize(dest_orientation)
         self.dimensions = dimensions
-        
+
         self.nbatch = self.position.size(0)
         self.diag_bool_buffer = ~torch.diag(torch.ones(self.nbatch * 4)).bool()
 
         self.speed = initial_speed
         self.safety_circle = (
-            1.3 * torch.sqrt(
+            1.3
+            * torch.sqrt(
                 ((self.dimensions / 2) ** 2).sum(1, keepdim=True)
             ).detach()
         )
         self.area = math.pi * self.safety_circle ** 2
-        
-        mul_factor = torch.as_tensor(
-            [[1, 1], [1, -1], [-1, -1], [-1, 1]]
-        ).unsqueeze(0).type_as(self.dimensions)
-        
+
+        mul_factor = (
+            torch.as_tensor([[1, 1], [1, -1], [-1, -1], [-1, 1]])
+            .unsqueeze(0)
+            .type_as(self.dimensions)
+        )
+
         self.base_coordinates = mul_factor * self.dimensions.unsqueeze(1) / 2
         self.device = torch.device("cpu")
 
@@ -73,19 +77,23 @@ class _BatchedVehicle(torch.nn.Module):
             if torch.is_tensor(t):
                 setattr(self, k, t.to(device))
         self.device = device
-    
+
     @torch.jit.export
     def _get_coordinates(self):
         self.cached_coordinates = True
         return transform_2d_coordinates(
             self.base_coordinates,
             self.orientation[:, 0],
-            self.position[:, None, :]
+            self.position[:, None, :],
         )
 
     @torch.jit.export
     def get_coordinates(self):
-        return self.coordinates if self.cached_coordinates else self._get_coordinates()
+        return (
+            self.coordinates
+            if self.cached_coordinates
+            else self._get_coordinates()
+        )
 
     @torch.jit.export
     def get_edges(self):
@@ -104,7 +112,7 @@ class _BatchedVehicle(torch.nn.Module):
         self.speed = state[:, 2:3]
         self.orientation = state[:, 3:4]
         self.cached_coordinates = False
-    
+
     @torch.jit.export
     def get_state(self):
         return torch.cat([self.position, self.speed, self.orientation], dim=-1)
@@ -121,19 +129,21 @@ class _BatchedVehicle(torch.nn.Module):
     def optimal_heading_to_point(self, point: torch.Tensor):
         vec = point - self.position
         vec = vec / (torch.norm(vec, dim=1) + 1e-7)  # N x 2
-        cur_vec = torch.cat([
-            torch.cos(self.orientation), torch.sin(self.orientation)
-        ])  # N x 2
+        cur_vec = torch.cat(
+            [torch.cos(self.orientation), torch.sin(self.orientation)]
+        )  # N x 2
         return angle_normalize(
-            torch.acos((vec * cur_vec).sum(1, keepdim=True).clamp(
-                -1.0 + 1e-5, 1.0 - 1e-5
-            ))
+            torch.acos(
+                (vec * cur_vec)
+                .sum(1, keepdim=True)
+                .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
+            )
         )
 
     @torch.jit.export
     def optimal_heading(self):
         return self.optimal_heading_to_point(self.destination)
-    
+
     @torch.jit.export
     def collision_check(self):
         p1, p2 = self.get_edges()
@@ -148,10 +158,6 @@ def BatchedVehicle(*args, **kwargs):
 
 
 class _Vehicle(_BatchedVehicle):
-    """
-        A fleet of vehicles. A single vehicle is a batched vehicle with
-        1 as the batch size
-    """
     def __init__(
         self,
         position: torch.Tensor,  # 2
@@ -217,13 +223,11 @@ def render_vehicle(
 
 def safety_circle_overlap(obj1: _BatchedVehicle, obj2: _BatchedVehicle):
     center1 = obj1.position.repeat(obj2.nbatch, 1)
-    center2 = obj2.position.unsqueeze(0).repeat(obj1.nbatch, 1, 1).view(
-        -1, 2
-    )
+    center2 = obj2.position.unsqueeze(0).repeat(obj1.nbatch, 1, 1).view(-1, 2)
     radius1 = obj1.safety_circle.repeat(obj2.nbatch, 1)
-    radius2 = obj2.safety_circle.unsqueeze(0).repeat(
-        obj1.nbatch, 1, 1
-    ).view(-1, 1)
-    return circle_area_overlap(
-        center1, center2, radius1, radius2
-    ).view(obj1.nbatch, obj2.nbatch)
+    radius2 = (
+        obj2.safety_circle.unsqueeze(0).repeat(obj1.nbatch, 1, 1).view(-1, 1)
+    )
+    return circle_area_overlap(center1, center2, radius1, radius2).view(
+        obj1.nbatch, obj2.nbatch
+    )

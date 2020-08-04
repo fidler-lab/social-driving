@@ -8,7 +8,7 @@ from torch import nn
 EPS = 1e-7
 
 
-class BicycleKinematics(nn.Module):
+class _BicycleKinematicsModel(nn.Module):
     """
     Kinematic Bicycle Model from `"Kinematic and Dynamic Vehicle Models for
     Autonomous Driving Control Design" by Kong et. al.
@@ -73,10 +73,10 @@ class BicycleKinematics(nn.Module):
 
 
 def BicycleKinematicsModel(*args, **kwargs):
-    return torch.jit.script(BicycleKinematics(*args, **kwargs))
+    return torch.jit.script(_BicycleKinematicsModel(*args, **kwargs))
 
 
-class FixedTrackAcceleration(nn.Module):
+class _FixedTrackAccelerationModel(nn.Module):
     """
     A fixed track is provided for the agent during instantiation. The agent
     only controls the acceleration and the path is controlled by the track.
@@ -170,4 +170,4 @@ class FixedTrackAcceleration(nn.Module):
 
 
 def FixedTrackAccelerationModel(*args, **kwargs):
-    return torch.jit.script(FixedTrackAcceleration(*args, **kwargs))
+    return torch.jit.script(_FixedTrackAccelerationModel(*args, **kwargs))

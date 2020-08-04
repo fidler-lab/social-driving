@@ -75,9 +75,7 @@ def invtransform_2d_coordinates_rotation_matrix(
 def circle_segment_area(
     dist: torch.Tensor, radius: torch.Tensor
 ) -> torch.Tensor:
-    theta = 2 * torch.acos(
-        torch.clamp(dist / radius, -1.0 + 1e-7, 1.0 - 1e-7)
-    )
+    theta = 2 * torch.acos(torch.clamp(dist / radius, -1.0 + 1e-7, 1.0 - 1e-7))
     return (dist < radius) * (theta - torch.sin(theta)) * 0.5 * (radius ** 2)
 
 
@@ -90,15 +88,16 @@ def circle_area_overlap(
 ) -> torch.Tensor:
     d_sq = ((center1 - center2) ** 2).sum(1, keepdim=True)  # N x 1
     d = torch.sqrt(d_sq)  # N x 1
-    
+
     d1 = (d_sq + radius1.pow(2) - radius2.pow(2)) / (2 * d)  # N x 1
     d2 = d - d1  # N x 1
 
-    seg_areas = circle_segment_area(
-        torch.cat([radius1, radius2]),
-        torch.cat([d1, d2])
-    ).view(2, d.size(0), 1).sum(0)  # N x 1
-    
+    seg_areas = (
+        circle_segment_area(torch.cat([radius1, radius2]), torch.cat([d1, d2]))
+        .view(2, d.size(0), 1)
+        .sum(0)
+    )  # N x 1
+
     return (d < radius1 + radius2) * seg_areas  # N x 1
 
 
@@ -131,7 +130,8 @@ def check_intersection_lines(
     )  # B x N
 
     ua = (
-        diff[:, 0:1] * diff_ends_1[:, :, 1] - diff[:, 1:2] * diff_ends_1[:, :, 0]
+        diff[:, 0:1] * diff_ends_1[:, :, 1]
+        - diff[:, 1:2] * diff_ends_1[:, :, 0]
     ) / denominator  # B x N
     ub = (
         pt_diff_lines[None, :, 0] * diff_ends_1[:, :, 1]
@@ -199,7 +199,7 @@ def generate_lidar_data(
                 0.0,
                 2 * math.pi * (1 - 1 / npoints),
                 npoints,
-                device=theta.device
+                device=theta.device,
             )
         ),
         pt1,
