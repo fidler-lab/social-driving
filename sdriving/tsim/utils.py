@@ -143,28 +143,35 @@ def check_intersection_lines(
 
 @torch.jit.script
 def distance_from_point_direction(
-    point: torch.Tensor,  # 2
-    theta: torch.Tensor,  # B x 1
+    point: torch.Tensor,  # B x 2
+    theta: torch.Tensor,  # T x 1
     pt1: torch.Tensor,  # N x 2
     pt2: torch.Tensor,  # N x 2
-    min_range: float = 0.5,
-    max_range: float = 12.0,
+    min_range: float = 2.5,
+    max_range: float = 50.0,
 ) -> torch.Tensor:
-    theta = theta.view(-1, 1)
-    dir1 = torch.cat([-torch.sin(theta), torch.cos(theta)], dim=1)  # B x 2
+    point = point.unsqueeze(1)  # B x 1 x 2
+    pt1 = pt1.unsqueeze(0)  # 1 x N x 2
+    pt2 = pt2.unsqueeze(0)  # 1 x N x 2
+    theta = theta.view(-1, 1)  # T x 1
+    dir1 = torch.cat(
+        [-torch.sin(theta), torch.cos(theta)], dim=1
+    ).unsqueeze(0)  # 1 x T x 2
 
     num = torch.cat(
-        [point[1] - pt2[:, 1:], pt2[:, 0:1] - point[0]], dim=1
-    )  # N x 2
+        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]], dim=1
+    )  # B x N x 2
 
-    dir2 = pt1 - pt2  # N x 2
+    dir2 = pt1 - pt2  # 1 x N x 2
 
-    ndir = (num * dir2).sum(1, keepdim=True).permute(1, 0)  # 1 x N
-    vdir = dir1 @ dir2.permute(1, 0)  # B x N
-    distances = ndir / (vdir + 1e-7)  # B x N
-
-    t1 = (point[0] + distances * dir1[:, 1:] - pt2[:, 0:1].T) / dir2[:, 0:1].T
-    t2 = (point[1] - distances * dir1[:, 0:1] - pt2[:, 1:].T) / dir2[:, 1:].T
+    ndir = (num * dir2).sum(2, keepdim=True).permute(0, 2, 1)  # B x 1 x N
+    vdir = torch.bmm(dir1, dir2.permute(0, 2, 1))  # 1 x T x N
+    distances = ndir / (vdir + 1e-7)  # B x T x N
+    
+    dir2 = dir2.permute(0, 2, 1)  # 1 x 2 x N
+    pt2 = pt2.permute(0, 2, 1)  # 1 x 2 x N
+    t1 = (point[:, :, 0:1] + distances * dir1[:, :, 1:2] - pt2[:, 0:1, :]) / dir2[:, 1:2, :]
+    t2 = (point[:, :, 1:2] + distances * dir1[:, :, 0:1] - pt2[:, 1:2, :]) / dir2[:, :, 1:2]
 
     return torch.min(
         torch.where(
@@ -175,22 +182,20 @@ def distance_from_point_direction(
             distances,
             torch.as_tensor(np.inf).type_as(distances),
         ),
-        dim=1,
-    )[
-        0
-    ]  # B
+        dim=2,
+    )[0]  # B x T
 
 
 @torch.jit.script
 def generate_lidar_data(
-    point: torch.Tensor,
-    theta: torch.Tensor,
-    pt1: torch.Tensor,
-    pt2: torch.Tensor,
-    npoints: int,
-    min_range: float = 0.5,
-    max_range: float = 12.0,
-) -> torch.Tensor:
+    point: torch.Tensor,  # B x 2
+    theta: torch.Tensor,  # B x 1
+    pt1: torch.Tensor,    # N x 2
+    pt2: torch.Tensor,    # N x 2
+    npoints: int,         # T
+    min_range: float = 2.5,
+    max_range: float = 50.0,
+) -> torch.Tensor:  # B x T
     return distance_from_point_direction(
         point,
         angle_normalize(
@@ -200,10 +205,27 @@ def generate_lidar_data(
                 2 * math.pi * (1 - 1 / npoints),
                 npoints,
                 device=theta.device,
-            )
+            ).unsqueeze(0)  # B x T
         ),
         pt1,
         pt2,
         min_range,
         max_range,
     )
+
+
+@torch.jit.script
+def is_perpendicular(
+    pt1: torch.Tensor,  # N x 2
+    pt2: torch.Tensor,  # N x 2
+    pt3: torch.Tensor,  # N x 2
+    tol: float = 1e-1,
+) -> torch.Tensor:
+    """Checks if the two vectors (pt1 - pt2) amd (pt1 - pt3)
+    are perpendicular to each other.
+    """
+    vec1 = pt1 - pt2  # N x 2
+    vec1 /= torch.norm(vec1, dim=1, keepdim=True)
+    vec2 = pt1 - pt3  # N x 2
+    vec2 /= torch.norm(vec2, dim=1, keepdim=True)  # N x 2
+    return (vec1 * vec2).sum(1).abs() < tol

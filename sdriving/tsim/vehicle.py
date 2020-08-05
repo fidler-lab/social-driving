@@ -27,7 +27,7 @@ class _BatchedVehicle(torch.nn.Module):
         dimensions: torch.Tensor = torch.as_tensor([[4.48, 2.2]]),  # N x 2
         initial_speed: torch.Tensor = torch.zeros(1, 1),  # N x 1
         name: List[str] = ["car"],  # N
-        min_lidar_range: float = 1.0,
+        min_lidar_range: float = 2.5,
         max_lidar_range: float = 50.0,
         vision_range: float = 50.0,
     ):
@@ -221,6 +221,7 @@ def render_vehicle(
             )
 
 
+@torch.jit.export
 def safety_circle_overlap(obj1: _BatchedVehicle, obj2: _BatchedVehicle):
     center1 = obj1.position.repeat(obj2.nbatch, 1)
     center2 = obj2.position.unsqueeze(0).repeat(obj1.nbatch, 1, 1).view(-1, 2)
