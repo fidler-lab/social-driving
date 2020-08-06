@@ -73,7 +73,7 @@ class Road:
         self.center = center
 
         self.coordinates = transform_2d_coordinates(
-            self.base_coordinates - self.center, self.orientation, self.center
+            self.base_coordinates, self.orientation, self.center
         )
         self.device = torch.device("cpu")
 
@@ -213,6 +213,7 @@ class RoadNetwork:
         self.c_components += 1
         self.name_to_center_idx[garea.name] = self.c_components
         self.centers = torch.cat([self.centers, garea.center])
+        return garea
 
     def join_roads(self, rname1: str, r1point: int, rname2: str, r2point: int):
         assert rname1 in self.roads, AssertionError(
@@ -232,7 +233,7 @@ class RoadNetwork:
 
         # All road connections should have a GrayArea in between them
         if garea is None:
-            self.add_garea()
+            garea = self.add_garea()
         if self.roads[rname1].ga_connections[r1point] is None:
             garea.connect_road(self.roads[rname1], r1point, self)
             self.roads[rname1].ga_connections[r1point] = garea

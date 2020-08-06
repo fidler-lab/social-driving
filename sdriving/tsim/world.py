@@ -18,6 +18,7 @@ from sdriving.tsim.utils import (
     generate_lidar_data,
     angle_normalize,
 )
+from sdriving.tsim.vehicle import render_vehicle
 
 matplotlib.use("Agg")
 
@@ -92,10 +93,13 @@ class World:
             .view(-1, 4)
             .any(-1)
         )
+    
+    def get_vehicle_state(self, vname: str):
+        return self.vehicles[vname].get_state()
 
     def get_lidar_data(self, vname: str, npoints: int):
         return self.get_lidar_data_from_state(
-            self.vehicles[vname].get_state(), vname, npoints,
+            self.get_vehicle_state(vname), vname, npoints,
         )
 
     def get_lidar_data_from_state(
@@ -167,8 +171,8 @@ class World:
             if r1name in rds:
                 r2end = i
                 break
-        node1 = self.road_network.point_to_node(rd1.end_coordinates[r1end])
-        node2 = self.road_network.point_to_node(rd2.end_coordinates[r2end])
+        node1 = self.road_network.point_to_node[rd1.end_coordinates[r1end]]
+        node2 = self.road_network.point_to_node[rd2.end_coordinates[r2end]]
         signal = TrafficSignal(
             val=val,
             start_signal=start_signal,
@@ -286,3 +290,80 @@ class World:
                 signals.append(self.no_signal_val)
 
         return torch.as_tensor(signals).type_as(p)
+
+    def reset(self):
+        for ts, _ in self.traffic_signals.values():
+            ts.reset()
+        for v in self.vehicles.values():
+            del v
+            
+    def _render_background(self, ax):
+        self.road_network.render(ax)
+
+        for signal, pt in self.traffic_signals.values():
+            ax.add_artist(
+                plt.Circle(
+                    pt.cpu().numpy(), 1.0, color=signal.get_color(), fill=True
+                )
+            )
+            
+    def _render_vehicle(self, vname, ax):
+        vehicle = self.vehicles[vname].vehicle
+        render_vehicle(vehicle, ax, color="blue")
+    
+    def render(
+        self,
+        pts=None,
+        path=None,
+        lims=None,
+        render_lidar=False,
+    ):
+        if path is not None:
+            ani = self.cam.animate(blit=True, interval=80)
+            path_root, path_ext = os.path.splitext(path)
+            if path_ext == ".gif":
+                lg.warning(
+                    "Writing GIF is very slow!!! Writing to an MP4 instead"
+                )
+                path = path_root + ".mp4"
+            ani.save(path)
+            self.fig = None
+            self.ax = None
+            self.cam = None
+            return
+
+        if self.fig is None:
+            self.fig = plt.figure(figsize=self.figsize)
+            self.ax = self.fig.add_subplot(1, 1, 1)
+            self.cam = Camera(self.fig)
+            plt.xlim(-100.0, 100.0)
+            plt.ylim(-100.0, 100.0)
+            plt.grid(True)
+
+        if lims is not None:
+            self.ax.set_xlim(lims["x"])
+            self.ax.set_ylim(lims["y"])
+
+        self._render_background(self.ax)
+
+        if pts is None:
+            pts = {}
+        for key, pt in pts.items():
+            if isinstance(pt, list):
+                for point in pt:
+                    if len(point) != 2:
+                        break
+                    plt.plot(
+                        point[0],
+                        point[1],
+                        color="r",
+                        marker="x",
+                        markersize=5,
+                    )
+
+        for key in self.vehicles:
+            render_vehicle(key, self.ax, render_lidar)
+        for obj in self.objects.values():
+            obj.render(self.ax)
+
+        self.cam.snap()
