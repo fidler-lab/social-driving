@@ -1,19 +1,17 @@
+import math
 import random
 import string
 from collections import OrderedDict
 from itertools import combinations
 from typing import List, Optional, Tuple, Union
 
-import networkx as nx
-
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from sdriving.tsim.utils import (
     get_2d_rotation_matrix,
     transform_2d_coordinates,
     transform_2d_coordinates_rotation_matrix,
-    is_perpendicular
+    is_perpendicular,
 )
 
 
@@ -49,7 +47,7 @@ class Road:
     def __init__(
         self,
         name: str,
-        center: torch.Tensor, # 1 x 2
+        center: torch.Tensor,  # 1 x 2
         x_len: float,
         y_len: float,
         orientation: torch.Tensor,
@@ -58,12 +56,14 @@ class Road:
     ):
         self.name = name
 
-        self.base_coordinates = torch.as_tensor([
-            [-x_len / 2, -y_len / 2],
-            [-x_len / 2, y_len / 2],
-            [x_len / 2, y_len / 2],
-            [x_len / 2, -y_len / 2],
-        ])
+        self.base_coordinates = torch.as_tensor(
+            [
+                [-x_len / 2, -y_len / 2],
+                [-x_len / 2, y_len / 2],
+                [x_len / 2, y_len / 2],
+                [x_len / 2, -y_len / 2],
+            ]
+        )
 
         self.x_len = x_len
         self.y_len = y_len
@@ -79,9 +79,9 @@ class Road:
 
         cant_cross = [not cc for cc in can_cross]
         self.pt1 = self.coordinates[cant_cross]
-        self.pt2 = torch.cat([
-            self.coordinates[1:], self.coordinates[0:1],
-        ])[cant_cross]
+        self.pt2 = torch.cat([self.coordinates[1:], self.coordinates[0:1],])[
+            cant_cross
+        ]
 
         self.end_coordinates = OrderedDict()
 
@@ -110,10 +110,8 @@ class Road:
             return
         self.transfer_dict(self.__dict__, device)
         self.device = device
-    
-    def transfer_dict(
-        self, d: Union[dict, OrderedDict], device: torch.device
-    ):
+
+    def transfer_dict(self, d: Union[dict, OrderedDict], device: torch.device):
         for k, t in d.items():
             if torch.is_tensor(t):
                 d[k] = t.to(device)
@@ -178,10 +176,8 @@ class RoadNetwork:
             return
         self.transfer_dict(self.__dict__, device)
         self.device = device
-    
-    def transfer_dict(
-        self, d: Union[dict, OrderedDict], device: torch.device
-    ):
+
+    def transfer_dict(self, d: Union[dict, OrderedDict], device: torch.device):
         for k, t in d.items():
             if torch.is_tensor(t):
                 d[k] = t.to(device)
@@ -189,7 +185,7 @@ class RoadNetwork:
                 t.to(device)
             elif isinstance(t, (dict, OrderedDict)):
                 self.transfer_dict(t, device)
-    
+
     def add_road(self, road: Road):
         assert road.name not in self.roads.keys(), AssertionError(
             f"{road.name} is already registered"
@@ -203,12 +199,16 @@ class RoadNetwork:
         self.c_components += 1
         self.name_to_center_idx[road.name] = self.c_components
         self.centers = torch.cat([self.centers, road.center])
-    
+
     def add_garea(self):
-        garea = GrayArea("".join([
-            random.choice(string.ascii_letters + string.digits)
-            for n in range(10)
-        ]))
+        garea = GrayArea(
+            "".join(
+                [
+                    random.choice(string.ascii_letters + string.digits)
+                    for n in range(10)
+                ]
+            )
+        )
         self.gareas[garea.name] = garea
         self.c_components += 1
         self.name_to_center_idx[garea.name] = self.c_components
@@ -239,7 +239,7 @@ class RoadNetwork:
         if self.roads[rname2].ga_connections[r2point] is None:
             garea.connect_road(self.roads[rname2], r2point, self)
             self.roads[rname2].ga_connections[r2point] = garea
-    
+
     def is_perpendicular(
         self,
         name: List[str],  # N
@@ -254,91 +254,114 @@ class RoadNetwork:
             [self.name_to_center_idx[n] for n in name], :
         ]  # N x 2
         return is_perpendicular(pt1, pt2, center, tol)
-    
+
     # TODO: Implement function to get distance from road axis
 
     def construct_graph(self):
-        # This requires the networkx package
-        graph = nx.Graph()
-        self.point_to_node = {}
+        vertices = []
+        edges = [[], []]
+        point_to_node = dict()
         count = 0
-        # Add all the nodes to the graph. Also add all the connections between
-        # end points of the same road
         for road in self.roads.values():
             for end in road.end_coordinates.values():
-                self.point_to_node[end] = count
-                graph.add_node(count, location=end.cpu().numpy())
+                vertices.append(end.unsqueeze(0))
+                point_to_node[end] = count
                 count += 1
             for p1, p2 in combinations(list(road.end_coordinates.values()), 2):
-                graph.add_edge(
-                    self.point_to_node[p1],
-                    self.point_to_node[p2],
-                    weight=((p1 - p2) ** 2).sum().sqrt(),
-                )
-        self.node_to_point = list(self.point_to_node.keys())
-        self.all_nodes = torch.cat(
-            [x.unsqueeze(0) for x in self.node_to_point]
-        )
-        self.maps = {i: i for i in range(self.all_nodes.size(0))}
-        # Now draw edges based on inter road connections
-        pt = []
-        for _, ga in self.gareas.items():
+                p1n = self.point_to_node[p1]
+                p2n = self.point_to_node[p2]
+                edges[0].extend([p1n, p2n])
+                edges[1].extend([p2n, p1n])
+
+        for ga in self.gareas.values():
             pt = []
             for r, end in zip(ga.roads, ga.rends):
                 pt.append(self.roads[r].end_coordinates[end])
             for p1, p2 in combinations(pt, 2):
-                graph.add_edge(
-                    self.point_to_node[p1],
-                    self.point_to_node[p2],
-                    weight=((p1 - p2) ** 2).sum().sqrt(),
-                )
+                p1n = self.point_to_node[p1]
+                p2n = self.point_to_node[p2]
+                edges[0].extend([p1n, p2n])
+                edges[1].extend([p2n, p1n])
 
-        # Contract edges if the nodes are very close
-        for ed in graph.edges:
-            try:
-                if graph.edges[ed]["weight"] < 0.5:
-                    graph = nx.minors.contracted_edge(graph, ed, False)
-                    self.maps[ed[1]] = ed[0]
-            except KeyError:
-                continue
+        self.vertices = torch.cat(vertices)  # N x 2
+        adjacency_matrix = torch.zeros(len(vertices), len(vertices)).bool()
+        adjacency_matrix[edges] = True
+        self.adjacency_matrix = adjacency_matrix  # N x N
 
-        self.graph = graph
-        return graph
-    
-    def nearest_graph_node(self, pt: torch.Tensor):
-        return self.maps[
-            torch.argmin(((pt - self.all_nodes) ** 2).sum(1)).item()
-        ]
+        weights = (
+            (self.vertices.unsqueeze(0) - self.vertices.unsqueeze(1))
+            .pow(2)
+            .sum(-1)
+            .sqrt()
+        )
 
-#     def shortest_path_trajectory(
-#         self,
-#         start_pt: torch.Tensor,
-#         end_pt: torch.Tensor,
-#         vehicle
-#         ventity: Optional[VehicleEntity] = None,
-#     ):
-#         if ventity is None:
-#             start_node = self.nearest_graph_node(start_pt)
-#         else:
-#             # TODO: What to do in case of end points being closed
-#             nopt = np.inf
-#             for pt in self.roads[ventity.road].end_coordinates.values():
-#                 opt = torch.abs(ventity.vehicle.optimal_heading_to_point(pt))
-#                 if opt < nopt:
-#                     nopt = opt
-#                     start_node = self.maps[self.point_to_node[pt]]
-#         end_node = self.nearest_graph_node(end_pt)
-#         path = nx.astar_path(self.graph, start_node, end_node)
-#         if len(path) < 2:
-#             return path
-#         if ((self.node_to_point[path[-2]] - end_pt) ** 2).sum() < (
-#             (self.node_to_point[path[-2]] - self.node_to_point[path[-1]]) ** 2
-#         ).sum():
-#             return path[:-1]
-#         return path
-    
-    # Need a generic_sample function which uses triangulation to sample from
-    # an arbitrary polygon
+        nadj = ~self.adjacency_matrix
+        adj = self.adjacency_matrix
+        distances = weights * adj + 1e12 * nadj  # N x N
+        paths = torch.ones_like(self.adjacency_matrix).long() * -1
+        paths[edges] = torch.as_tensor(edges[1])
+
+        # Floyd Warshall's Shortest Path
+        for k in range(len(vertices)):
+            d1 = distances
+            d2 = distances[:, k : (k + 1)] + distances[k : (k + 1), :]
+            distances = torch.min(d1, d2)
+            paths = torch.where(d2 < d1, paths, paths[:, k : (k + 1)])
+
+        self.distances = distances
+        self.paths = paths
+
+    def nearest_graph_node(
+        self, pt: torch.Tensor, orientation: torch.Tensor  # N x 2  # N x 1
+    ):
+        pt = pt.unsqueeze(1)  # N x 1 x 2
+        rot_mat = get_2d_rotation_matrix(orientation)
+        transformed_coordinates = torch.bmm(
+            self.vertices.unsqueeze(0) - pt, rot_mat,
+        )  # N x B x 2
+        distances = (transformed_coordinates - pt).pow(2).sum(-1).sqrt()
+        return (
+            distances + ~(transformed_coordinates[:, :, 0] > 0) * 1e12
+        ).argmin(
+            -1
+        )  # N
+
+    def shortest_path_trajectory(
+        self,
+        start_pt: torch.Tensor,  # N x 2
+        end_pt: torch.Tensor,  # N x 2
+        orientation: torch.Tensor,  # N x 1
+    ):
+        nearest_start_nodes = self.nearest_graph_node(start_pt, orientation)
+        nearest_end_nodes = self.nearest_graph_node(
+            end_pt, orientation + math.pi
+        )
+        nodes = []
+        pts = []
+        same_size = True
+        for n in start_pt.size(0):
+            sn = nearest_start_nodes[n]
+            en = nearest_end_nodes[n]
+            nn = self.paths[sn, en]
+            nodes.append([nn])
+            node_points = [self.vertices[nn : (nn + 1), :]]
+            while not nn == en:
+                nn = self.paths[nn, en]
+                nodes[-1].append(nn)
+                node_points.append(self.vertices[nn : (nn + 1), :])
+            pts.append(torch.cat(node_points[-1]))
+            if len(pts) > 1 and same_size:
+                same_size = len(node_points) == pts[-2].size(0)
+            nodes[-1] = torch.cat(nodes[-1])
+        if same_size:
+            return (
+                torch.cat([pt.unsqueeze(0) for pt in pts]),
+                torch.cat([n.unsqueeze(0) for n in nodes]),
+            )
+        return pts, nodes
+
+    # Need a generic_sample function which uses triangulation
+    # to sample from an arbitrary polygon
     def sample(
         self,
         size: Union[Tuple[int], List[int], int] = 1,
@@ -351,9 +374,9 @@ class RoadNetwork:
             road = random.choice(roads)
             samples.append((road.name, road.sample(1, x_bound, y_bound)[0]))
         return samples
-    
+
     def render(self, ax):
         for p1, p2 in zip(self.pt1, self.pt2):
             p1 = p1.detach().cpu().numpy()
             p2 = p2.detach().cpu().numpy()
-            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color='r')
+            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="r")

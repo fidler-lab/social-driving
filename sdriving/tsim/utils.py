@@ -154,9 +154,9 @@ def distance_from_point_direction(
     pt1 = pt1.unsqueeze(0)  # 1 x N x 2
     pt2 = pt2.unsqueeze(0)  # 1 x N x 2
     theta = theta.view(-1, 1)  # T x 1
-    dir1 = torch.cat(
-        [-torch.sin(theta), torch.cos(theta)], dim=1
-    ).unsqueeze(0)  # 1 x T x 2
+    dir1 = torch.cat([-torch.sin(theta), torch.cos(theta)], dim=1).unsqueeze(
+        0
+    )  # 1 x T x 2
 
     num = torch.cat(
         [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]], dim=1
@@ -167,11 +167,15 @@ def distance_from_point_direction(
     ndir = (num * dir2).sum(2, keepdim=True).permute(0, 2, 1)  # B x 1 x N
     vdir = torch.bmm(dir1, dir2.permute(0, 2, 1))  # 1 x T x N
     distances = ndir / (vdir + 1e-7)  # B x T x N
-    
+
     dir2 = dir2.permute(0, 2, 1)  # 1 x 2 x N
     pt2 = pt2.permute(0, 2, 1)  # 1 x 2 x N
-    t1 = (point[:, :, 0:1] + distances * dir1[:, :, 1:2] - pt2[:, 0:1, :]) / dir2[:, 1:2, :]
-    t2 = (point[:, :, 1:2] + distances * dir1[:, :, 0:1] - pt2[:, 1:2, :]) / dir2[:, :, 1:2]
+    t1 = (
+        point[:, :, 0:1] + distances * dir1[:, :, 1:2] - pt2[:, 0:1, :]
+    ) / dir2[:, 1:2, :]
+    t2 = (
+        point[:, :, 1:2] + distances * dir1[:, :, 0:1] - pt2[:, 1:2, :]
+    ) / dir2[:, :, 1:2]
 
     return torch.min(
         torch.where(
@@ -183,16 +187,18 @@ def distance_from_point_direction(
             torch.as_tensor(np.inf).type_as(distances),
         ),
         dim=2,
-    )[0]  # B x T
+    )[
+        0
+    ]  # B x T
 
 
 @torch.jit.script
 def generate_lidar_data(
     point: torch.Tensor,  # B x 2
     theta: torch.Tensor,  # B x 1
-    pt1: torch.Tensor,    # N x 2
-    pt2: torch.Tensor,    # N x 2
-    npoints: int,         # T
+    pt1: torch.Tensor,  # N x 2
+    pt2: torch.Tensor,  # N x 2
+    npoints: int,  # T
     min_range: float = 2.5,
     max_range: float = 50.0,
 ) -> torch.Tensor:  # B x T
@@ -205,7 +211,9 @@ def generate_lidar_data(
                 2 * math.pi * (1 - 1 / npoints),
                 npoints,
                 device=theta.device,
-            ).unsqueeze(0)  # B x T
+            ).unsqueeze(
+                0
+            )  # B x T
         ),
         pt1,
         pt2,
