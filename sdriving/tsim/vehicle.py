@@ -26,7 +26,7 @@ class _BatchedVehicle(torch.nn.Module):
         dest_orientation: torch.Tensor,  # N x 1
         dimensions: torch.Tensor = torch.as_tensor([[4.48, 2.2]]),  # N x 2
         initial_speed: torch.Tensor = torch.zeros(1, 1),  # N x 1
-        name: List[str] = ["car"],  # N
+        name: str = "car",
         min_lidar_range: float = 2.5,
         max_lidar_range: float = 50.0,
         vision_range: float = 50.0,
@@ -178,7 +178,7 @@ class _Vehicle(_BatchedVehicle):
             dest_orientation.unsqueeze(0),
             dimensions.unsqueeze(0),
             initial_speed.unsqueeze(0),
-            [name],
+            name,
             min_lidar_range,
             max_lidar_range,
             vision_range,

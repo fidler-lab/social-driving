@@ -27,7 +27,7 @@ class GrayArea:
         self.center = torch.zeros(0, 2)
         self.device = torch.device("cpu")
 
-    def to(self, device):
+    def to(self, device: torch.device):
         if device == self.device:
             return
         self.device = device
@@ -159,10 +159,10 @@ class RoadNetwork:
         self.centers = torch.zeros(0, 2)
         self.graph = None
 
-        self.roads = OrderedDict()
-        self.gareas = OrderedDict()
-        self.name_to_center_idx = OrderedDict()
-        self.name_to_edges_idx = OrderedDict()
+        self.roads = dict()
+        self.gareas = dict()
+        self.name_to_center_idx = dict()
+        self.name_to_edges_idx = dict()
         self.c_components = -1
         self.e_components = -1
 
@@ -268,8 +268,8 @@ class RoadNetwork:
                 point_to_node[end] = count
                 count += 1
             for p1, p2 in combinations(list(road.end_coordinates.values()), 2):
-                p1n = self.point_to_node[p1]
-                p2n = self.point_to_node[p2]
+                p1n = point_to_node[p1]
+                p2n = point_to_node[p2]
                 edges[0].extend([p1n, p2n])
                 edges[1].extend([p2n, p1n])
 
@@ -278,27 +278,26 @@ class RoadNetwork:
             for r, end in zip(ga.roads, ga.rends):
                 pt.append(self.roads[r].end_coordinates[end])
             for p1, p2 in combinations(pt, 2):
-                p1n = self.point_to_node[p1]
-                p2n = self.point_to_node[p2]
+                p1n = point_to_node[p1]
+                p2n = point_to_node[p2]
                 edges[0].extend([p1n, p2n])
                 edges[1].extend([p2n, p1n])
 
-        self.vertices = torch.cat(vertices)  # N x 2
+        vertices = torch.cat(vertices)  # N x 2
         adjacency_matrix = torch.zeros(len(vertices), len(vertices)).bool()
         adjacency_matrix[edges] = True
-        self.adjacency_matrix = adjacency_matrix  # N x N
 
         weights = (
-            (self.vertices.unsqueeze(0) - self.vertices.unsqueeze(1))
+            (vertices.unsqueeze(0) - vertices.unsqueeze(1))
             .pow(2)
             .sum(-1)
             .sqrt()
         )
 
-        nadj = ~self.adjacency_matrix
-        adj = self.adjacency_matrix
+        nadj = ~adjacency_matrix
+        adj = adjacency_matrix
         distances = weights * adj + 1e12 * nadj  # N x N
-        paths = torch.ones_like(self.adjacency_matrix).long() * -1
+        paths = torch.ones_like(adjacency_matrix).long() * -1
         paths[edges] = torch.as_tensor(edges[1])
 
         # Floyd Warshall's Shortest Path
@@ -308,14 +307,19 @@ class RoadNetwork:
             distances = torch.min(d1, d2)
             paths = torch.where(d2 < d1, paths, paths[:, k : (k + 1)])
 
+        self.vertices = vertices
         self.distances = distances
         self.paths = paths
+        self.adjacency_matrix = adjacency_matrix  # N x N
+        self.point_to_node = point_to_node
 
     def nearest_graph_node(
         self, pt: torch.Tensor, orientation: torch.Tensor  # N x 2  # N x 1
     ):
         pt = pt.unsqueeze(1)  # N x 1 x 2
         rot_mat = get_2d_rotation_matrix(orientation)
+        if orientation.numel() == 1:
+            rot_mat = rot_mat.unsqueeze(0)
         transformed_coordinates = torch.bmm(
             self.vertices.unsqueeze(0) - pt, rot_mat,
         )  # N x B x 2
