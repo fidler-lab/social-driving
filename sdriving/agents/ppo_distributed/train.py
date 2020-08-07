@@ -9,7 +9,7 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.envs import REGISTRY as ENV_REGISTRY
+from sdriving.environments import REGISTRY as ENV_REGISTRY
 from sdriving.agents.ppo_distributed.ppo import (
     PPO_Distributed_Centralized_Critic,
 )

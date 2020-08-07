@@ -168,6 +168,7 @@ class PPOGaussianActor(PPOActor):
         return logp.view(-1)
 
 
+# Not Updated
 class PPOWaypointGaussianActor(PPOGaussianActor):
     def __init__(
         self,
@@ -222,28 +223,24 @@ class PPOLidarGaussianActor(PPOGaussianActor):
             nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
             nn.AdaptiveAvgPool1d(feature_dim),
         )
-        self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
+        self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
         self.history_len = history_len
 
-    def _get_mu_std(
-        self,
-        obs: Union[Tuple[torch.Tensor], List[torch.Tensor]],
-        std: bool = True,
-    ):
-        bsize = obs[0].size(0) if obs[0].ndim > 1 else 1
+    def _get_mu_std(self, obs: Tuple[torch.Tensor], std: bool = True):
+        state_vec, lidar_vec = obs
+        bsize = 1 if lidar_vec.ndim == 2 else lidar_vec.size(1)
+        nagents = lidar_vec.size(0)
+        state_vec = state_vec.view(-1, state_vec.size(-1))
+        lidar_vec = lidar_vec.view(-1, lidar_vec.size(-1))
         features = self.lidar_features(
-            obs[1].view(bsize, self.history_len, -1)
-        ).view(bsize, -1)
-        if obs[1].ndim == 1:
-            features = features.view(-1)
+            lidar_vec.view(bsize * nagents, self.history_len, -1)
+        ).squeeze(1)
 
-        out = self.net(torch.cat([obs[0], features], dim=-1))
-
+        vec = self.net(torch.cat([state_vec, features], dim=-1))
         if std:
             return (
-                self.mu_layer(out),
-                torch.exp(torch.clamp(self.log_std, -2.0, 20.0)),
+                self.mu_layer(vec),
+                torch.exp(torch.clamp(self.log_std_layer(vec), -2.0, 20.0)),
             )
-            return mu, std
         else:
-            return self.mu_layer(out)
+            return self.mu_layer(vec)

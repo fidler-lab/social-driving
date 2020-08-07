@@ -156,10 +156,13 @@ def distance_from_point_direction(
     pt1 = pt1.unsqueeze(0)  # 1 x N x 2
     pt2 = pt2.unsqueeze(0)  # 1 x N x 2
     theta = theta.view(point.size(0), -1, 1)  # B x T x 1
-    dir1 = torch.cat([-torch.sin(theta), torch.cos(theta)], dim=-1) # B x T x 2
+    dir1 = torch.cat(
+        [-torch.sin(theta), torch.cos(theta)], dim=-1
+    )  # B x T x 2
 
     num = torch.cat(
-        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]], dim=-1
+        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]],
+        dim=-1,
     )  # B x N x 2
 
     dir2 = pt1 - pt2  # 1 x N x 2

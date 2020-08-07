@@ -51,32 +51,28 @@ class PPOLidarCentralizedCritic(nn.Module):
         self.history_len = history_len
         self.nagents = nagents
 
-    def forward(
-        self, obs_list: List[Union[Tuple[torch.Tensor], List[torch.Tensor]]]
-    ):
-        assert len(obs_list) == self.nagents
+    def forward(self, obs: Tuple[torch.Tensor]):
+        state_vec, lidar_vec = obs
+        state_vec = state_vec.view(-1, state_vec.size(-1))
+        bsize, no_batch = (
+            (1, True) if lidar_vec.ndim == 2 else (lidar_vec.size(1), False)
+        )
+        nagents = lidar_vec.size(0)
 
-        state_vec, lidar_vec = [], []
-        for o, l in obs_list:
-            state_vec.append(o)
-            lidar_vec.append(l)
-        state_vec = torch.cat(state_vec, dim=-1)
-        lidar_vec = torch.cat(lidar_vec, dim=0)
+        lidar_vec = lidar_vec.view(bsize * nagents, -1).view(
+            bsize * nagents, self.history_len, -1
+        )
 
-        bsize = state_vec.size(0) if state_vec.ndim > 1 else 1
+        feature_vec = self.lidar_features(lidar_vec).squeeze(1)
 
-        lidar_vec = lidar_vec.view(bsize * self.nagents, self.history_len, -1)
-        features = (
-            self.lidar_features(lidar_vec)
-            .view(self.nagents, bsize, -1)
+        val_est = (
+            torch.cat([state_vec, feature_vec], dim=-1)
+            .view(nagents, bsize, val_est.size(-1))
             .permute(1, 0, 2)
-            .reshape(bsize, -1)
         )
-        if state_vec.ndim == 1:
-            features = features.view(-1)
-        return torch.squeeze(
-            self.v_net(torch.cat([state_vec, features], dim=-1)), -1
-        )
+        val_est = torch.squeeze(self.v_net(val_est), -1)
+
+        return val_est.repeat(nagents)
 
 
 class PPOWaypointPermutationInvariantCentralizedCritic(nn.Module):
@@ -145,4 +141,4 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
         val_est = val_est.view(nagents, bsize, val_est.size(-1)).mean(0)
         val_est = torch.squeeze(self.v_net(val_est), -1)
 
-        return val_est
+        return val_est.repeat(nagents)

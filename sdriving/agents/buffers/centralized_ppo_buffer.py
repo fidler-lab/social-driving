@@ -31,9 +31,6 @@ class CentralizedPPOBuffer:
         nagents: int = 1,
         device=torch.device("cpu"),
     ):
-        self.agent_list = [f"agent_{i}" for i in range(nagents)]
-        self.agent_list_to_batch = {f"agent_{i}": i for i in range(nagents)}
-
         func = lambda x: allocate_zeros_tensor(
             combined_shape(size, x, batch=nagents), device
         )
@@ -59,10 +56,9 @@ class CentralizedPPOBuffer:
         self.ptr = [0 for _ in range(nagents)]
         self.path_start_idx = [0 for _ in range(nagents)]
 
-    def store(self, a_id: str, obs, lidar, act, rew, val, logp):
+    def store(self, b: int, obs, lidar, act, rew, val, logp):
         """Append one timestep of agent-environment interaction to the
         buffer."""
-        b = self.agent_list_to_batch[a_id]
         idx = self.ptr[b]
         assert idx < self.max_size
 
@@ -76,25 +72,17 @@ class CentralizedPPOBuffer:
         self.logp_buf[b, idx] = logp
         self.ptr[b] = idx + 1
 
-    def finish_path(
-        self, last_val: Optional[Union[dict, int, torch.Tensor]] = None
-    ):
-        if last_val is None:
-            last_val = {a_id: 0 for a_id in self.agent_list}
-        if isinstance(last_val, (int, torch.Tensor)):
-            last_val = [last_val] * len(self.agent_list)
-
-        for a_id in self.agent_list:
-            b = self.agent_list_to_batch[a_id]
+    def finish_path(self, last_val: torch.Tensor):
+        last_val = last_val.unsqueeze(1)
+        for b in range(self.nagents):
             path_slice = slice(self.path_start_idx[b], self.ptr[b])
             rews = torch.cat([self.rew_buf[b, path_slice], last_val[b]])
             vals = torch.cat([self.val_buf[b, path_slice], last_val[b]])
 
             # the next two lines implement GAE-Lambda advantage calculation
             deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-            self.adv_buf[b, path_slice] = discount_cumsum(
-                deltas, self.gamma * self.lam
-            )
+            dc = discount_cumsum(deltas, self.gamma * self.lam)
+            self.adv_buf[b, path_slice] = dc
 
             # the next line computes rewards-to-go,
             # to be targets for the value function
@@ -110,13 +98,13 @@ class CentralizedPPOBuffer:
         zero and std one).
         Also, resets some pointers in the buffer.
         """
-        for a_id in self.agent_list:
-            b = self.agent_list_to_batch[a_id]
+        for b in range(self.nagents):
             self.ptr[b], self.path_start_idx[b] = 0, 0
 
             # the next two lines implement the advantage normalization trick
             adv_mean, adv_std = hvd_scalar_statistics(self.adv_buf[b])
             self.adv_buf[b] = (self.adv_buf[b] - adv_mean) / (adv_std + 1e-7)
+        # The entire buffer will most likely not be filled
         return BufferReturn(
             obs=self.state_buf,
             lidar=self.lidar_buf,

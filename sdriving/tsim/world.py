@@ -90,22 +90,23 @@ class World:
 
         p3, p4 = p3.view(-1, 2), p4.view(-1, 2)
         return (
-            check_intersection_lines(p1, p2, p3, p4) # (B x 4) x N
+            check_intersection_lines(p1, p2, p3, p4)  # (B x 4) x N
             .any(-1)
             .view(-1, 4)
             .any(-1)
         )
-    
+
     def get_all_vehicle_state(self):
         states = [v.get_state() for v in self.vehicles.values()]
         return torch.cat(states)
-    
+
     def get_vehicle_state(self, vname: str):
         return self.vehicles[vname].get_state()
-    
+
     def get_lidar_data_all_vehicles(self, npoints: int):
-        return torch.cat([self.get_lidar_data(v, npoints)
-                          for v in self.vehicles])
+        return torch.cat(
+            [self.get_lidar_data(v, npoints) for v in self.vehicles]
+        )
 
     def get_lidar_data(self, vname: str, npoints: int):
         return self.get_lidar_data_from_state(
@@ -258,12 +259,16 @@ class World:
 
         if wait:
             return
-        
+
         pos = vehicle.position
-        tar = torch.cat([
-            self.trajectory_points[vname][i:(i + 1), self.current_positions[vname][i], :]
-            for i in range(new_state.size(0))
-        ])
+        tar = torch.cat(
+            [
+                self.trajectory_points[vname][
+                    i : (i + 1), self.current_positions[vname][i], :
+                ]
+                for i in range(new_state.size(0))
+            ]
+        )
         head = vehicle.optimal_heading_to_point(tar)
 
         crossed = torch.abs(head) > math.pi / 2
@@ -273,20 +278,14 @@ class World:
         for b in range(new_state.size(0)):
             node = nodes[b, cp[b]]
             ts = self.traffic_signals_in_path[vname + str(b)]
-            if (
-                crossed[b]
-                and len(ts) != 0
-                and (ts[0][-1] == node).all()
-            ):
+            if crossed[b] and len(ts) != 0 and (ts[0][-1] == node).all():
                 ts.popleft()
         self.current_positions[vname] = torch.clamp(
-            cp + crossed[:, 0],
-            max=self.trajectory_points[vname].size(1) - 1
+            cp + crossed[:, 0], max=self.trajectory_points[vname].size(1) - 1
         )
-                
+
     def get_all_traffic_signal(self):
-        return torch.cat([self.get_traffic_signal(n)
-                          for n in self.vehicles])
+        return torch.cat([self.get_traffic_signal(n) for n in self.vehicles])
 
     def get_traffic_signal(self, vname: str):
         vehicle = self.vehicles[vname]
@@ -296,7 +295,7 @@ class World:
 
         locations = torch.cat(
             [
-                ts[n][0][0][1].unsqueeze(0)
+                ts[n][0][0][1].unsqueeze(0).to(self.device)
                 if len(ts[n]) > 0
                 else torch.ones(1, 2).type_as(p) * 1e12
                 for n in names
@@ -325,7 +324,7 @@ class World:
         self.fig = None
         self.ax = None
         self.cam = None
-            
+
     def _render_background(self, ax):
         self.road_network.render(ax)
 
@@ -335,16 +334,12 @@ class World:
                     pt.cpu().numpy(), 1.0, color=signal.get_color(), fill=True
                 )
             )
-            
+
     def _render_vehicle(self, v, ax):
         render_vehicle(v, ax, color="blue")
-    
+
     def render(
-        self,
-        pts=None,
-        path=None,
-        lims=None,
-        render_lidar=False,
+        self, pts=None, path=None, lims=None, render_lidar=False,
     ):
         if path is not None:
             ani = self.cam.animate(blit=True, interval=80)

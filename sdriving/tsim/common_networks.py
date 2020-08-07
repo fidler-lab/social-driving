@@ -24,9 +24,13 @@ def generate_nway_intersection_block(
 
     base_angle = 2 * math.pi / n
     dist = (length + road_width / math.tan(base_angle / 2)) / 2
-    
-    orient = orientation + torch.arange(0, n).float().unsqueeze(1) * base_angle  # N x 1
-    center = center + dist * torch.cat([torch.cos(orient), torch.sin(orient)], dim=-1)
+
+    orient = (
+        orientation + torch.arange(0, n).float().unsqueeze(1) * base_angle
+    )  # N x 1
+    center = center + dist * torch.cat(
+        [torch.cos(orient), torch.sin(orient)], dim=-1
+    )
 
     can_cross = [[True, False, not i, False] for i in closed]
     has_endpoints = [[True, False, i, False] for i in has_endpoints]
@@ -35,7 +39,7 @@ def generate_nway_intersection_block(
     roads = [
         Road(
             f"{name}_{i}",
-            center[i:(i + 1), :],
+            center[i : (i + 1), :],
             length,
             road_width,
             orient[i],

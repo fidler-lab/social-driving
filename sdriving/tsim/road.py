@@ -319,23 +319,21 @@ class RoadNetwork:
         self, pt: torch.Tensor, orientation: torch.Tensor  # N x 2  # N x 1
     ):
         pt = pt.unsqueeze(1)  # N x 1 x 2
-    
+
         vec = self.vertices.unsqueeze(0) - pt
         distances = vec.pow(2).sum(-1)
         vec = vec / (torch.norm(vec, dim=-1, keepdim=True) + 1e-7)  # N x B x 2
 
         cur_vec = torch.cat(
             [torch.cos(orientation), torch.sin(orientation)], dim=-1
-        ).unsqueeze(1)  # N x 1 x 2
+        ).unsqueeze(
+            1
+        )  # N x 1 x 2
         theta = angle_normalize(
             torch.acos((vec * cur_vec).sum(-1).clamp(-1.0 + 1e-5, 1.0 - 1e-5))
         )
 
-        return (
-            distances + (theta.abs() > math.pi / 2) * 1e12
-        ).argmin(
-            -1
-        )  # N
+        return (distances + (theta.abs() > math.pi / 2) * 1e12).argmin(-1)  # N
 
     def shortest_path_trajectory(
         self,
@@ -356,8 +354,10 @@ class RoadNetwork:
             en = nearest_end_nodes[n]
             nn = self.paths[sn, en]
             nodes.append([sn.unsqueeze(0), nn.unsqueeze(0)])
-            node_points = [self.vertices[sn : (sn + 1), :],
-                           self.vertices[nn : (nn + 1), :]]
+            node_points = [
+                self.vertices[sn : (sn + 1), :],
+                self.vertices[nn : (nn + 1), :],
+            ]
             while not nn == en:
                 nn = self.paths[nn, en]
                 nodes[-1].append(nn.unsqueeze(0))

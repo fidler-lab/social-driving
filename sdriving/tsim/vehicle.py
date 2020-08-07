@@ -132,8 +132,7 @@ class _BatchedVehicle(torch.nn.Module):
         vec = point - self.position
         vec = vec / (torch.norm(vec, dim=1, keepdim=True) + 1e-7)  # N x 2
         cur_vec = torch.cat(
-            [torch.cos(self.orientation), torch.sin(self.orientation)],
-            dim=-1
+            [torch.cos(self.orientation), torch.sin(self.orientation)], dim=-1
         )  # N x 2
         return angle_normalize(
             torch.acos(
@@ -212,7 +211,7 @@ def render_vehicle(
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
             [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
-            "g"
+            "g",
         )
 
         # Draw the destination if available

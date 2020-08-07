@@ -4,7 +4,7 @@ import sys
 # Environments using a single model for end-to-end prediction
 from sdriving.environments.base_env import BaseMultiAgentDrivingEnvironment
 from sdriving.environments.intersection import (
-    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
 
 REGISTRY = {}

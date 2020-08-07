@@ -58,19 +58,6 @@ class PPO_Distributed_Centralized_Critic:
         self.ac_params_file = os.path.join(log_dir, "ac_params.json")
         hparams = convert_json(locals())
 
-        self.env = env(**env_params)
-        self.ac_params = {k: v for k, v in ac_kwargs.items()}
-        self.ac_params.update(
-            {
-                "observation_space": self.env.observation_space,
-                "action_space": self.env.action_space,
-                "nagents": self.env.nagents,
-            }
-        )
-
-        self.entropy_coeff = entropy_coeff
-        self.entropy_coeff_decay = entropy_coeff / epochs
-
         if torch.cuda.is_available():
             # Horovod: pin GPU to local rank.
             dev_id = int(
@@ -85,6 +72,20 @@ class PPO_Distributed_Centralized_Critic:
             torch.cuda.manual_seed(seed)
         else:
             device = torch.device("cpu")
+
+        #         env_params.update({"device": device})
+        self.env = env(**env_params)
+        self.ac_params = {k: v for k, v in ac_kwargs.items()}
+        self.ac_params.update(
+            {
+                "observation_space": self.env.observation_space,
+                "action_space": self.env.action_space,
+                "nagents": self.env.nagents,
+            }
+        )
+
+        self.entropy_coeff = entropy_coeff
+        self.entropy_coeff_decay = entropy_coeff / epochs
 
         # Horovod: limit # of CPU threads to be used per worker.
         torch.set_num_threads(1)
@@ -202,12 +203,11 @@ class PPO_Distributed_Centralized_Critic:
             for k in ["obs", "lidar", "act", "adv", "logp", "vest", "ret"]
         ]
 
-        obs_list = []
         vest_old = vest.mean(0)
         ret = ret.mean(0)
 
         # Value Function Loss
-        value_est = self.ac.v((obs, lidar))
+        value_est = self.ac.v((obs, lidar)).view(obs.size(0), obs.size(1))
         value_est_clipped = vest_old + (value_est - vest_old).clamp(
             -clip_ratio, clip_ratio
         )
@@ -338,59 +338,50 @@ class PPO_Distributed_Centralized_Critic:
 
     def train(self):
         # Prepare for interaction with environment
-        start_time = time.time()
-
         for epoch in range(self.epochs):
+
+            start_time = time.time()
             self.episode_runner()
+            if hvd.rank() == 0:
+                print(f"Episode Run Time: {time.time() - start_time}")
 
             if (
                 (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
             ) and hvd.rank() == 0:
-
                 self.save_model(epoch)
 
+            start_time = time.time()
             self.update()
+            if hvd.rank() == 0:
+                print(f"PPO Update Time: {time.time() - start_time}")
 
     def episode_runner(self):
         env = self.env
 
         o, ep_ret, ep_len = env.reset(), 0, 0
+        rew_cache = torch.zeros(env.nagents, 1, device=self.device)
+        prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
         for t in range(self.local_steps_per_epoch):
-            obs, lidar, a, v, logp = [], [], {}, {}, {}
+            obs, lidar = o
+            actions, val_f, log_probs = self.ac.step(
+                [t.to(self.device) for t in o]
+            )
+            next_o, r, d, info = self.env.step(actions)
 
-            for s, l in o.values():
-                obs.append(s.unsqueeze(0))
-                lidar.append(l.unsqueeze(0))
-            obs = torch.cat(obs).to(self.device)
-            lidar = torch.cat(lidar).to(self.device)
-
-            actions, val_f, log_probs = self.ac.step((obs, lidar))
-            for i, k in enumerate(o.keys()):
-                a[k] = actions[i].cpu()  # FIXME
-                v[k] = val_f
-                logp[k] = log_probs[i]
-
-            next_o, r, d, info = self.env.step(a)
-
-            rlist = [
-                torch.as_tensor(rwd).detach().to(self.device)
-                for _, rwd in r.items()
-            ]
-            ret, rlen = sum(rlist).cpu(), len(rlist)
-            ep_ret += ret / rlen
+            ep_ret += r.mean()
             ep_len += 1
 
-            done = d["__all__"]
+            done = d.all()
 
-            for key, obs in o.items():
+            for b in range(env.nagents):
                 self.buf.store(
-                    key,
-                    obs[0],
-                    obs[1],
-                    a[key].to(self.device),
-                    r[key],
-                    v[key],
-                    logp[key],
+                    b,
+                    obs[b],
+                    lidar[b],
+                    actions[b],
+                    r[b],
+                    val_f[b],
+                    log_probs[b],
                 )
 
             o = next_o
@@ -401,16 +392,9 @@ class PPO_Distributed_Centralized_Critic:
 
             if terminal or epoch_ended:
                 if epoch_ended and not terminal:
-                    obs, lidar = [], []
-                    for s, l in o.values():
-                        obs.append(s.unsqueeze(0))
-                        lidar.append(l.unsqueeze(0))
-                    obs = torch.cat(obs).to(self.device)
-                    lidar = torch.cat(lidar).to(self.device)
-
-                    _, v, _ = self.ac.step((obs, lidar))
+                    _, v, _ = self.ac.step([t.to(self.device) for t in o])
                 else:
-                    v = torch.zeros(1, device=self.device)
+                    v = torch.zeros(env.nagents, device=self.device)
                 self.buf.finish_path(v)
 
                 if terminal:
