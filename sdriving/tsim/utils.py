@@ -35,8 +35,10 @@ def get_2d_rotation_matrix(theta: torch.Tensor) -> torch.Tensor:
         row2 = torch.cat([-stheta, ctheta], dim=-1)
         return torch.cat([row1, row2], dim=0)
     else:
-        ctheta = torch.cos(theta).unsqueeze(1).unsqueeze(1)
-        stheta = torch.sin(theta).unsqueeze(1).unsqueeze(1)
+        while theta.ndim < 3:
+            theta = theta.unsqueeze(-1)
+        ctheta = torch.cos(theta)
+        stheta = torch.sin(theta)
         row1 = torch.cat([ctheta, stheta], dim=-1)
         row2 = torch.cat([-stheta, ctheta], dim=-1)
         return torch.cat([row1, row2], dim=1)
@@ -144,7 +146,7 @@ def check_intersection_lines(
 @torch.jit.script
 def distance_from_point_direction(
     point: torch.Tensor,  # B x 2
-    theta: torch.Tensor,  # T x 1
+    theta: torch.Tensor,  # B x T
     pt1: torch.Tensor,  # N x 2
     pt2: torch.Tensor,  # N x 2
     min_range: float = 2.5,
@@ -153,29 +155,27 @@ def distance_from_point_direction(
     point = point.unsqueeze(1)  # B x 1 x 2
     pt1 = pt1.unsqueeze(0)  # 1 x N x 2
     pt2 = pt2.unsqueeze(0)  # 1 x N x 2
-    theta = theta.view(-1, 1)  # T x 1
-    dir1 = torch.cat([-torch.sin(theta), torch.cos(theta)], dim=1).unsqueeze(
-        0
-    )  # 1 x T x 2
+    theta = theta.view(point.size(0), -1, 1)  # B x T x 1
+    dir1 = torch.cat([-torch.sin(theta), torch.cos(theta)], dim=-1) # B x T x 2
 
     num = torch.cat(
-        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]], dim=1
+        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]], dim=-1
     )  # B x N x 2
 
     dir2 = pt1 - pt2  # 1 x N x 2
 
     ndir = (num * dir2).sum(2, keepdim=True).permute(0, 2, 1)  # B x 1 x N
-    vdir = torch.bmm(dir1, dir2.permute(0, 2, 1))  # 1 x T x N
+    dir2 = dir2.permute(0, 2, 1)  # 1 x 2 x N
+    vdir = torch.bmm(dir1, dir2.repeat(dir1.size(0), 1, 1))  # B x T x N
     distances = ndir / (vdir + 1e-7)  # B x T x N
 
-    dir2 = dir2.permute(0, 2, 1)  # 1 x 2 x N
     pt2 = pt2.permute(0, 2, 1)  # 1 x 2 x N
     t1 = (
         point[:, :, 0:1] + distances * dir1[:, :, 1:2] - pt2[:, 0:1, :]
     ) / dir2[:, 1:2, :]
     t2 = (
         point[:, :, 1:2] + distances * dir1[:, :, 0:1] - pt2[:, 1:2, :]
-    ) / dir2[:, :, 1:2]
+    ) / dir2[:, 0:1, :]
 
     return torch.min(
         torch.where(

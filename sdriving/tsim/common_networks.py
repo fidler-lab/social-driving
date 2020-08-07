@@ -27,7 +27,6 @@ def generate_nway_intersection_block(
     
     orient = orientation + torch.arange(0, n).float().unsqueeze(1) * base_angle  # N x 1
     center = center + dist * torch.cat([torch.cos(orient), torch.sin(orient)], dim=-1)
-    print(center)
 
     can_cross = [[True, False, not i, False] for i in closed]
     has_endpoints = [[True, False, i, False] for i in has_endpoints]
@@ -64,7 +63,7 @@ def generate_intersection_world_4signals(
     name: str = "intersection",
     center: torch.Tensor = torch.zeros(1, 2),
     orientation: torch.Tensor = torch.zeros(1),
-    has_endpoints: List[bool] = [True] * 4,
+    has_endpoints: List[bool] = [False] * 4,
     time_green: int = 100,
     ordering: int = 0,
 ) -> World:

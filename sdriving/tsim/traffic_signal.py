@@ -20,7 +20,7 @@ class TrafficSignal:
         self.name = name
 
         self.cur_light = start_signal
-        self.time_past = 0
+        self.time_past = torch.zeros(1)
         self.start_signal = start_signal
 
         self.colors = {
@@ -28,7 +28,7 @@ class TrafficSignal:
         }
 
     def reset(self):
-        self.time_past = 0
+        self.time_past = torch.zeros(1)
         self.cur_light = self.start_signal
 
     def update_lights(self, time: int = 1):

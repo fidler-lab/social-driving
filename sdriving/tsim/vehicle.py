@@ -24,10 +24,11 @@ class _BatchedVehicle(torch.nn.Module):
         orientation: torch.Tensor,  # N x 1
         destination: torch.Tensor,  # N x 2
         dest_orientation: torch.Tensor,  # N x 1
+        bool_buffer: torch.Tensor,  # (N x 4) x (N x 4)
         dimensions: torch.Tensor = torch.as_tensor([[4.48, 2.2]]),  # N x 2
         initial_speed: torch.Tensor = torch.zeros(1, 1),  # N x 1
         name: str = "car",
-        min_lidar_range: float = 2.5,
+        min_lidar_range: float = 5.0,
         max_lidar_range: float = 50.0,
         vision_range: float = 50.0,
     ):
@@ -41,7 +42,7 @@ class _BatchedVehicle(torch.nn.Module):
         self.dimensions = dimensions
 
         self.nbatch = self.position.size(0)
-        self.diag_bool_buffer = ~torch.diag(torch.ones(self.nbatch * 4)).bool()
+        self.bool_buffer = bool_buffer
 
         self.speed = initial_speed
         self.safety_circle = (
@@ -81,11 +82,12 @@ class _BatchedVehicle(torch.nn.Module):
     @torch.jit.export
     def _get_coordinates(self):
         self.cached_coordinates = True
-        return transform_2d_coordinates(
+        self.coordinates = transform_2d_coordinates(
             self.base_coordinates,
             self.orientation[:, 0],
             self.position[:, None, :],
         )
+        return self.coordinates
 
     @torch.jit.export
     def get_coordinates(self):
@@ -99,7 +101,7 @@ class _BatchedVehicle(torch.nn.Module):
     def get_edges(self):
         coordinates = self.get_coordinates()
         pt1 = coordinates
-        pt2 = torch.cat([coordinates[:, :, 1:], coordinates[:, :, 0:1]], dim=1)
+        pt2 = torch.cat([coordinates[:, 1:, :], coordinates[:, 0:1, :]], dim=1)
         return pt1, pt2  # N x 4 x 2, N x 4 x 2
 
     @torch.jit.export
@@ -128,9 +130,10 @@ class _BatchedVehicle(torch.nn.Module):
     @torch.jit.export
     def optimal_heading_to_point(self, point: torch.Tensor):
         vec = point - self.position
-        vec = vec / (torch.norm(vec, dim=1) + 1e-7)  # N x 2
+        vec = vec / (torch.norm(vec, dim=1, keepdim=True) + 1e-7)  # N x 2
         cur_vec = torch.cat(
-            [torch.cos(self.orientation), torch.sin(self.orientation)]
+            [torch.cos(self.orientation), torch.sin(self.orientation)],
+            dim=-1
         )  # N x 2
         return angle_normalize(
             torch.acos(
@@ -149,7 +152,7 @@ class _BatchedVehicle(torch.nn.Module):
         p1, p2 = self.get_edges()
         p1, p2 = p1.view(-1, 2), p2.view(-1, 2)
 
-        c = check_intersection_lines(p1, p2, p1, p2) * self.diag_bool_buffer
+        c = check_intersection_lines(p1, p2, p1, p2) * self.bool_buffer
         return c.view(self.nbatch, 4, -1).any(1).any(1)
 
 
@@ -202,17 +205,19 @@ def render_vehicle(
         box = obj.get_coordinates()[b, :, :].detach().cpu().numpy()
         lr = obj.max_lidar_range
 
-        arrow = np.array(
-            [pos, pos + dim / 2.0 * np.array([np.cos(h), np.sin(h)])]
-        )
+        arrow_head = pos + dim / 2.0 * np.array([np.cos(h), np.sin(h)])
 
         # Draw the vehicle and the heading
-        plt.fill(box[:, 0], box[:, 1], color, edgecolor="k", alpha=0.5)
-        plt.plot(arrow[:, 0], arrow[:, 1], "b")
+        ax.fill(box[:, 0], box[:, 1], color, edgecolor="k", alpha=0.5)
+        ax.plot(
+            [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
+            [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
+            "g"
+        )
 
         # Draw the destination if available
         dest = obj.destination[b, :].detach().cpu().numpy()
-        plt.plot(dest[0], dest[1], color, marker="x", markersize=5)
+        ax.plot(dest[0], dest[1], color, marker="x", markersize=5)
 
         # Draw the lidar sensor range
         if draw_lidar_range:

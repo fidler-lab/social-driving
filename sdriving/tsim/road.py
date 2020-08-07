@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 from sdriving.tsim.utils import (
+    angle_normalize,
     get_2d_rotation_matrix,
     transform_2d_coordinates,
     transform_2d_coordinates_rotation_matrix,
@@ -145,7 +146,7 @@ class Road:
         return transform_2d_coordinates_rotation_matrix(
             self.rand_uniform((size, 2), bounds * 0.5, bounds * -0.5,),
             self.rot_matrix,
-            self.offset,
+            self.center,
         ).to(self.device)
 
     def get_edges(self):
@@ -306,7 +307,7 @@ class RoadNetwork:
             d1 = distances
             d2 = distances[:, k : (k + 1)] + distances[k : (k + 1), :]
             distances = torch.min(d1, d2)
-            paths = torch.where(d2 < d1, paths, paths[:, k : (k + 1)])
+            paths = torch.where(d2 < d1, paths[:, k : (k + 1)], paths)
 
         self.vertices = vertices
         self.distances = distances
@@ -318,15 +319,20 @@ class RoadNetwork:
         self, pt: torch.Tensor, orientation: torch.Tensor  # N x 2  # N x 1
     ):
         pt = pt.unsqueeze(1)  # N x 1 x 2
-        rot_mat = get_2d_rotation_matrix(orientation)
-        if orientation.numel() == 1:
-            rot_mat = rot_mat.unsqueeze(0)
-        transformed_coordinates = torch.bmm(
-            self.vertices.unsqueeze(0) - pt, rot_mat,
-        )  # N x B x 2
-        distances = (transformed_coordinates - pt).pow(2).sum(-1).sqrt()
+    
+        vec = self.vertices.unsqueeze(0) - pt
+        distances = vec.pow(2).sum(-1)
+        vec = vec / (torch.norm(vec, dim=-1, keepdim=True) + 1e-7)  # N x B x 2
+
+        cur_vec = torch.cat(
+            [torch.cos(orientation), torch.sin(orientation)], dim=-1
+        ).unsqueeze(1)  # N x 1 x 2
+        theta = angle_normalize(
+            torch.acos((vec * cur_vec).sum(-1).clamp(-1.0 + 1e-5, 1.0 - 1e-5))
+        )
+
         return (
-            distances + ~(transformed_coordinates[:, :, 0] > 0) * 1e12
+            distances + (theta.abs() > math.pi / 2) * 1e12
         ).argmin(
             -1
         )  # N
@@ -336,25 +342,27 @@ class RoadNetwork:
         start_pt: torch.Tensor,  # N x 2
         end_pt: torch.Tensor,  # N x 2
         orientation: torch.Tensor,  # N x 1
+        dest_orientation: torch.Tensor,  # N x 1
     ):
         nearest_start_nodes = self.nearest_graph_node(start_pt, orientation)
         nearest_end_nodes = self.nearest_graph_node(
-            end_pt, orientation + math.pi
+            end_pt, dest_orientation + math.pi
         )
         nodes = []
         pts = []
         same_size = True
-        for n in start_pt.size(0):
+        for n in range(start_pt.size(0)):
             sn = nearest_start_nodes[n]
             en = nearest_end_nodes[n]
             nn = self.paths[sn, en]
-            nodes.append([nn])
-            node_points = [self.vertices[nn : (nn + 1), :]]
+            nodes.append([sn.unsqueeze(0), nn.unsqueeze(0)])
+            node_points = [self.vertices[sn : (sn + 1), :],
+                           self.vertices[nn : (nn + 1), :]]
             while not nn == en:
                 nn = self.paths[nn, en]
-                nodes[-1].append(nn)
+                nodes[-1].append(nn.unsqueeze(0))
                 node_points.append(self.vertices[nn : (nn + 1), :])
-            pts.append(torch.cat(node_points[-1]))
+            pts.append(torch.cat(node_points))
             if len(pts) > 1 and same_size:
                 same_size = len(node_points) == pts[-2].size(0)
             nodes[-1] = torch.cat(nodes[-1])
