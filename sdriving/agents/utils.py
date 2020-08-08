@@ -6,7 +6,6 @@ import scipy.signal
 import torch
 import torch.nn as nn
 import horovod.torch as hvd
-from spinup.utils.mpi_tools import mpi_avg, mpi_statistics_scalar, num_procs
 
 
 def find_free_port():
@@ -103,6 +102,17 @@ def hvd_scalar_statistics(x: torch.Tensor):
         hvd.allreduce((x - mean).pow(2).sum().cpu(), op=hvd.Sum) / N
     )
     return mean.to(dev), std.to(dev)
+
+
+def hvd_scalar_statistics_with_min_max(x: torch.Tensor):
+    dev = x.device
+    minimum = torch.min(
+        hvd.allgather(torch.min(x, dim=0, keepdim=True)[0].cpu())
+    )
+    maximum = torch.max(
+        hvd.allgather(torch.max(x, dim=0, keepdim=True)[0].cpu())
+    )
+    return [*hvd_scalar_statistics(x), minimum.to(dev), maximum.to(dev)]
 
 
 def hvd_average_grad(x: torch.nn.Module):

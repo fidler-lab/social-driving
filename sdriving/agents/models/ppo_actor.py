@@ -223,7 +223,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
             nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
             nn.AdaptiveAvgPool1d(feature_dim),
         )
-        self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
+        self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim)).unsqueeze(0)
         self.history_len = history_len
 
     def _get_mu_std(self, obs: Tuple[torch.Tensor], std: bool = True):
@@ -240,7 +240,9 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         if std:
             return (
                 self.mu_layer(vec),
-                torch.exp(torch.clamp(self.log_std_layer(vec), -2.0, 20.0)),
+                torch.exp(torch.clamp(self.log_std, -2.0, 20.0))
+                .repeat(vec.size(0), 1)
+                .type_as(vec),
             )
         else:
             return self.mu_layer(vec)

@@ -9,7 +9,7 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.envs import REGISTRY as ENV_REGISTRY
+from sdriving.environments import REGISTRY as ENV_REGISTRY
 from sdriving.scripts.ckpt_parser import checkpoint_parser
 
 if __name__ == "__main__":
@@ -21,7 +21,6 @@ if __name__ == "__main__":
     parser.add_argument("--env-kwargs", type=json.loads, default={})
     parser.add_argument("--dummy-run", action="store_true")
     parser.add_argument("--no-render", action="store_true")
-    parser.add_argument("--algo", default="PPO", type=str)
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
@@ -35,53 +34,40 @@ if __name__ == "__main__":
 
     os.makedirs(args.save_dir, exist_ok=True)
 
-    total_ret = 0.0
-    for ep in range(args.num_test_episodes):
-        o, done, ep_ret, ep_len = test_env.reset(), False, 0, 0
-        while not done:
-            # Take deterministic actions at test time
-            a = {}
-            for key, obs in o.items():
-                if isinstance(obs, tuple):
-                    obs = [t.to(device) for t in obs]
-                else:
-                    obs = obs.to(device)
-                o[key] = obs
+    with torch.no_grad():
+        total_ret = 0.0
+        for ep in range(args.num_test_episodes):
+            o, done, ep_ret, ep_len = test_env.reset(), False, 0, 0
+            while not done:
+                # Take deterministic actions at test time
                 if not args.dummy_run:
-                    a[key] = ac.act(obs, True).cpu()
-                else:
-                    a[key] = torch.as_tensor(
-                        14
-                    )  # test_env.action_space.sample())
+                    if isinstance(o, list) or isinstance(o, tuple):
+                        o = [obs.to(device) for obs in o]
+                    else:
+                        o = o.to(device)
+                    a = ac.act(o, True).cpu()
                 if args.verbose:
-                    print(
-                        f"Agent: {key} || Observation: {obs[0]} || Action: {a[key]}"
-                    )
-            o, r, d, _ = test_env.step(
-                a,
-                render=not args.no_render,
-                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
-            )
-            if isinstance(d, dict):
-                ep_ret += sum([rwd for _, rwd in r.items()])
+                    print(f"Action: {a}")
+                o, r, d, _ = test_env.step(
+                    a,
+                    render=not args.no_render,
+                    lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
+                )
+                ep_ret = ep_ret + r
                 ep_len += 1
-                done = d["__all__"]
+                done = d.all()
                 if args.verbose:
-                    print(f"Reward: {sum(r.values())}")
-            else:
-                done = d
-                if not r == 0:
-                    ep_ret += sum([rwd for _, rwd in r.items()])
-                    ep_len += 1
-        total_ret += ep_ret
+                    print(f"Reward: {r.mean()}")
+            ep_ret = ep_ret.mean()
+            total_ret += ep_ret.mean()
+            print(
+                f"Episode {ep} : Total Length: {ep_len} | Total Return: {ep_ret}"
+            )
+            if not args.no_render:
+                path = os.path.join(args.save_dir, f"test_{ep}.mp4")
+                test_env.render(path=path)
+                print(f"Episode saved at {path}")
         print(
-            f"Episode {ep} : Total Length: {ep_len} | Total Return: {ep_ret}"
+            f"Mean Return over {args.num_test_episodes} episodes: "
+            + f"{total_ret / args.num_test_episodes}"
         )
-        if not args.no_render:
-            path = os.path.join(args.save_dir, f"test_{ep}.mp4")
-            test_env.render(path=path)
-            print(f"Episode saved at {path}")
-    print(
-        f"Mean Return over {args.num_test_episodes} episodes: "
-        + f"{total_ret / args.num_test_episodes}"
-    )

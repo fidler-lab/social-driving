@@ -7,7 +7,8 @@ import torch
 from sdriving.tsim.utils import (
     angle_normalize,
     circle_area_overlap,
-    transform_2d_coordinates,
+    get_2d_rotation_matrix,
+    transform_2d_coordinates_rotation_matrix,
     check_intersection_lines,
 )
 
@@ -82,10 +83,11 @@ class _BatchedVehicle(torch.nn.Module):
     @torch.jit.export
     def _get_coordinates(self):
         self.cached_coordinates = True
-        self.coordinates = transform_2d_coordinates(
-            self.base_coordinates,
-            self.orientation[:, 0],
-            self.position[:, None, :],
+        rot_mat = get_2d_rotation_matrix(self.orientation[:, 0])
+        if rot_mat.ndim == 2:
+            rot_mat.unsqueeze_(0)
+        self.coordinates = transform_2d_coordinates_rotation_matrix(
+            self.base_coordinates, rot_mat, self.position[:, None, :],
         )
         return self.coordinates
 
@@ -236,3 +238,14 @@ def safety_circle_overlap(obj1: _BatchedVehicle, obj2: _BatchedVehicle):
     return circle_area_overlap(center1, center2, radius1, radius2).view(
         obj1.nbatch, obj2.nbatch
     )
+
+
+@torch.jit.export
+def intervehicle_collision_check(obj1: _BatchedVehicle, obj2: _BatchedVehicle):
+    p1, p2 = obj1.get_edges()
+    p1, p2 = p1.view(-1, 2), p2.view(-1, 2)
+    p3, p4 = obj2.get_edges()
+    p3, p4 = p3.view(-1, 2), p4.view(-1, 2)
+
+    c = check_intersection_lines(p1, p2, p3, p4)
+    return c.view(obj1.nbatch, 4, -1).any(1).any(1)

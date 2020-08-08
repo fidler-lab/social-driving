@@ -15,9 +15,7 @@ from sdriving.agents.utils import (
     hvd_scalar_statistics,
     hvd_average_grad,
 )
-from spinup.utils.logx import EpochLogger
-from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
-from spinup.utils.serialization_utils import convert_json
+from sdriving.logging import EpochLogger, convert_json
 from torch.optim import SGD, Adam
 import horovod.torch as hvd
 
@@ -46,17 +44,19 @@ class PPO_Distributed_Centralized_Critic:
         wandb_id: Optional[str] = None,
         **kwargs,
     ):
-        self.log_dir = os.path.join(log_dir, str(hvd.rank()))
-        os.makedirs(self.log_dir, exist_ok=True)
+        self.log_dir = log_dir
         self.render_dir = os.path.join(log_dir, "renders")
-        os.makedirs(self.render_dir, exist_ok=True)
         self.ckpt_dir = os.path.join(log_dir, "checkpoints")
-        os.makedirs(self.ckpt_dir, exist_ok=True)
+        if hvd.rank() == 0:
+            os.makedirs(self.log_dir, exist_ok=True)
+            os.makedirs(self.render_dir, exist_ok=True)
+            os.makedirs(self.ckpt_dir, exist_ok=True)
         self.softlink = os.path.abspath(
             os.path.join(self.ckpt_dir, f"ckpt_latest.pth")
         )
         self.ac_params_file = os.path.join(log_dir, "ac_params.json")
         hparams = convert_json(locals())
+        self.logger = EpochLogger(output_dir=self.log_dir, exp_name=wandb_id)
 
         if torch.cuda.is_available():
             # Horovod: pin GPU to local rank.
@@ -65,10 +65,6 @@ class PPO_Distributed_Centralized_Critic:
             )
             torch.cuda.set_device(dev_id)
             device = torch.device(f"cuda:{dev_id}")
-            print(
-                f"Rank: {hvd.rank()} | Local Rank: {hvd.local_rank()}"
-                f" | Using GPU {dev_id}"
-            )
             torch.cuda.manual_seed(seed)
         else:
             device = torch.device("cpu")
@@ -93,8 +89,7 @@ class PPO_Distributed_Centralized_Critic:
         torch.save(self.ac_params, self.ac_params_file)
 
         if os.path.isfile(self.softlink):
-            if hvd.rank() == 0:
-                print("Restarting from latest checkpoint")
+            self.logger.log("Restarting from latest checkpoint", color="red")
             load_path = self.softlink
 
         # Random seed
@@ -164,8 +159,10 @@ class PPO_Distributed_Centralized_Critic:
         var_counts = tuple(
             count_vars(module) for module in [self.ac.pi, self.ac.v]
         )
-        if hvd.rank() == 0:
-            print("\nNumber of parameters: \t pi: %d, \t v: %d\n" % var_counts)
+        self.logger.log(
+            "\nNumber of parameters: \t pi: %d, \t v: %d\n" % var_counts,
+            color="green",
+        )
 
         # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
@@ -263,30 +260,28 @@ class PPO_Distributed_Centralized_Critic:
 
             kl = hvd.allreduce(info["kl"], op=hvd.Sum)
             if kl > 1.5 * self.target_kl:
-                if hvd.rank() == 0:
-                    print(
-                        f"Early stopping at step {i} due to reaching max kl."
-                    )
+                self.logger.log(
+                    f"Early stopping at step {i} due to reaching max kl.",
+                    color="red",
+                )
                 break
             loss.backward()
             hvd_average_grad(self.ac)
 
             self.pi_optimizer.step()
             self.vf_optimizer.step()
+        self.logger.store(StopIter=i)
 
         # Log changes from update
         ent, cf = info["ent"], info["cf"]
-        if hvd.rank() == 0:
-            wandb.log(
-                {
-                    "Loss Actor": pi_l_old,
-                    "Loss Value Function": v_l_old,
-                    "KL Divergence": kl,
-                    "Entropy": ent,
-                    "Clip Factor": cf,
-                    "Value Estimate": v_est,
-                }
-            )
+        self.logger.store(
+            LossActor=pi_l_old,
+            LossCritic=v_l_old,
+            KL=kl,
+            Entropy=ent,
+            ClipFraction=cf,
+            ValueEstimate=v_est,
+        )
 
     def move_optimizer_to_device(self, opt):
         for state in opt.state.values():
@@ -325,16 +320,31 @@ class PPO_Distributed_Centralized_Critic:
             self.vf_optimizer = Adam(
                 trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
             )
-            print("The agent was trained with a different nagents")
+            self.logger.log("The agent was trained with a different nagents")
             if (
                 "permutation_invariant" in self.ac_params
                 and self.ac_params["permutation_invariant"]
             ):
                 self.ac.v.load_state_dict(ckpt["critic"])
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
-                print(
+                self.logger.log(
                     "Agent doesn't depend on nagents. So continuing finetuning"
                 )
+
+    def dump_tabular(self):
+        self.logger.log_tabular("Epoch", average_only=True)
+        self.logger.log_tabular("EpisodeReturn", with_min_and_max=True)
+        self.logger.log_tabular("EpisodeLength", average_only=True)
+        self.logger.log_tabular("Entropy", average_only=True)
+        self.logger.log_tabular("KL", average_only=True)
+        self.logger.log_tabular("ClipFraction", average_only=True)
+        self.logger.log_tabular("StopIter", average_only=True)
+        self.logger.log_tabular("ValueEstimate", average_only=True)
+        self.logger.log_tabular("LossActor", average_only=True)
+        self.logger.log_tabular("LossCritic", average_only=True)
+        self.logger.log_tabular("EpisodeRunTime", average_only=True)
+        self.logger.log_tabular("PPOUpdateTime", average_only=True)
+        self.logger.dump_tabular()
 
     def train(self):
         # Prepare for interaction with environment
@@ -342,9 +352,7 @@ class PPO_Distributed_Centralized_Critic:
 
             start_time = time.time()
             self.episode_runner()
-            if hvd.rank() == 0:
-                print(f"Episode Run Time: {time.time() - start_time}")
-
+            self.logger.store(EpisodeRunTime=time.time() - start_time)
             if (
                 (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
             ) and hvd.rank() == 0:
@@ -352,8 +360,10 @@ class PPO_Distributed_Centralized_Critic:
 
             start_time = time.time()
             self.update()
-            if hvd.rank() == 0:
-                print(f"PPO Update Time: {time.time() - start_time}")
+            self.logger.store(PPOUpdateTime=time.time() - start_time)
+            self.logger.store(Epoch=epoch)
+
+            self.dump_tabular()
 
     def episode_runner(self):
         env = self.env
@@ -398,11 +408,7 @@ class PPO_Distributed_Centralized_Critic:
                 self.buf.finish_path(v)
 
                 if terminal:
-                    if hvd.rank() == 0:
-                        wandb.log(
-                            {
-                                "Episode Return (Train)": ep_ret,
-                                "Episode Length (Train)": ep_len,
-                            }
-                        )
+                    self.logger.store(
+                        EpisodeReturn=ep_ret, EpisodeLength=ep_len
+                    )
                 o, ep_ret, ep_len = env.reset(), 0, 0

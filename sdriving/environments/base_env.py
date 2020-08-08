@@ -137,7 +137,7 @@ class BaseMultiAgentDrivingEnvironment:
             rew = self.get_reward(new_collision, action)
             accumulated_reward += rew
             self.collision_vector += new_collision
-            if self.collision_vector.all() or self.horizon < self.nsteps:
+            if self.collision_vector.all() or self.horizon <= self.nsteps:
                 break
             self.nsteps += 1
 
@@ -145,7 +145,7 @@ class BaseMultiAgentDrivingEnvironment:
 
         self.world.update_world_state(self.timesteps)
 
-        timeout = self.horizon < self.nsteps
+        timeout = self.horizon <= self.nsteps
 
         return (
             self.get_state(),

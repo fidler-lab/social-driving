@@ -5,6 +5,11 @@ import sys
 from sdriving.environments.base_env import BaseMultiAgentDrivingEnvironment
 from sdriving.environments.intersection import (
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
+    MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment,
+)
+from sdriving.environments.fixed_track import (
+    MultiAgentRoadIntersectionFixedTrackEnvironment,
+    MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment,
 )
 
 REGISTRY = {}

@@ -1,6 +1,7 @@
 import math
 import random
 from collections import deque
+from itertools import product
 
 import numpy as np
 import torch
@@ -13,6 +14,7 @@ from sdriving.tsim import (
     angle_normalize,
     BatchedVehicle,
     World,
+    intervehicle_collision_check,
 )
 
 
@@ -78,7 +80,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         )
 
     def get_action_space(self):
-        self.max_accln = 3.0
+        self.max_accln = 1.5
         self.max_steering = 0.1
         self.normalization_factor = torch.as_tensor(
             [self.max_steering, self.max_accln]
@@ -119,11 +121,8 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         a_ids = self.get_agent_ids_list()
 
         # Distance from destination
-        distances = (
-            torch.cat(
-                [self.agents[v].distance_from_destination() for v in a_ids]
-            )
-            / self.original_distances
+        distances = torch.cat(
+            [self.agents[v].distance_from_destination() for v in a_ids]
         )
 
         # Action Regularization
@@ -135,13 +134,22 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         else:
             smoothness = 0.0
 
-        # TODO: Goal Reach Bonus
-        # Let's try without this because it is a pretty redundant reward
+        # Goal Reach Bonus
+        reached_goal = distances <= self.width / 3
+        not_completed = ~self.completion_vector
+        goal_reach_bonus = (not_completed * reached_goal).float()
+        self.completion_vector = self.completion_vector + reached_goal
+
+        distances *= not_completed / self.original_distances
 
         # Collision
         penalty = (~self.collision_vector * new_collisions).float()
 
-        return -(distances + smoothness) / self.horizon - penalty
+        return (
+            -(distances + smoothness) / self.horizon
+            - penalty
+            + goal_reach_bonus
+        )
 
     def _sample_vehicle_on_road(self, srd: int, erd: int):
         sroad = self.world.road_network.roads[f"traffic_signal_world_{srd}"]
@@ -159,7 +167,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         str_pos = sroad.sample(x_bound=0.6, y_bound=0.6)
         if hasattr(self, "lane_side"):
             side = self.lane_side * np.sign(srd % 3 - 0.5)
-            spos[0, (srd + 1) % 2] = (
+            str_pos[0, (srd + 1) % 2] = (
                 side * (torch.rand(1) * 0.15 + 0.15) * self.width
             )
 
@@ -185,7 +193,11 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                 srd = (srd + 1) % 4
             else:
                 srd = np.random.choice([0, 1, 2, 3])
-            erd = (srd + 2) % 4
+
+            if self.nagents > 1:
+                erd = (srd + 2) % 4
+            else:
+                erd = (srd + np.random.choice([1, 2, 3])) % 4
             spos, epos, orient, dorient = self._sample_vehicle_on_road(
                 srd, erd
             )
@@ -196,7 +208,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
             destination_orientations.append(dorient)
 
             dimensions.append(torch.as_tensor([[4.48, 2.2]]))
-            initial_speeds.append(torch.zeros(1, 1))
+            initial_speeds.append(torch.rand(1, 1) * 8.0)
 
         positions = torch.cat(positions)
         destinations = torch.cat(destinations)
@@ -218,7 +230,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
 
         self.world.add_vehicle(vehicle)
         self.dynamics = BicycleKinematicsModel(
-            dim=dimensions[:, 0], v_lim=torch.ones(self.nagents) * 12.0
+            dim=dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
         )
         self.agents[vehicle.name] = vehicle
 
@@ -236,3 +248,29 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         self.queue2 = deque(maxlen=self.history_len)
 
         return super().reset()
+
+
+class MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment(
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
+):
+    def configure_action_space(self):
+        self.max_accln = 1.5
+        self.max_steering = 0.1
+        actions = list(
+            product(
+                torch.arange(
+                    -self.max_steering, self.max_steering + 0.01, 0.05
+                ),
+                torch.arange(-self.max_accln, self.max_accln + 0.01, 0.5),
+            )
+        )
+        self.action_list = torch.as_tensor(actions)
+
+    def get_action_space(self):
+        self.normalization_factor = torch.as_tensor(
+            [self.max_accln, self.max_steering]
+        )
+        return Discrete(self.action_list.size(0))
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        return self.action_list[action]

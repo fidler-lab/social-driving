@@ -156,29 +156,30 @@ def distance_from_point_direction(
     pt1 = pt1.unsqueeze(0)  # 1 x N x 2
     pt2 = pt2.unsqueeze(0)  # 1 x N x 2
     theta = theta.view(point.size(0), -1, 1)  # B x T x 1
-    dir1 = torch.cat(
+    tvec = torch.cat(
         [-torch.sin(theta), torch.cos(theta)], dim=-1
     )  # B x T x 2
 
-    num = torch.cat(
-        [point[..., 1:] - pt2[..., 1:], pt2[..., 0:1] - point[..., 0:1]],
-        dim=-1,
+    pt12 = (pt1 - pt2).repeat(point.size(0), 1, 1)  # B x N x 2
+    pt12_p = pt12.permute(0, 2, 1)  # B x 2 x N
+    deno = torch.bmm(tvec, pt12_p)  # B x T x N
+    nume1 = point - pt2
+    nume1 = torch.cat(
+        [nume1[:, :, 1:2], -nume1[:, :, 0:1]], dim=-1
     )  # B x N x 2
 
-    dir2 = pt1 - pt2  # 1 x N x 2
+    num = (nume1 * pt12).sum(-1).unsqueeze(1)  # B x 1 x N
 
-    ndir = (num * dir2).sum(2, keepdim=True).permute(0, 2, 1)  # B x 1 x N
-    dir2 = dir2.permute(0, 2, 1)  # 1 x 2 x N
-    vdir = torch.bmm(dir1, dir2.repeat(dir1.size(0), 1, 1))  # B x T x N
-    distances = ndir / (vdir + 1e-7)  # B x T x N
+    distances = num / deno  # B x T x N
 
-    pt2 = pt2.permute(0, 2, 1)  # 1 x 2 x N
+    pt2_p = pt2.permute(0, 2, 1)
+    # Checking both is needed due to numerical inaccuracies
     t1 = (
-        point[:, :, 0:1] + distances * dir1[:, :, 1:2] - pt2[:, 0:1, :]
-    ) / dir2[:, 1:2, :]
+        point[:, :, 0:1] + distances * tvec[:, :, 1:2] - pt2_p[:, 0:1, :]
+    ) / pt12_p[:, 0:1, :]
     t2 = (
-        point[:, :, 1:2] + distances * dir1[:, :, 0:1] - pt2[:, 1:2, :]
-    ) / dir2[:, 0:1, :]
+        point[:, :, 1:2] - distances * tvec[:, :, 0:1] - pt2_p[:, 1:2, :]
+    ) / pt12_p[:, 1:2, :]
 
     return torch.min(
         torch.where(

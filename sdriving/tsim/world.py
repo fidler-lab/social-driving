@@ -121,15 +121,13 @@ class World:
         p1.append(e1)
         p2.append(e2)
         for n, v in self.vehicles.items():
-            if n is vname:
-                continue
             e1, e2 = v.get_edges()
-            p1.append(e1)
-            p2.append(e2)
+            p1.append(e1.view(-1, 2))
+            p2.append(e2.view(-1, 2))
         vehicle = self.vehicles[vname]
         return generate_lidar_data(
             state[:, :2],  # B x 2
-            state[:, 2:3],  # B x 1
+            state[:, 3:4],  # B x 1
             torch.cat(p1),  # N x 2
             torch.cat(p2),  # N x 2
             npoints,
