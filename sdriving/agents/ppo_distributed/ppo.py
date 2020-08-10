@@ -195,16 +195,17 @@ class PPO_Distributed_Centralized_Critic:
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, lidar, act, adv, logp_old, vest, ret = [
-            getattr(data, k)
-            for k in ["obs", "lidar", "act", "adv", "logp", "vest", "ret"]
+        obs, lidar, act, adv, logp_old, vest, ret, mask = [
+            getattr(data, k) for k in [
+                "obs", "lidar", "act", "adv", "logp", "vest", "ret", "mask"
+            ]
         ]
 
         vest_old = vest.mean(0)
         ret = ret.mean(0)
 
         # Value Function Loss
-        value_est = self.ac.v((obs, lidar)).view(obs.size(0), obs.size(1))
+        value_est = self.ac.v((obs, lidar), mask).view(obs.size(0), obs.size(1))
         value_est_clipped = vest_old + (value_est - vest_old).clamp(
             -clip_ratio, clip_ratio
         )
@@ -217,7 +218,9 @@ class PPO_Distributed_Centralized_Critic:
         pi, _, logp = self.ac.pi((obs, lidar), act)
         ratio = torch.exp((logp - logp_old).clamp(-20.0, 2.0))  # N x B
         clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
-        loss_pi = -(torch.min(ratio * adv, clip_adv)).mean()
+        loss_pi = torch.min(ratio * adv, clip_adv)
+        print
+        loss_pi = -(loss_pi * mask).sum() / mask.sum()
 
         # Entropy Loss
         ent = pi.entropy().mean()
@@ -258,18 +261,18 @@ class PPO_Distributed_Centralized_Critic:
 
             loss, info = self.compute_loss(data)
 
-            kl = hvd.allreduce(info["kl"], op=hvd.Sum)
+            kl = hvd.allreduce(info["kl"], op=hvd.Average)
+            loss.backward()
+            hvd_average_grad(self.ac)
+            self.vf_optimizer.step()
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
                     f"Early stopping at step {i} due to reaching max kl.",
                     color="red",
                 )
                 break
-            loss.backward()
-            hvd_average_grad(self.ac)
 
             self.pi_optimizer.step()
-            self.vf_optimizer.step()
         self.logger.store(StopIter=i)
 
         # Log changes from update
@@ -384,6 +387,8 @@ class PPO_Distributed_Centralized_Critic:
             done = d.all()
 
             for b in range(env.nagents):
+                if prev_done[b]:
+                    continue
                 self.buf.store(
                     b,
                     obs[b],
@@ -395,6 +400,7 @@ class PPO_Distributed_Centralized_Critic:
                 )
 
             o = next_o
+            prev_done = d
 
             timeout = info["timeout"] if "timeout" in info else done
             terminal = done or timeout

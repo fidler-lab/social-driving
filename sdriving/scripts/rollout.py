@@ -47,7 +47,7 @@ if __name__ == "__main__":
                         o = o.to(device)
                     a = ac.act(o, True).cpu()
                 if args.verbose:
-                    print(f"Action: {a}")
+                    print(f"Observation: {o[0]} || Action: {a}")
                 o, r, d, _ = test_env.step(
                     a,
                     render=not args.no_render,

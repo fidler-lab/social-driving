@@ -136,7 +136,6 @@ class BaseMultiAgentDrivingEnvironment:
 
             rew = self.get_reward(new_collision, action)
             accumulated_reward += rew
-            self.collision_vector += new_collision
             if self.collision_vector.all() or self.horizon <= self.nsteps:
                 break
             self.nsteps += 1

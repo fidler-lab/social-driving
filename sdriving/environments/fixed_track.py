@@ -29,7 +29,7 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
 
     def get_action_space(self):
         self.max_accln = 1.5
-        self.normalization_factor = torch.as_tensor([self.max_accln, 1.0])
+        self.normalization_factor = torch.as_tensor([1.0, self.max_accln])
         return Box(
             low=np.array([-self.max_accln]), high=np.array([self.max_accln]),
         )
@@ -44,14 +44,14 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment(
     def configure_action_space(self):
         self.max_accln = 1.5
         self.action_list = torch.arange(
-            -self.max_accln, self.max_accln, step=0.25
+            -self.max_accln, self.max_accln + 0.05, step=0.25
         ).unsqueeze(1)
         self.action_list = torch.cat(
             [torch.zeros_like(self.action_list), self.action_list], dim=-1
         )
 
     def get_action_space(self):
-        self.normalization_factor = torch.as_tensor([self.max_accln, 1.0])
+        self.normalization_factor = torch.as_tensor([1.0, self.max_accln])
         return Discrete(self.action_list.size(0))
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):

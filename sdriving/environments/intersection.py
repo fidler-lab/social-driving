@@ -143,10 +143,12 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         distances *= not_completed / self.original_distances
 
         # Collision
-        penalty = (~self.collision_vector * new_collisions).float()
+        new_collisions = ~self.collision_vector * new_collisions
+        penalty = new_collisions.float() + new_collisions * distances * (self.horizon - self.nsteps - 1) / self.horizon
+        self.collision_vector += new_collisions
 
         return (
-            -(distances + smoothness) / self.horizon
+            -(distances + smoothness) * (~self.collision_vector) / self.horizon
             - penalty
             + goal_reach_bonus
         )
@@ -208,7 +210,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
             destination_orientations.append(dorient)
 
             dimensions.append(torch.as_tensor([[4.48, 2.2]]))
-            initial_speeds.append(torch.rand(1, 1) * 8.0)
+            initial_speeds.append(torch.zeros(1, 1))
 
         positions = torch.cat(positions)
         destinations = torch.cat(destinations)
@@ -261,14 +263,14 @@ class MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment(
                 torch.arange(
                     -self.max_steering, self.max_steering + 0.01, 0.05
                 ),
-                torch.arange(-self.max_accln, self.max_accln + 0.01, 0.5),
+                torch.arange(-self.max_accln, self.max_accln + 0.05, 0.5),
             )
         )
         self.action_list = torch.as_tensor(actions)
 
     def get_action_space(self):
         self.normalization_factor = torch.as_tensor(
-            [self.max_accln, self.max_steering]
+            [self.max_steering, self.max_accln]
         )
         return Discrete(self.action_list.size(0))
 

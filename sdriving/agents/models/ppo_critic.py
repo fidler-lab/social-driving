@@ -67,7 +67,7 @@ class PPOLidarCentralizedCritic(nn.Module):
 
         val_est = (
             torch.cat([state_vec, feature_vec], dim=-1)
-            .view(nagents, bsize, val_est.size(-1))
+            .view(nagents, bsize, -1)
             .permute(1, 0, 2)
         )
         val_est = torch.squeeze(self.v_net(val_est), -1)
@@ -124,7 +124,9 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
         self.v_net = mlp(list(hidden_sizes) + [1], activation,)
         self.history_len = history_len
 
-    def forward(self, obs: Tuple[torch.Tensor]):
+    def forward(
+        self, obs: Tuple[torch.Tensor], mask: Optional[torch.Tensor] = None
+    ):
         state_vec, lidar_vec = obs
         state_vec = state_vec.view(-1, state_vec.size(-1))
         bsize, no_batch = (
@@ -138,7 +140,13 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
         feature_vec = self.lidar_features(lidar_vec).squeeze(1)
 
         val_est = self.feature_net(torch.cat([state_vec, feature_vec], dim=-1))
-        val_est = val_est.view(nagents, bsize, val_est.size(-1)).mean(0)
+        val_est = val_est.view(nagents, bsize, val_est.size(-1))
+        div_factor = val_est.size(0)
+        if mask is not None:
+            mask = mask.unsqueeze(-1)
+            val_est = val_est * mask
+            div_factor = mask.sum(0)
+        val_est = val_est.sum(0) / div_factor
         val_est = torch.squeeze(self.v_net(val_est), -1)
 
         return val_est.repeat(nagents)

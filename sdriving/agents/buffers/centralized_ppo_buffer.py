@@ -11,12 +11,17 @@ from sdriving.agents.utils import (
 
 
 BufferReturn = namedtuple(
-    "BufferReturn", ["obs", "lidar", "act", "ret", "adv", "logp", "vest"]
+    "BufferReturn", 
+    ["obs", "lidar", "act", "ret", "adv", "logp", "vest", "mask"]
 )
 
 
 def allocate_zeros_tensor(size, device):
     return torch.zeros(size, dtype=torch.float32, device=device)
+
+
+def allocate_ones_tensor(size, device):
+    return torch.ones(size, dtype=torch.float32, device=device)
 
 
 class CentralizedPPOBuffer:
@@ -49,6 +54,11 @@ class CentralizedPPOBuffer:
         self.ret_buf = func()
         self.val_buf = func()
         self.logp_buf = func()
+        
+        # We need to mask a few values
+        self.mask_buf = allocate_ones_tensor(
+            combined_shape(size, batch=nagents), device
+        )
 
         self.gamma, self.lam = gamma, lam
         self.max_size = size
@@ -74,6 +84,7 @@ class CentralizedPPOBuffer:
 
     def finish_path(self, last_val: torch.Tensor):
         last_val = last_val.unsqueeze(1)
+        max_ptr = max(self.ptr)
         for b in range(self.nagents):
             path_slice = slice(self.path_start_idx[b], self.ptr[b])
             rews = torch.cat([self.rew_buf[b, path_slice], last_val[b]])
@@ -81,16 +92,17 @@ class CentralizedPPOBuffer:
 
             # the next two lines implement GAE-Lambda advantage calculation
             deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-            dc = discount_cumsum(deltas, self.gamma * self.lam)
-            self.adv_buf[b, path_slice] = dc
+            self.adv_buf[b, path_slice] = discount_cumsum(deltas, self.gamma * self.lam)
 
             # the next line computes rewards-to-go,
             # to be targets for the value function
             self.ret_buf[b, path_slice] = discount_cumsum(rews, self.gamma)[
                 :-1
             ]
-
-            self.path_start_idx[b] = self.ptr[b]
+            
+            self.mask_buf[b, self.ptr[b]:max_ptr] = 0
+            self.path_start_idx[b] = max_ptr
+            self.ptr[b] = max_ptr
 
     def get(self):
         """Call this at the end of an epoch to get all of the data from the
@@ -98,6 +110,8 @@ class CentralizedPPOBuffer:
         zero and std one).
         Also, resets some pointers in the buffer.
         """
+        mbuf = self.mask_buf.clone()
+        torch.fill_(self.mask_buf, 1.0)
         for b in range(self.nagents):
             self.ptr[b], self.path_start_idx[b] = 0, 0
 
@@ -113,4 +127,5 @@ class CentralizedPPOBuffer:
             adv=self.adv_buf,
             logp=self.logp_buf,
             vest=self.val_buf,
+            mask=mbuf,
         )
