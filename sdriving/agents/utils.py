@@ -115,9 +115,8 @@ def hvd_scalar_statistics_with_min_max(x: torch.Tensor):
     return [*hvd_scalar_statistics(x), minimum.to(dev), maximum.to(dev)]
 
 
-def hvd_average_grad(x: torch.nn.Module):
+def hvd_average_grad(x: torch.nn.Module, dev: torch.device):
     for p in x.parameters():
         if p.grad is not None:
-            dev = p.device
-            hvd.allreduce_(p.grad.cpu(), op=hvd.Average)
-            p.grad = p.grad.to(dev)
+            # For Gradient Averaging we need to scale the learning rate
+            p.grad = hvd.allreduce(p.grad.cpu(), op=hvd.Sum).to(dev)

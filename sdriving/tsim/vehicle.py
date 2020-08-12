@@ -25,7 +25,6 @@ class _BatchedVehicle(torch.nn.Module):
         orientation: torch.Tensor,  # N x 1
         destination: torch.Tensor,  # N x 2
         dest_orientation: torch.Tensor,  # N x 1
-        bool_buffer: torch.Tensor,  # (N x 4) x (N x 4)
         dimensions: torch.Tensor = torch.as_tensor([[4.48, 2.2]]),  # N x 2
         initial_speed: torch.Tensor = torch.zeros(1, 1),  # N x 1
         name: str = "car",
@@ -43,7 +42,7 @@ class _BatchedVehicle(torch.nn.Module):
         self.dimensions = dimensions
 
         self.nbatch = self.position.size(0)
-        self.bool_buffer = bool_buffer
+        self.bool_buffer = torch.zeros(1).bool()
 
         self.speed = initial_speed
         self.safety_circle = (
@@ -61,6 +60,7 @@ class _BatchedVehicle(torch.nn.Module):
         )
 
         self.base_coordinates = mul_factor * self.dimensions.unsqueeze(1) / 2
+        self.mul_factor = mul_factor
         self.device = torch.device("cpu")
 
         self.to(self.position.device)
@@ -79,6 +79,58 @@ class _BatchedVehicle(torch.nn.Module):
             if torch.is_tensor(t):
                 setattr(self, k, t.to(device))
         self.device = device
+
+    @torch.jit.export
+    def add_bool_buffer(self, bool_buffer: torch.Tensor):
+        self.bool_buffer = bool_buffer
+
+    @torch.jit.export
+    def add_vehicle(
+        self,
+        position: torch.Tensor,  # 1 x 2
+        orientation: torch.Tensor,  # 1 x 1
+        destination: torch.Tensor,  # 1 x 2
+        dest_orientation: torch.Tensor,  # 1 x 1
+        dimensions: torch.Tensor = torch.as_tensor([[4.48, 2.2]]),  # 1 x 2
+        initial_speed: torch.Tensor = torch.zeros(1, 1),  # 1 x 1
+    ) -> bool:
+        position = position.to(self.device)
+        orientation = angle_normalize(orientation.to(self.device))
+        dimensions = dimensions.to(self.device)
+        base_coordinates = self.mul_factor * dimensions.unsqueeze(1) / 2
+        rot_mat = get_2d_rotation_matrix(orientation[:, 0])
+        coordinates = torch.matmul(base_coordinates[0], rot_mat) + position
+        check = self.collision_check_with_rectangle(
+            coordinates, torch.cat([coordinates[1:, :], coordinates[0:1, :]])
+        )
+        
+        if check.any():
+            return False
+        
+        self.position = torch.cat([self.position, position])
+        self.orientation = torch.cat([self.orientation, orientation])
+        self.destination = torch.cat(
+            [self.destination, destination.to(self.device)]
+        )
+        self.dest_orientation = torch.cat(
+            [
+                self.dest_orientation,
+                angle_normalize(dest_orientation.to(self.device))
+            ]
+        )
+        self.dimensions = torch.cat([self.dimensions, dimensions])
+        self.speed = torch.cat(
+            [self.speed, initial_speed.to(self.device)]
+        )
+        self.base_coordinates = torch.cat(
+            [self.base_coordinates, base_coordinates]
+        )
+        self.coordinates = torch.cat(
+            [self.coordinates, coordinates[None, :, :]]
+        )
+        self.nbatch += 1
+
+        return True
 
     @torch.jit.export
     def _get_coordinates(self):
@@ -155,6 +207,18 @@ class _BatchedVehicle(torch.nn.Module):
 
         c = check_intersection_lines(p1, p2, p1, p2) * self.bool_buffer
         return c.view(self.nbatch, 4, -1).any(1).any(1)
+    
+    @torch.jit.export
+    def collision_check_with_rectangle(
+        self,
+        point1: torch.Tensor,  # 4 x 2
+        point2: torch.Tensor,  # 4 x 2
+    ):
+        p1, p2 = self.get_edges()
+        p1, p2 = p1.view(-1, 2), p2.view(-1, 2)
+        
+        c = check_intersection_lines(p1, p2, point1, point2)
+        return c.any()
 
 
 def BatchedVehicle(*args, **kwargs):

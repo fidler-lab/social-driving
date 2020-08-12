@@ -8,6 +8,12 @@ from sdriving.agents.utils import mlp
 from torch import nn
 
 
+def init_weights(m):
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv1d):
+        torch.nn.init.orthogonal_(m.weight)
+        m.bias.data.fill_(0.0)
+
+
 class PPOWaypointCentralizedCritic(nn.Module):
     def __init__(
         self,
@@ -21,6 +27,7 @@ class PPOWaypointCentralizedCritic(nn.Module):
             [obs_dim * nagents] + list(hidden_sizes) + [1], activation,
         )
         self.nagents = nagents
+        self.apply(init_weights)
 
     def forward(self, obs_list: List[torch.Tensor]):
         assert len(obs_list) == self.nagents
@@ -50,6 +57,7 @@ class PPOLidarCentralizedCritic(nn.Module):
         )
         self.history_len = history_len
         self.nagents = nagents
+        self.apply(init_weights)
 
     def forward(self, obs: Tuple[torch.Tensor]):
         state_vec, lidar_vec = obs
@@ -85,6 +93,7 @@ class PPOWaypointPermutationInvariantCentralizedCritic(nn.Module):
         super().__init__()
         self.f_net = mlp([obs_dim, hidden_sizes[0]], activation,)
         self.v_net = mlp(list(hidden_sizes[1:]) + [1], activation)
+        self.apply(init_weights)
 
     def forward(self, obs_list: List[torch.Tensor]):
         x = obs_list[0]
@@ -123,6 +132,7 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
         )
         self.v_net = mlp(list(hidden_sizes) + [1], activation,)
         self.history_len = history_len
+        self.apply(init_weights)
 
     def forward(
         self, obs: Tuple[torch.Tensor], mask: Optional[torch.Tensor] = None

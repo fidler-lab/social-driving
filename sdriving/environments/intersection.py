@@ -98,24 +98,28 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         dist = torch.cat(
             [self.agents[v].distance_from_destination() for v in a_ids]
         )
-        inv_dist = 1 / dist
+        inv_dist = 1 / dist.clamp(min=1.0)
         speed = torch.cat([self.agents[v].speed for v in a_ids])
 
         obs = torch.cat([ts, speed / self.dynamics.v_lim, head, inv_dist], -1)
         lidar = 1 / self.world.get_lidar_data_all_vehicles(self.npoints)
 
-        # TODO: Lidar Noise Conditioned on the distance from center
+        if self.lidar_noise > 0:
+            lidar *= torch.rand_like(lidar) > self.lidar_noise
 
-        while len(self.queue1) <= self.history_len - 1:
+        if self.history_len > 1:
+            while len(self.queue1) <= self.history_len - 1:
+                self.queue1.append(obs)
+                self.queue2.append(lidar)
             self.queue1.append(obs)
             self.queue2.append(lidar)
-        self.queue1.append(obs)
-        self.queue2.append(lidar)
 
-        return (
-            torch.cat(list(self.queue1), dim=-1),
-            torch.cat(list(self.queue2), dim=-1),
-        )
+            return (
+                torch.cat(list(self.queue1), dim=-1),
+                torch.cat(list(self.queue2), dim=-1),
+            )
+        else:
+            return obs, lidar
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
@@ -139,6 +143,11 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         not_completed = ~self.completion_vector
         goal_reach_bonus = (not_completed * reached_goal).float()
         self.completion_vector = self.completion_vector + reached_goal
+        for v in a_ids:
+            self.agents[v].destination = (
+                self.agents[v].position * self.completion_vector
+                + self.agents[v].destination * (~self.completion_vector)
+            )
 
         distances *= not_completed / self.original_distances
 
@@ -178,19 +187,13 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
 
     def add_vehicles_to_world(self):
         # For now let us not do any turns
-        added = 0
-        positions, orientations, destinations, destination_orientations = (
-            [],
-            [],
-            [],
-            [],
-        )
-        dimensions, initial_speeds = [], []
+        vehicle = None
+        dims = torch.as_tensor([[4.48, 2.2]])
 
         # TODO: check for intervehicle collision while generating environments
         #       for <= 4 agents, there is no need to check for collisions
         srd = np.random.choice([0, 1, 2, 3])
-        while len(positions) < self.nagents:
+        for _ in range(self.nagents):
             if self.balance_cars:
                 srd = (srd + 1) % 4
             else:
@@ -200,39 +203,39 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                 erd = (srd + 2) % 4
             else:
                 erd = (srd + np.random.choice([1, 2, 3])) % 4
-            spos, epos, orient, dorient = self._sample_vehicle_on_road(
-                srd, erd
-            )
 
-            positions.append(spos)
-            destinations.append(epos)
-            orientations.append(orient)
-            destination_orientations.append(dorient)
+            
+            successful_placement = False
+            while not successful_placement:
+                spos, epos, orient, dorient = self._sample_vehicle_on_road(
+                    srd, erd
+                )
+                if vehicle is None:
+                    vehicle = BatchedVehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1),
+                        name="agent"
+                    )
+                    break
+                else:
+                    successful_placement = vehicle.add_vehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1)
+                    )
 
-            dimensions.append(torch.as_tensor([[4.48, 2.2]]))
-            initial_speeds.append(torch.zeros(1, 1))
-
-        positions = torch.cat(positions)
-        destinations = torch.cat(destinations)
-        orientations = torch.cat(orientations)
-        destination_orientations = torch.cat(destination_orientations)
-        dimensions = torch.cat(dimensions)
-        initial_speeds = torch.cat(initial_speeds)
-
-        vehicle = BatchedVehicle(
-            position=positions,
-            orientation=orientations,
-            destination=destinations,
-            dest_orientation=destination_orientations,
-            bool_buffer=self.bool_buffer,
-            dimensions=dimensions,
-            initial_speed=initial_speeds,
-            name=self.get_agent_ids_list()[0],
-        )
+        vehicle.add_bool_buffer(self.bool_buffer)
 
         self.world.add_vehicle(vehicle)
         self.dynamics = BicycleKinematicsModel(
-            dim=dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
+            dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
         )
         self.agents[vehicle.name] = vehicle
 

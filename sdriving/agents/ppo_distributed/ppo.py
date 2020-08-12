@@ -7,6 +7,7 @@ import gym
 import numpy as np
 import torch
 import wandb
+from torch import nn
 from sdriving.agents.buffer import CentralizedPPOBuffer
 from sdriving.agents.model import PPOLidarActorCritic
 from sdriving.agents.utils import (
@@ -144,7 +145,6 @@ class PPO_Distributed_Centralized_Critic:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True,
             )
             wandb.watch_called = False
 
@@ -171,7 +171,7 @@ class PPO_Distributed_Centralized_Critic:
             "permutation_invariant" in self.ac_params
             and self.ac_params["permutation_invariant"]
         ):
-            self.buf = CentralizedPPOBuffer(  # VariableNagents(
+            self.buf = CentralizedPPOBuffer(
                 self.env.observation_space[0].shape,
                 self.env.observation_space[1].shape,
                 self.env.action_space.shape,
@@ -196,30 +196,30 @@ class PPO_Distributed_Centralized_Critic:
         clip_ratio = self.clip_ratio
 
         obs, lidar, act, adv, logp_old, vest, ret, mask = [
-            getattr(data, k) for k in [
+            data[k] for k in [
                 "obs", "lidar", "act", "adv", "logp", "vest", "ret", "mask"
             ]
         ]
 
-        vest_old = vest.mean(0)
-        ret = ret.mean(0)
-
         # Value Function Loss
-        value_est = self.ac.v((obs, lidar), mask).view(obs.size(0), obs.size(1))
-        value_est_clipped = vest_old + (value_est - vest_old).clamp(
+        value_est = self.ac.v(
+            (obs, lidar), mask
+        ).view(obs.size(0), obs.size(1))
+        value_est_clipped = vest + (value_est - vest).clamp(
             -clip_ratio, clip_ratio
         )
         value_losses = (value_est - ret).pow(2)
         value_losses_clipped = (value_est_clipped - ret).pow(2)
 
-        value_loss = 0.5 * torch.max(value_losses, value_losses_clipped).mean()
+        value_loss = 0.5 * (
+            torch.max(value_losses, value_losses_clipped) * mask
+        ).mean()
 
         # Policy loss
         pi, _, logp = self.ac.pi((obs, lidar), act)
-        ratio = torch.exp((logp - logp_old).clamp(-20.0, 2.0))  # N x B
+        ratio = torch.exp(logp - logp_old)  # N x B
         clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
         loss_pi = torch.min(ratio * adv, clip_adv)
-        print
         loss_pi = -(loss_pi * mask).sum() / mask.sum()
 
         # Entropy Loss
@@ -231,12 +231,9 @@ class PPO_Distributed_Centralized_Critic:
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().detach().cpu()
-        clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
-        clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
         info = dict(
             kl=approx_kl,
             ent=ent.item(),
-            cf=clipfrac,
             value_est=value_est.mean().item(),
             pi_loss=loss_pi.item(),
             vf_loss=value_loss.item(),
@@ -249,12 +246,6 @@ class PPO_Distributed_Centralized_Critic:
         local_steps_per_epoch = self.local_steps_per_epoch
         train_iters = self.train_iters
 
-        with torch.no_grad():
-            _, info = self.compute_loss(data)
-            pi_l_old = info["pi_loss"]
-            v_est = info["value_est"]
-            v_l_old = info["vf_loss"]
-
         for i in range(train_iters):
             self.pi_optimizer.zero_grad()
             self.vf_optimizer.zero_grad()
@@ -263,7 +254,8 @@ class PPO_Distributed_Centralized_Critic:
 
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
-            hvd_average_grad(self.ac)
+            hvd_average_grad(self.ac, self.device)
+            nn.utils.clip_grad_norm_(self.ac.v.parameters(), 5.0)
             self.vf_optimizer.step()
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
@@ -271,18 +263,19 @@ class PPO_Distributed_Centralized_Critic:
                     color="red",
                 )
                 break
-
+            nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
             self.pi_optimizer.step()
         self.logger.store(StopIter=i)
 
         # Log changes from update
-        ent, cf = info["ent"], info["cf"]
+        ent, pi_l_old, v_l_old, v_est = (
+            info["ent"], info["pi_loss"], info["vf_loss"], info["value_est"]
+        )
         self.logger.store(
             LossActor=pi_l_old,
             LossCritic=v_l_old,
             KL=kl,
             Entropy=ent,
-            ClipFraction=cf,
             ValueEstimate=v_est,
         )
 
@@ -340,7 +333,6 @@ class PPO_Distributed_Centralized_Critic:
         self.logger.log_tabular("EpisodeLength", average_only=True)
         self.logger.log_tabular("Entropy", average_only=True)
         self.logger.log_tabular("KL", average_only=True)
-        self.logger.log_tabular("ClipFraction", average_only=True)
         self.logger.log_tabular("StopIter", average_only=True)
         self.logger.log_tabular("ValueEstimate", average_only=True)
         self.logger.log_tabular("LossActor", average_only=True)
@@ -372,7 +364,6 @@ class PPO_Distributed_Centralized_Critic:
         env = self.env
 
         o, ep_ret, ep_len = env.reset(), 0, 0
-        rew_cache = torch.zeros(env.nagents, 1, device=self.device)
         prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
         for t in range(self.local_steps_per_epoch):
             obs, lidar = o
@@ -418,3 +409,4 @@ class PPO_Distributed_Centralized_Critic:
                         EpisodeReturn=ep_ret, EpisodeLength=ep_len
                     )
                 o, ep_ret, ep_len = env.reset(), 0, 0
+                prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()

@@ -10,6 +10,12 @@ from torch.distributions.categorical import Categorical
 from torch.distributions.normal import Normal
 
 
+def init_weights(m):
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv1d):
+        torch.nn.init.orthogonal_(m.weight)
+        m.bias.data.fill_(0.0)
+
+
 class PPOActor(nn.Module):
     def sample(self, pi):
         raise NotImplementedError
@@ -84,6 +90,7 @@ class PPOWaypointCategoricalActor(PPOCategoricalActor):
         self.deviation_net = mlp(
             [obs_dim] + list(hidden_sizes) + [act_space.n], activation,
         )
+        self.apply(init_weights)
 
     def _get_logits(self, obs: torch.Tensor):
         return self.deviation_net(
@@ -112,6 +119,7 @@ class PPOLidarCategoricalActor(PPOCategoricalActor):
             nn.AdaptiveAvgPool1d(feature_dim),
         )
         self.history_len = history_len
+        self.apply(init_weights)
 
     def _get_logits(self, obs: Tuple[torch.Tensor]):
         state_vec, lidar_vec = obs
@@ -184,6 +192,7 @@ class PPOWaypointGaussianActor(PPOGaussianActor):
         self.net = mlp([obs_dim] + list(hidden_sizes), activation,)
         self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
         self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
+        self.apply(init_weights)
 
     def _get_mu_std(self, obs: torch.Tensor, std: bool = True):
         out = self.net(obs)
@@ -225,6 +234,7 @@ class PPOLidarGaussianActor(PPOGaussianActor):
         )
         self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim)).unsqueeze(0)
         self.history_len = history_len
+        self.apply(init_weights)
 
     def _get_mu_std(self, obs: Tuple[torch.Tensor], std: bool = True):
         state_vec, lidar_vec = obs

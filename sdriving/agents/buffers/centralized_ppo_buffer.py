@@ -1,3 +1,4 @@
+import time
 from collections import namedtuple
 from typing import Optional, Union
 
@@ -116,10 +117,13 @@ class CentralizedPPOBuffer:
             self.ptr[b], self.path_start_idx[b] = 0, 0
 
             # the next two lines implement the advantage normalization trick
-            adv_mean, adv_std = hvd_scalar_statistics(self.adv_buf[b])
-            self.adv_buf[b] = (self.adv_buf[b] - adv_mean) / (adv_std + 1e-7)
+            adv = self.adv_buf[b]
+            # This is supposed to be computed across all processes but it
+            # becomes a big bottleneck
+            adv_mean, adv_std = adv.mean(), adv.std() # hvd_scalar_statistics(self.adv_buf[b])
+            self.adv_buf[b] = (adv - adv_mean) / (adv_std + 1e-7)
         # The entire buffer will most likely not be filled
-        return BufferReturn(
+        return dict(
             obs=self.state_buf,
             lidar=self.lidar_buf,
             act=self.act_buf,
