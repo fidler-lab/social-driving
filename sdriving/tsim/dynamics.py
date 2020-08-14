@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple, Union
 
 import torch
 from sdriving.tsim.utils import angle_normalize
+from sdriving.tsim.parametric_curves import CatmullRomSpline
 from torch import nn
 
 EPS = 1e-7
@@ -162,7 +163,7 @@ class _FixedTrackAccelerationModel(nn.Module):
         )
 
         arc_part = torch.clamp(
-            arc / (0.5 * math.pi * self.radius), 0, math.pi / 2
+            arc / (0.5 * math.pi * self.radius + 1e-7), 0, math.pi / 2
         )
         theta = self.theta1 + self.sign * arc_part
 
@@ -171,3 +172,83 @@ class _FixedTrackAccelerationModel(nn.Module):
 
 def FixedTrackAccelerationModel(*args, **kwargs):
     return torch.jit.script(_FixedTrackAccelerationModel(*args, **kwargs))
+
+
+class _SplineModel(nn.Module):
+    """
+        IMPORTANT NOTE: Much like the FixedTrackAccelerationModel
+        this Model is stateful. Even though the state passed to it
+        must be of the shape N x 4, the x, y, and theta will be
+        simply ignored. This allows for a consistent API and
+        makes environment design simpler
+    """
+    def __init__(
+        self,
+        cps: torch.Tensor,
+        p_num: int = 5,
+        alpha: int = 0.5,
+        dt: float = 0.10,
+        dim: torch.Tensor = torch.ones(1) * 4.48,
+        v_lim: torch.Tensor = torch.ones(1) * 8.0,
+    ):
+        super().__init__()
+        self.dt = dt
+        self.dim = dim.unsqueeze(1)
+        self.v_lim = v_lim.unsqueeze(1)
+        self.v_lim_neg = -self.v_lim
+
+        self.device = cps.device
+        self.to(self.dim.device)
+        self.nbatch = dim.size(0)
+        
+        self.motion = CatmullRomSpline(cps, p_num, alpha)
+        self.distances = torch.zeros(self.nbatch, 1)
+        diff = self.motion.diff
+        ratio = diff[:, :, 1] / (diff[:, :, 0] + EPS)
+        self.arc_lengths = self.motion.arc_lengths
+        self.curve_lengths = self.motion.curve_length.unsqueeze(1)
+        self.theta = angle_normalize(
+            torch.where(
+                diff[:, :, 0] > 0,
+                torch.atan(ratio),
+                math.pi + torch.atan(ratio),
+            )
+        ).unsqueeze(-1)
+
+    def to(self, device):
+        if device == self.device:
+            return
+        for k, t in filter(
+            lambda x: torch.is_tensor(x[1]), self.__dict__.items()
+        ):
+            setattr(self, k, t.to(device))
+        self.device = device
+    
+    def forward(self, state: torch.Tensor, action: torch.Tensor):  # N x 1
+        dt = self.dt
+        v = state[:, 2:3]
+        acceleration = action[:, 0:1]
+
+        self.distances = (self.distances + v * dt) % self.curve_lengths  # N x 1
+        
+        
+        c1 = self.arc_lengths  # N x P
+        c2 = torch.cat(
+            [self.arc_lengths[:, 1:], self.arc_lengths[:, 0:1]], dim=-1
+        )  # N x P
+        sgs = ((c1 <= self.distances) * (self.distances < c2)).nonzero()  # (N x 1) x 2
+        
+        ts = self.motion(self.distances, sgs)  # N x 1
+        pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
+        
+        theta = self.theta[tuple(sgs[:, 0]), tuple(sgs[:, 1])].reshape(
+            pts.size(0), 1
+        )
+        v = torch.min(
+            torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
+        )
+        return torch.cat([pts, v, theta], dim=1)
+
+
+def SplineModel(*args, **kwargs):
+    return torch.jit.script(_SplineModel(*args, **kwargs))

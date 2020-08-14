@@ -261,7 +261,7 @@ def render_vehicle(
     obj: Union[_BatchedVehicle, _Vehicle],
     ax,
     color: str = "g",
-    draw_lidar_range: bool = True,
+    draw_lidar_range: bool = False,
 ):
     for b in range(obj.nbatch):
         pos = obj.position[b, :].detach().cpu().numpy()

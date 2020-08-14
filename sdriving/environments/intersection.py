@@ -54,7 +54,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         self.bool_buffer = bool_buffer.bool()
 
     def generate_world_without_agents(self):
-        length = (torch.rand(1) * 30.0 + 40.0).item()
+        length = (torch.rand(1) * 25.0 + 55.0).item()
         width = (torch.rand(1) * 15.0 + 15.0).item()
         time_green = int((torch.rand(1) / 2 + 1) * self.time_green)
         return (
@@ -128,12 +128,15 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         distances = torch.cat(
             [self.agents[v].distance_from_destination() for v in a_ids]
         )
+        
+        # Agent Speeds
+        speeds = torch.cat([self.agents[v].speed for v in a_ids])
 
         # Action Regularization
         if self.cached_actions is not None:
             smoothness = (
                 (action - self.cached_actions).pow(2)
-                / self.normalization_factor.pow(2)
+                / (2 * self.normalization_factor).pow(2)
             ).sum(-1, keepdim=True)
         else:
             smoothness = 0.0
@@ -153,11 +156,17 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
 
         # Collision
         new_collisions = ~self.collision_vector * new_collisions
-        penalty = new_collisions.float() + new_collisions * distances * (self.horizon - self.nsteps - 1) / self.horizon
+        penalty = (
+            new_collisions.float()
+            + new_collisions * distances * (
+                self.horizon - self.nsteps - 1
+            ) / self.horizon
+        )
         self.collision_vector += new_collisions
 
         return (
             -(distances + smoothness) * (~self.collision_vector) / self.horizon
+            - (speeds / 8.0).abs() * self.completion_vector / self.horizon
             - penalty
             + goal_reach_bonus
         )
@@ -193,22 +202,22 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         # TODO: check for intervehicle collision while generating environments
         #       for <= 4 agents, there is no need to check for collisions
         srd = np.random.choice([0, 1, 2, 3])
+        self.srd = []
+        self.erd = []
         for _ in range(self.nagents):
-            if self.balance_cars:
-                srd = (srd + 1) % 4
-            else:
-                srd = np.random.choice([0, 1, 2, 3])
-
-            if self.nagents > 1:
-                erd = (srd + 2) % 4
-            else:
-                erd = (srd + np.random.choice([1, 2, 3])) % 4
-
             
             successful_placement = False
             while not successful_placement:
+                srd_new = (srd + 1) % 4 if not self.balance_cars else np.random.choice(range(4))
+                erd = (
+                    srd_new + np.random.choice([1, 2, 3])
+                    if (self.nagents == 1 or (hasattr(self, "turns") and self.turns))
+                    else (srd_new + 2)
+                )
+                erd = erd % 4
+
                 spos, epos, orient, dorient = self._sample_vehicle_on_road(
-                    srd, erd
+                    srd_new, erd
                 )
                 if vehicle is None:
                     vehicle = BatchedVehicle(
@@ -230,16 +239,22 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                         dimensions=dims,
                         initial_speed=torch.zeros(1, 1)
                     )
+            srd = srd_new
+            self.srd.append(srd)
+            self.erd.append(erd)
 
         vehicle.add_bool_buffer(self.bool_buffer)
 
         self.world.add_vehicle(vehicle)
-        self.dynamics = BicycleKinematicsModel(
-            dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
-        )
+        self.store_dynamics(vehicle)
         self.agents[vehicle.name] = vehicle
 
         self.original_distances = vehicle.distance_from_destination()
+    
+    def store_dynamics(self, vehicle):
+        self.dynamics = BicycleKinematicsModel(
+            dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
+        )
 
     def reset(self):
         # Keep the environment fixed for now

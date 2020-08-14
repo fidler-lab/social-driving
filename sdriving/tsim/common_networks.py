@@ -98,3 +98,93 @@ def generate_intersection_world_4signals(
     )
 
     return world
+
+
+def generate_intersection_world_12signals(
+    closed: List[bool] = [True] * 4,
+    length: float = 40.0,
+    road_width: float = 20.0,
+    name: str = "intersection",
+    center: torch.Tensor = torch.zeros(1, 2),
+    orientation: torch.Tensor = torch.zeros(1),
+    has_endpoints: List[bool] = [False] * 4,
+    time_green: int = 100,
+    ordering: int = 0,
+    default_colmap: bool = True
+) -> World:
+    net = generate_nway_intersection_block(
+        4, closed, length, road_width, name, center, orientation, has_endpoints
+    )
+    net.construct_graph()
+
+    world = World(net)
+    
+    if default_colmap:
+        col_map = {0.0: "g", 1.0: "r", 0.5: "y"}
+    else:
+        col_map = {1.0: "g", 0.0: "r", 0.5: "y"}
+
+    vals = []
+    vals.append([0.0, 0.5] + [1.0, 1.0] * 2 + [1.0, 0.5])
+    for i in range(2, len(vals[0]), 2):
+        vals.append(vals[0][-i:] + vals[0][:-i])
+    vals = torch.as_tensor(vals)
+
+    mapping = {(i, j): vals[i] for i in range(4) for j in range(4) if i != j}
+    colors = {idx: [col_map[val.item()] for val in v] for (idx, v) in mapping.items()}
+
+    times = torch.as_tensor([time_green - 20, 20] * len(vals))
+
+    for rd_pair in [(0, 2), (2, 0), (1, 3), (3, 1)]:
+        world.add_traffic_signal(
+            f"{name}_{rd_pair[0]}",
+            f"{name}_{rd_pair[1]}",
+            val=mapping[rd_pair],
+            start_signal=ordering,
+            times=times,
+            colors=colors[rd_pair],
+        )
+
+    for i, loc in enumerate(
+        [
+            (road_width / 5, road_width / 2),
+            (-road_width / 2, road_width / 5),
+            (-road_width / 5, -road_width / 2),
+            (road_width / 2, -road_width / 5),
+        ]
+    ):
+        idx = ((i + 1) % 4, i)
+        world.add_traffic_signal(
+            f"{name}_{idx[0]}",
+            f"{name}_{idx[1]}",
+            val=mapping[idx],
+            start_signal=ordering,
+            times=times,
+            colors=colors[idx],
+            location=transform_2d_coordinates(
+                torch.as_tensor(loc), orientation, center
+            )[0],
+        )
+
+    for i, loc in enumerate(
+        [
+            (road_width / 2, road_width / 5),
+            (-road_width / 5, road_width / 2),
+            (-road_width / 2, -road_width / 5),
+            (road_width / 5, -road_width / 2),
+        ]
+    ):
+        idx = (i, (i + 1) % 4)
+        world.add_traffic_signal(
+            f"{name}_{idx[0]}",
+            f"{name}_{idx[1]}",
+            val=mapping[idx],
+            start_signal=ordering,
+            times=times,
+            colors=colors[idx],
+            location=transform_2d_coordinates(
+                torch.as_tensor(loc), orientation, center
+            )[0],
+        )
+
+    return world
