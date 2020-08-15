@@ -24,7 +24,9 @@ from sdriving.tsim import (
 class MultiAgentRoadIntersectionFixedTrackEnvironment(
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment
 ):
-    def __init__(self, *args, turns: bool = False, default_color: bool = True, **kwargs):
+    def __init__(
+        self, *args, turns: bool = False, default_color: bool = True, **kwargs
+    ):
         self.lane_side = 1
         self.turns = turns
         self.default_color = default_color
@@ -43,7 +45,7 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
                 name="traffic_signal_world",
                 time_green=time_green,
                 ordering=random.choice(range(8)),
-                default_colmap=self.default_color
+                default_colmap=self.default_color,
             ),
             {"length": length, "width": width},
         )
@@ -51,37 +53,37 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
     def store_dynamics(self, vehicle):
         if not self.turns:
             return super().store_dynamics(vehicle)
-        
+
         w2 = self.width / 2
-        center = torch.as_tensor([ [w2, w2], [-w2, w2], [-w2, -w2], [w2, -w2]])
-        
+        center = torch.as_tensor([[w2, w2], [-w2, w2], [-w2, -w2], [w2, -w2]])
+
         centers, radii, distances = [], [], []
         for i in range(vehicle.nbatch):
             srd, erd = self.srd[i], self.erd[i]
             pos = vehicle.position[i].abs()
             l, m = (srd + 1) % 2, srd % 2
-            p = pos[l:(l + 1)]
+            p = pos[l : (l + 1)]
             if erd == (srd + 1) % 4:
                 r = w2 + p
-                c = center[srd:(srd + 1), :]
+                c = center[srd : (srd + 1), :]
             elif erd == (srd + 2) % 4:
                 r = torch.zeros(1, device=self.device)
-                c = center[srd:(srd + 1), :]  # Just a mock point
+                c = center[srd : (srd + 1), :]  # Just a mock point
             else:
                 r = w2 - p
-                c = center[erd:(erd + 1), :]
-            d = pos[m:(m + 1)] - w2
+                c = center[erd : (erd + 1), :]
+            d = pos[m : (m + 1)] - w2
             centers.append(c)
             radii.append(r)
             distances.append(d)
-            
+
         self.dynamics = FixedTrackAccelerationModel(
             theta1=vehicle.orientation[:, 0],
             theta2=vehicle.dest_orientation[:, 0],
             radius=torch.cat(radii),
             center=torch.cat(centers),
             distance1=torch.cat(distances),
-            v_lim=torch.ones(self.nagents) * 8.0
+            v_lim=torch.ones(self.nagents) * 8.0,
         )
 
     def get_action_space(self):

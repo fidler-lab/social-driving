@@ -145,7 +145,7 @@ class PPO_Distributed_Centralized_Critic:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True
+                allow_val_change=True,
             )
             wandb.watch_called = False
 
@@ -197,24 +197,32 @@ class PPO_Distributed_Centralized_Critic:
         clip_ratio = self.clip_ratio
 
         obs, lidar, act, adv, logp_old, vest, ret, mask = [
-            data[k] for k in [
-                "obs", "lidar", "act", "adv", "logp", "vest", "ret", "mask"
+            data[k]
+            for k in [
+                "obs",
+                "lidar",
+                "act",
+                "adv",
+                "logp",
+                "vest",
+                "ret",
+                "mask",
             ]
         ]
 
         # Value Function Loss
-        value_est = self.ac.v(
-            (obs, lidar), mask
-        ).view(obs.size(0), obs.size(1))
+        value_est = self.ac.v((obs, lidar), mask).view(
+            obs.size(0), obs.size(1)
+        )
         value_est_clipped = vest + (value_est - vest).clamp(
             -clip_ratio, clip_ratio
         )
         value_losses = (value_est - ret).pow(2)
         value_losses_clipped = (value_est_clipped - ret).pow(2)
 
-        value_loss = 0.5 * (
-            torch.max(value_losses, value_losses_clipped) * mask
-        ).mean()
+        value_loss = (
+            0.5 * (torch.max(value_losses, value_losses_clipped) * mask).mean()
+        )
 
         # Policy loss
         pi, _, logp = self.ac.pi((obs, lidar), act)
@@ -270,7 +278,10 @@ class PPO_Distributed_Centralized_Critic:
 
         # Log changes from update
         ent, pi_l_old, v_l_old, v_est = (
-            info["ent"], info["pi_loss"], info["vf_loss"], info["value_est"]
+            info["ent"],
+            info["pi_loss"],
+            info["vf_loss"],
+            info["value_est"],
         )
         self.logger.store(
             LossActor=pi_l_old,
@@ -410,4 +421,6 @@ class PPO_Distributed_Centralized_Critic:
                         EpisodeReturn=ep_ret, EpisodeLength=ep_len
                     )
                 o, ep_ret, ep_len = env.reset(), 0, 0
-                prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
+                prev_done = torch.zeros(
+                    env.nagents, 1, device=self.device
+                ).bool()

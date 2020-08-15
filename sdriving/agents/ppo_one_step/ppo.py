@@ -3,33 +3,25 @@ import time
 import warnings
 from typing import Optional
 
-from mpi4py import MPI
-
 import gym
 import numpy as np
 import torch
 import wandb
-from sdriving.agents.buffer import *
-from sdriving.agents.model import *
+from torch import nn
+from sdriving.agents.buffer import OneStepPPOBuffer
+from sdriving.agents.model import (
+    PPOWaypointGaussianActor,
+    PPOWaypointCategoricalActor
+)
 from sdriving.agents.utils import (
     count_vars,
-    mpi_avg_grads,
     trainable_parameters,
+    hvd_scalar_statistics,
+    hvd_average_grad,
 )
-from sdriving.agents.ppo_one_step.runner import episode_runner
-from spinup.utils.logx import EpochLogger
-from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params
-from spinup.utils.mpi_tools import (
-    mpi_avg,
-    mpi_fork,
-    mpi_statistics_scalar,
-    num_procs,
-    proc_id,
-    mpi_op,
-)
-from spinup.utils.serialization_utils import convert_json
+from sdriving.logging import EpochLogger, convert_json
 from torch.optim import SGD, Adam
-from torch.utils.tensorboard import SummaryWriter
+import horovod.torch as hvd
 
 
 class PPO_OneStep:
@@ -51,60 +43,64 @@ class PPO_OneStep:
         save_freq: int = 10,
         load_path=None,
         render_train: bool = False,
-        wandb_id: Optional[str] = None,  # Optional exists for legacy code
+        wandb_id: Optional[str] = None,
         **kwargs,
     ):
-        # Special function to avoid certain slowdowns from PyTorch + MPI combo.
-        setup_pytorch_for_mpi()
-
-        # Set up logger and save configuration
-        self.log_dir = os.path.join(log_dir, str(proc_id()))
-        hparams = convert_json(locals())
-        self.logger = EpochLogger(log_dir, **logger_kwargs)
+        self.log_dir = log_dir
         self.render_dir = os.path.join(log_dir, "renders")
-        os.makedirs(self.render_dir, exist_ok=True)
         self.ckpt_dir = os.path.join(log_dir, "checkpoints")
-        os.makedirs(self.ckpt_dir, exist_ok=True)
+        if hvd.rank() == 0:
+            os.makedirs(self.log_dir, exist_ok=True)
+            os.makedirs(self.render_dir, exist_ok=True)
+            os.makedirs(self.ckpt_dir, exist_ok=True)
         self.softlink = os.path.abspath(
             os.path.join(self.ckpt_dir, f"ckpt_latest.pth")
         )
+        self.ac_params_file = os.path.join(log_dir, "ac_params.json")
+        hparams = convert_json(locals())
+        self.logger = EpochLogger(output_dir=self.log_dir, exp_name=wandb_id)
 
-        self.logger.save_config(locals())
+        if torch.cuda.is_available():
+            # Horovod: pin GPU to local rank.
+            dev_id = int(
+                torch.cuda.device_count() * hvd.local_rank() / hvd.local_size()
+            )
+            torch.cuda.set_device(dev_id)
+            device = torch.device(f"cuda:{dev_id}")
+            torch.cuda.manual_seed(seed)
+        else:
+            device = torch.device("cpu")
 
+        #         env_params.update({"device": device})
         self.env = env(**env_params)
-        self.actor_params = {k: v for k, v in actor_kwargs.items()}
-        self.actor_params.update(
+        self.ac_params = {k: v for k, v in ac_kwargs.items()}
+        self.ac_params.update(
             {
-                "obs_dim": self.env.observation_space.shape[0],
-                "act_space": self.env.action_space,
+                "observation_space": self.env.observation_space,
+                "action_space": self.env.action_space,
+                "nagents": self.env.nagents,
             }
         )
 
         self.entropy_coeff = entropy_coeff
         self.entropy_coeff_decay = entropy_coeff / epochs
 
-        if torch.cuda.is_available():
-            # From emperical results, 8 tasks can use a single gpu
-            device_id = proc_id() // 8
-            device = torch.device(f"cuda:{device_id}")
-        else:
-            device = torch.device("cpu")
+        # Horovod: limit # of CPU threads to be used per worker.
+        torch.set_num_threads(1)
+
+        torch.save(self.ac_params, self.ac_params_file)
 
         if os.path.isfile(self.softlink):
             self.logger.log("Restarting from latest checkpoint", color="red")
             load_path = self.softlink
 
         # Random seed
-        seed += 10000 * proc_id()
+        seed += 10000 * hvd.rank()
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-        if render_train:
-            self.logger.log(
-                "Rendering the training is not implemented", color="red"
-            )
-
         self.nagents = self.env.nagents
+
         if isinstance(self.env.action_space, gym.spaces.Discrete):
             self.actor = PPOWaypointCategoricalActor(**self.actor_params)
         elif isinstance(self.env.action_space, gym.spaces.Box):
@@ -123,10 +119,12 @@ class PPO_OneStep:
             )
 
         # Sync params across processes
-        sync_params(self.actor)
+        hvd.broadcast_parameters(self.ac.state_dict(), root_rank=0)
+        hvd.broadcast_optimizer_state(self.pi_optimizer, root_rank=0)
         self.actor = self.actor.to(device)
+        self.move_optimizer_to_device(self.pi_optimizer)
 
-        if proc_id() == 0:
+        if hvd.rank() == 0:
             if wandb_id is None:
                 eid = (
                     log_dir.split("/")[-2]
@@ -140,7 +138,7 @@ class PPO_OneStep:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True,
+                allow_val_change=True
             )
             wandb.watch_called = False
 
@@ -155,13 +153,15 @@ class PPO_OneStep:
         self.logger.log(f"\nNumber of parameters: \t pi: {var_counts}\n")
 
         # Set up experience buffer
+        # Set up experience buffer
         self.steps_per_epoch = steps_per_epoch
-        self.local_steps_per_epoch = int(steps_per_epoch / num_procs())
+        self.local_steps_per_epoch = int(steps_per_epoch / hvd.size())
         self.buf = OneStepPPOBuffer(
             self.env.observation_space.shape,
             self.env.action_space.shape,
             self.local_steps_per_epoch,
             self.env.nagents,
+            device,
         )
 
         self.clip_ratio = clip_ratio
@@ -170,95 +170,72 @@ class PPO_OneStep:
         self.epochs = epochs
         self.save_freq = save_freq
 
-    def compute_loss(self, data: dict, idx):
+    def compute_loss(self, data):
         device = self.device
         clip_ratio = self.clip_ratio
 
-        # Random subset sampling
-        data = {key: val[idx] for key, val in data.items()}
-        obs, rew, act, logp_old = map(
-            lambda x: data[x].to(device), ["obs", "rew", "act", "logp"],
-        )
-        rew = (rew - rew.mean()) / (rew.std() + 1e-7)
+        obs, act, logp_old, ret, = [
+            data[k] for k in ["obs", "act", "logp", "ret"]
+        ]
 
-        # Policy loss
-        pi, logp = self.actor(obs, act)
-        ratio = torch.exp((logp - logp_old).clamp(-20.0, 2.0))
-        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * rew
-        loss_pi = -(torch.min(ratio * rew, clip_adv)).mean()
+         # Policy loss
+        pi, _, logp = self.actor(obs, act)
+        ratio = torch.exp(logp - logp_old)  # N x B
+        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
+        loss_pi = -torch.min(ratio * adv, clip_adv).mean()
 
-        # Entropy Loss
+         # Entropy Loss
         ent = pi.entropy().mean()
 
         # TODO: Search for a good set of coeffs
-        loss = loss_pi - ent * self.entropy_coeff
+        loss = loss_pi - ent * self.entropy_coeff + value_loss
+        self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
-        approx_kl = (logp_old - logp).mean().item()
-        clipped = ratio.gt(1 + clip_ratio) | ratio.lt(1 - clip_ratio)
-        clipfrac = torch.as_tensor(clipped, dtype=torch.float32).mean().item()
+        approx_kl = (logp_old - logp).mean().detach().cpu()
         info = dict(
-            kl=approx_kl, ent=ent.item(), cf=clipfrac, pi_loss=loss_pi.item(),
+            kl=approx_kl, ent=ent.item(), pi_loss=loss_pi.item(),
         )
 
         return loss, info
 
     def update(self):
         data = self.buf.get()
+        local_steps_per_epoch = self.local_steps_per_epoch
+        train_iters = self.train_iters
 
-        train_iters = self.train_pi_iters
-        size = int(mpi_op(data["obs"].size(0), MPI.MIN))
-        batch_size = size // train_iters
-
-        sampler = torch.utils.data.BatchSampler(
-            torch.utils.data.SubsetRandomSampler(range(size)),
-            batch_size,
-            drop_last=True,
-        )
-
-        with torch.no_grad():
-            _, info = self.compute_loss(data, range(size))
-            pi_l_old = info["pi_loss"]
-
-        for i, idx in enumerate(sampler):
+        for i in range(train_iters):
             self.pi_optimizer.zero_grad()
+            self.vf_optimizer.zero_grad()
 
-            loss, info = self.compute_loss(data, idx)
+            loss, info = self.compute_loss(data)
 
-            kl = mpi_avg(info["kl"])
+            kl = hvd.allreduce(info["kl"], op=hvd.Average)
+            loss.backward()
+            hvd_average_grad(self.actor, self.device)
+            nn.utils.clip_grad_norm_(self.actor.parameters(), 5.0)
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
-                    f"Early stopping at step {i} due to reaching max kl."
+                    f"Early stopping at step {i} due to reaching max kl.",
+                    color="red",
                 )
                 break
-            loss.backward()
-
-            self.actor = self.actor.cpu()
-            mpi_avg_grads(self.actor)
-            self.actor = self.actor.to(self.device)
-
             self.pi_optimizer.step()
-
         self.logger.store(StopIter=i)
 
-        # Log changes from update
-        kl, ent, cf = info["kl"], info["ent"], info["cf"]
+         # Log changes from update
+        ent, pi_l_old = info["ent"], info["pi_loss"]
         self.logger.store(
-            LossPi=pi_l_old,
+            LossActor=pi_l_old,
             KL=kl,
             Entropy=ent,
-            ClipFrac=cf,
-            DeltaLossPi=(info["pi_loss"] - pi_l_old),
         )
-        if proc_id() == 0:
-            wandb.log(
-                {
-                    "Loss Actor": pi_l_old,
-                    "KL Divergence": kl,
-                    "Entropy": ent,
-                    "Clip Factor": cf,
-                }
-            )
+
+    def move_optimizer_to_device(self, opt):
+        for state in opt.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.to(self.device)
 
     def save_model(self, epoch: int, ckpt_extra: dict = {}):
         ckpt = {
@@ -280,46 +257,46 @@ class PPO_OneStep:
             trainable_parameters(self.actor), lr=self.pi_lr, eps=1e-8
         )
         self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
-        for state in self.pi_optimizer.state.values():
-            for k, v in state.items():
-                if torch.is_tensor(v):
-                    state[k] = v.to(self.device)
 
-    def dump_logs(self, epoch, start_time):
-        self.logger.log_tabular("Epoch", epoch)
-        self.logger.log_tabular("EpRet", with_min_and_max=True)
-        self.logger.log_tabular(
-            "TotalEnvInteracts", (epoch + 1) * self.steps_per_epoch
-        )
-        self.logger.log_tabular("LossPi", average_only=True)
-        self.logger.log_tabular("DeltaLossPi", average_only=True)
+
+    def dump_tabular(self):
+        self.logger.log_tabular("Epoch", average_only=True)
+        self.logger.log_tabular("EpisodeReturn", with_min_and_max=True)
         self.logger.log_tabular("Entropy", average_only=True)
         self.logger.log_tabular("KL", average_only=True)
-        self.logger.log_tabular("ClipFrac", average_only=True)
         self.logger.log_tabular("StopIter", average_only=True)
-        self.logger.log_tabular("Time", time.time() - start_time)
+        self.logger.log_tabular("LossActor", average_only=True)
+        self.logger.log_tabular("EpisodeRunTime", average_only=True)
+        self.logger.log_tabular("PPOUpdateTime", average_only=True)
         self.logger.dump_tabular()
 
     def train(self):
         # Prepare for interaction with environment
-        start_time = time.time()
-
         for epoch in range(self.epochs):
-            episode_runner(
-                self.local_steps_per_epoch,
-                self.device,
-                self.buf,
-                self.env,
-                self.actor,
-                self.logger,
-            )
 
+            start_time = time.time()
+            self.episode_runner()
+            self.logger.store(EpisodeRunTime=time.time() - start_time)
             if (
                 (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
-            ) and proc_id() == 0:
+            ) and hvd.rank() == 0:
                 self.save_model(epoch)
 
+            start_time = time.time()
             self.update()
+            self.logger.store(PPOUpdateTime=time.time() - start_time)
+            self.logger.store(Epoch=epoch)
 
-            # Log info about epoch
-            self.dump_logs(epoch, start_time)
+            self.dump_tabular()
+
+    def episode_runner(self):
+        env = self.env
+
+        for t in range(self.local_steps_per_epoch):
+            o = env.reset()
+            _, actions, log_probs = self.actor(o)
+            _, r, _, _ = env.step(actions)
+            ep_ret = r.mean()
+
+            self.buf.store(o, actions, r, log_probs)
+            self.logger.store(EpisodeReturn=ep_ret)

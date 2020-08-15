@@ -182,6 +182,7 @@ class _SplineModel(nn.Module):
         simply ignored. This allows for a consistent API and
         makes environment design simpler
     """
+
     def __init__(
         self,
         cps: torch.Tensor,
@@ -200,7 +201,7 @@ class _SplineModel(nn.Module):
         self.device = cps.device
         self.to(self.dim.device)
         self.nbatch = dim.size(0)
-        
+
         self.motion = CatmullRomSpline(cps, p_num, alpha)
         self.distances = torch.zeros(self.nbatch, 1)
         diff = self.motion.diff
@@ -223,24 +224,27 @@ class _SplineModel(nn.Module):
         ):
             setattr(self, k, t.to(device))
         self.device = device
-    
+
     def forward(self, state: torch.Tensor, action: torch.Tensor):  # N x 1
         dt = self.dt
         v = state[:, 2:3]
         acceleration = action[:, 0:1]
 
-        self.distances = (self.distances + v * dt) % self.curve_lengths  # N x 1
-        
-        
+        self.distances = (
+            self.distances + v * dt
+        ) % self.curve_lengths  # N x 1
+
         c1 = self.arc_lengths  # N x P
         c2 = torch.cat(
             [self.arc_lengths[:, 1:], self.arc_lengths[:, 0:1]], dim=-1
         )  # N x P
-        sgs = ((c1 <= self.distances) * (self.distances < c2)).nonzero()  # (N x 1) x 2
-        
+        sgs = (
+            (c1 <= self.distances) * (self.distances < c2)
+        ).nonzero()  # (N x 1) x 2
+
         ts = self.motion(self.distances, sgs)  # N x 1
         pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
-        
+
         theta = self.theta[tuple(sgs[:, 0]), tuple(sgs[:, 1])].reshape(
             pts.size(0), 1
         )

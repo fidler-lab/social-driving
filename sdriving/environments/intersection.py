@@ -128,7 +128,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         distances = torch.cat(
             [self.agents[v].distance_from_destination() for v in a_ids]
         )
-        
+
         # Agent Speeds
         speeds = torch.cat([self.agents[v].speed for v in a_ids])
 
@@ -147,9 +147,12 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         goal_reach_bonus = (not_completed * reached_goal).float()
         self.completion_vector = self.completion_vector + reached_goal
         for v in a_ids:
-            self.agents[v].destination = (
-                self.agents[v].position * self.completion_vector
-                + self.agents[v].destination * (~self.completion_vector)
+            self.agents[v].destination = self.agents[
+                v
+            ].position * self.completion_vector + self.agents[
+                v
+            ].destination * (
+                ~self.completion_vector
             )
 
         distances *= not_completed / self.original_distances
@@ -158,9 +161,10 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         new_collisions = ~self.collision_vector * new_collisions
         penalty = (
             new_collisions.float()
-            + new_collisions * distances * (
-                self.horizon - self.nsteps - 1
-            ) / self.horizon
+            + new_collisions
+            * distances
+            * (self.horizon - self.nsteps - 1)
+            / self.horizon
         )
         self.collision_vector += new_collisions
 
@@ -205,13 +209,20 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         self.srd = []
         self.erd = []
         for _ in range(self.nagents):
-            
+
             successful_placement = False
             while not successful_placement:
-                srd_new = (srd + 1) % 4 if not self.balance_cars else np.random.choice(range(4))
+                srd_new = (
+                    (srd + 1) % 4
+                    if not self.balance_cars
+                    else np.random.choice(range(4))
+                )
                 erd = (
                     srd_new + np.random.choice([1, 2, 3])
-                    if (self.nagents == 1 or (hasattr(self, "turns") and self.turns))
+                    if (
+                        self.nagents == 1
+                        or (hasattr(self, "turns") and self.turns)
+                    )
                     else (srd_new + 2)
                 )
                 erd = erd % 4
@@ -227,7 +238,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                         dest_orientation=dorient,
                         dimensions=dims,
                         initial_speed=torch.zeros(1, 1),
-                        name="agent"
+                        name="agent",
                     )
                     break
                 else:
@@ -237,7 +248,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                         destination=epos,
                         dest_orientation=dorient,
                         dimensions=dims,
-                        initial_speed=torch.zeros(1, 1)
+                        initial_speed=torch.zeros(1, 1),
                     )
             srd = srd_new
             self.srd.append(srd)
@@ -250,7 +261,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         self.agents[vehicle.name] = vehicle
 
         self.original_distances = vehicle.distance_from_destination()
-    
+
     def store_dynamics(self, vehicle):
         self.dynamics = BicycleKinematicsModel(
             dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0

@@ -110,7 +110,7 @@ def generate_intersection_world_12signals(
     has_endpoints: List[bool] = [False] * 4,
     time_green: int = 100,
     ordering: int = 0,
-    default_colmap: bool = True
+    default_colmap: bool = True,
 ) -> World:
     net = generate_nway_intersection_block(
         4, closed, length, road_width, name, center, orientation, has_endpoints
@@ -118,7 +118,7 @@ def generate_intersection_world_12signals(
     net.construct_graph()
 
     world = World(net)
-    
+
     if default_colmap:
         col_map = {0.0: "g", 1.0: "r", 0.5: "y"}
     else:
@@ -131,7 +131,9 @@ def generate_intersection_world_12signals(
     vals = torch.as_tensor(vals)
 
     mapping = {(i, j): vals[i] for i in range(4) for j in range(4) if i != j}
-    colors = {idx: [col_map[val.item()] for val in v] for (idx, v) in mapping.items()}
+    colors = {
+        idx: [col_map[val.item()] for val in v] for (idx, v) in mapping.items()
+    }
 
     times = torch.as_tensor([time_green - 20, 20] * len(vals))
 

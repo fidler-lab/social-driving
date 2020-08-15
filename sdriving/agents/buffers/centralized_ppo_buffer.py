@@ -1,5 +1,4 @@
 import time
-from collections import namedtuple
 from typing import Optional, Union
 
 import numpy as np
@@ -8,12 +7,6 @@ from sdriving.agents.utils import (
     combined_shape,
     discount_cumsum,
     hvd_scalar_statistics,
-)
-
-
-BufferReturn = namedtuple(
-    "BufferReturn", 
-    ["obs", "lidar", "act", "ret", "adv", "logp", "vest", "mask"]
 )
 
 
@@ -55,7 +48,7 @@ class CentralizedPPOBuffer:
         self.ret_buf = func()
         self.val_buf = func()
         self.logp_buf = func()
-        
+
         # We need to mask a few values
         self.mask_buf = allocate_ones_tensor(
             combined_shape(size, batch=nagents), device
@@ -93,15 +86,17 @@ class CentralizedPPOBuffer:
 
             # the next two lines implement GAE-Lambda advantage calculation
             deltas = rews[:-1] + self.gamma * vals[1:] - vals[:-1]
-            self.adv_buf[b, path_slice] = discount_cumsum(deltas, self.gamma * self.lam)
+            self.adv_buf[b, path_slice] = discount_cumsum(
+                deltas, self.gamma * self.lam
+            )
 
             # the next line computes rewards-to-go,
             # to be targets for the value function
             self.ret_buf[b, path_slice] = discount_cumsum(rews, self.gamma)[
                 :-1
             ]
-            
-            self.mask_buf[b, self.ptr[b]:max_ptr] = 0
+
+            self.mask_buf[b, self.ptr[b] : max_ptr] = 0
             self.path_start_idx[b] = max_ptr
             self.ptr[b] = max_ptr
 
@@ -120,7 +115,10 @@ class CentralizedPPOBuffer:
             adv = self.adv_buf[b]
             # This is supposed to be computed across all processes but it
             # becomes a big bottleneck
-            adv_mean, adv_std = adv.mean(), adv.std() # hvd_scalar_statistics(self.adv_buf[b])
+            adv_mean, adv_std = (
+                adv.mean(),
+                adv.std(),
+            )  # hvd_scalar_statistics(self.adv_buf[b])
             self.adv_buf[b] = (adv - adv_mean) / (adv_std + 1e-7)
         # The entire buffer will most likely not be filled
         return dict(

@@ -103,10 +103,10 @@ class _BatchedVehicle(torch.nn.Module):
         check = self.collision_check_with_rectangle(
             coordinates, torch.cat([coordinates[1:, :], coordinates[0:1, :]])
         )
-        
+
         if check.any():
             return False
-        
+
         self.position = torch.cat([self.position, position])
         self.orientation = torch.cat([self.orientation, orientation])
         self.destination = torch.cat(
@@ -115,13 +115,11 @@ class _BatchedVehicle(torch.nn.Module):
         self.dest_orientation = torch.cat(
             [
                 self.dest_orientation,
-                angle_normalize(dest_orientation.to(self.device))
+                angle_normalize(dest_orientation.to(self.device)),
             ]
         )
         self.dimensions = torch.cat([self.dimensions, dimensions])
-        self.speed = torch.cat(
-            [self.speed, initial_speed.to(self.device)]
-        )
+        self.speed = torch.cat([self.speed, initial_speed.to(self.device)])
         self.base_coordinates = torch.cat(
             [self.base_coordinates, base_coordinates]
         )
@@ -207,16 +205,14 @@ class _BatchedVehicle(torch.nn.Module):
 
         c = check_intersection_lines(p1, p2, p1, p2) * self.bool_buffer
         return c.view(self.nbatch, 4, -1).any(1).any(1)
-    
+
     @torch.jit.export
     def collision_check_with_rectangle(
-        self,
-        point1: torch.Tensor,  # 4 x 2
-        point2: torch.Tensor,  # 4 x 2
+        self, point1: torch.Tensor, point2: torch.Tensor,  # 4 x 2  # 4 x 2
     ):
         p1, p2 = self.get_edges()
         p1, p2 = p1.view(-1, 2), p2.view(-1, 2)
-        
+
         c = check_intersection_lines(p1, p2, point1, point2)
         return c.any()
 
