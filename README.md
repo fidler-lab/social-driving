@@ -1,22 +1,45 @@
 # social-driving
-Design multi-agent environments and simple reward functions such that social
-driving behavior emerges
+Design multi-agent environments and simple reward functions such that social driving behavior emerges
 
 
 ## Installation
 
-We use MPI and OpenAI SpinningUp in our implementation of PPO. These need to
-be setup before installing `sdriving`. Please follow the installation
-instructions on [this page](https://spinningup.openai.com/en/latest/user/installation.html)
-for proper setup.
+Create a new conda environment
 
-Additionally pytorch needs to be installed. Follow the instructions given
-[here](https://pytorch.org/get-started/locally/).
+```
+$ conda create --name sdriving python=3.7
+$ conda activate sdriving
+```
+
+Follow the instructions given [here](https://pytorch.org/get-started/locally/) to install pytorch.
+
+Install the [Nuscenes DevKit](https://github.com/nutonomy/nuscenes-devkit/) for access to realistic simulation environments.
 
 Finally install sdriving using the following instructions.
 
 ```
 $ git clone https://github.com/fidler-lab/social-driving.git sdriving
 $ cd sdriving
-$ python setup.py install
+$ python setup.py develop
 ```
+
+## Training an Agent
+
+Right now only a `PPO with Centralized Critic` is implemented for the current enviornments. To use it run the following command:
+
+```
+$ python -m sdriving.agents.ppo_distributed.train --help
+```
+
+Example usage:
+
+```
+$ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoint/ --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 16000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 4567 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 908515 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 12, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"default_color\": true, \"balance_cars\": false}"
+```
+
+## Available Environments
+
+1. `MultiAgentRoadIntersectionBicycleKinematicsEnvironment`
+2. `MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment`
+3. `MultiAgentRoadIntersectionFixedTrackEnvironment`
+4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`

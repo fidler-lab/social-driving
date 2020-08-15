@@ -1,8 +1,7 @@
-celluloid==0.2.0
-gym==0.15.4
-mpi4py==3.0.3
-numpy==1.18.1
+celluloid
+gym
+horovod
+numpy
 scipy
-torch==1.5.0
 matplotlib
 wandb
