@@ -99,6 +99,7 @@ class BaseMultiAgentDrivingEnvironment:
     def render(self, *args, **kwargs):
         self.world.render(*args, **kwargs)
 
+    @torch.no_grad()
     def step(
         self, action: torch.Tensor, render: bool = False, **render_kwargs
     ):

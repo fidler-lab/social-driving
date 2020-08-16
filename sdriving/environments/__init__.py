@@ -11,6 +11,9 @@ from sdriving.environments.fixed_track import (
     MultiAgentRoadIntersectionFixedTrackEnvironment,
     MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment,
 )
+from sdriving.environments.spline_env import (
+    MultiAgentOneShotSplinePredictionEnvironment
+)
 
 REGISTRY = {}
 

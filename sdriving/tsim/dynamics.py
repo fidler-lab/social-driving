@@ -189,12 +189,10 @@ class _SplineModel(nn.Module):
         p_num: int = 5,
         alpha: int = 0.5,
         dt: float = 0.10,
-        dim: torch.Tensor = torch.ones(1) * 4.48,
         v_lim: torch.Tensor = torch.ones(1) * 8.0,
     ):
         super().__init__()
         self.dt = dt
-        self.dim = dim.unsqueeze(1)
         self.v_lim = v_lim.unsqueeze(1)
         self.v_lim_neg = -self.v_lim
 

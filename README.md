@@ -43,3 +43,4 @@ $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoi
 2. `MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment`
 3. `MultiAgentRoadIntersectionFixedTrackEnvironment`
 4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
+5. `MultiAgentOneShotSplinePredicitonEnvironment`
