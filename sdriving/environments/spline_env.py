@@ -1,4 +1,3 @@
-
 import math
 import random
 from collections import deque
@@ -9,7 +8,7 @@ import torch
 
 from gym.spaces import Box, Discrete, Tuple
 from sdriving.environments.intersection import (
-    MultiAgentIntersectionBicycleKinematicsEnvironment
+    MultiAgentIntersectionBicycleKinematicsEnvironment,
 )
 from sdriving.tsim import (
     SplineModel,
@@ -51,7 +50,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
     def get_action_space(self):
         return Box(
             low=np.array([0.0] * 2 * self.nwaypoints),
-            high=np.array([1.0, 2 * math.pi] * self.nwaypoints)
+            high=np.array([1.0, 2 * math.pi] * self.nwaypoints),
         )
 
     def get_state(self):
@@ -68,20 +67,18 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         vehicle = self.agents["agent"]
         destinations = vehicle.destination.unsqueeze(1)  # N x 1 x 2
         feasible_path = self.world.trajectory_points["agent"]  # N x B x 2
-        )
         feasible_path = torch.cat(
             [feasible_path, destinations], dim=1
         )  # N x (B + 1) x 2
         lw = 2 * self.length + self.width
-        rot_mat = get_2d_rotation_matrix(
-            vehicle.orientation
-        ).permute(0, 2, 1)  # N x 2 x 2
+        rot_mat = get_2d_rotation_matrix(vehicle.orientation).permute(
+            0, 2, 1
+        )  # N x 2 x 2
         offset = vehicle.position.unsqueeze(1)  # N x 1 x 2
         self.transformation = (rot_mat, offset)
 
         local_feasible_path = torch.bmm(
-            feasible_path - offset,  # N x (B + 1) x 2
-            rot_mat
+            feasible_path - offset, rot_mat  # N x (B + 1) x 2
         )
         self.cached_path = local_feasible_path
 
@@ -123,8 +120,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         self.collision_vector += new_collisions
 
         return (
-            - distances * (~self.collision_vector) / self.horizon
-            - (speeds / 8.0).abs() * self.completion_vector / self.horizon
+            -distances * (~self.collision_vector) / self.horizon
             - penalty
             + goal_reach_bonus
         )

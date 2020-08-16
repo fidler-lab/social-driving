@@ -52,7 +52,9 @@ class OneStepPPOBuffer:
         ptr_copy = self.ptr
         self.ptr = 0
         rew = self.rew_buf[:, :ptr_copy]
-        rew = (rew - rew.mean(1, keepdim=True)) / (rew.std(1, keepdim=True) + 1e-7)
+        rew = (rew - rew.mean(1, keepdim=True)) / (
+            rew.std(1, keepdim=True) + 1e-7
+        )
 
         return dict(
             obs=self.state_buf[:, :ptr_copy, :],

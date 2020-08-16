@@ -11,7 +11,7 @@ from torch import nn
 from sdriving.agents.buffer import OneStepPPOBuffer
 from sdriving.agents.model import (
     PPOWaypointGaussianActor,
-    PPOWaypointCategoricalActor
+    PPOWaypointCategoricalActor,
 )
 from sdriving.agents.utils import (
     count_vars,
@@ -138,7 +138,7 @@ class PPO_OneStep:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True
+                allow_val_change=True,
             )
             wandb.watch_called = False
 
@@ -178,13 +178,13 @@ class PPO_OneStep:
             data[k] for k in ["obs", "act", "logp", "ret"]
         ]
 
-         # Policy loss
+        # Policy loss
         pi, _, logp = self.actor(obs, act)
         ratio = torch.exp(logp - logp_old)  # N x B
         clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
         loss_pi = -torch.min(ratio * adv, clip_adv).mean()
 
-         # Entropy Loss
+        # Entropy Loss
         ent = pi.entropy().mean()
 
         # TODO: Search for a good set of coeffs
@@ -193,9 +193,7 @@ class PPO_OneStep:
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().detach().cpu()
-        info = dict(
-            kl=approx_kl, ent=ent.item(), pi_loss=loss_pi.item(),
-        )
+        info = dict(kl=approx_kl, ent=ent.item(), pi_loss=loss_pi.item(),)
 
         return loss, info
 
@@ -223,12 +221,10 @@ class PPO_OneStep:
             self.pi_optimizer.step()
         self.logger.store(StopIter=i)
 
-         # Log changes from update
+        # Log changes from update
         ent, pi_l_old = info["ent"], info["pi_loss"]
         self.logger.store(
-            LossActor=pi_l_old,
-            KL=kl,
-            Entropy=ent,
+            LossActor=pi_l_old, KL=kl, Entropy=ent,
         )
 
     def move_optimizer_to_device(self, opt):
@@ -257,7 +253,6 @@ class PPO_OneStep:
             trainable_parameters(self.actor), lr=self.pi_lr, eps=1e-8
         )
         self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
-
 
     def dump_tabular(self):
         self.logger.log_tabular("Epoch", average_only=True)
