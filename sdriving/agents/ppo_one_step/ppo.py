@@ -76,9 +76,8 @@ class PPO_OneStep:
         self.ac_params = {k: v for k, v in ac_kwargs.items()}
         self.ac_params.update(
             {
-                "observation_space": self.env.observation_space,
-                "action_space": self.env.action_space,
-                "nagents": self.env.nagents,
+                "obs_dim": self.env.observation_space.shape[0],
+                "act_space": self.env.action_space,
             }
         )
 
@@ -187,7 +186,6 @@ class PPO_OneStep:
         # Entropy Loss
         ent = pi.entropy().mean()
 
-        # TODO: Search for a good set of coeffs
         loss = loss_pi - ent * self.entropy_coeff + value_loss
         self.entropy_coeff -= self.entropy_coeff_decay
 
@@ -202,9 +200,8 @@ class PPO_OneStep:
         local_steps_per_epoch = self.local_steps_per_epoch
         train_iters = self.train_iters
 
-        for i in range(train_iters):
+        for i in range(train_pi_iters):
             self.pi_optimizer.zero_grad()
-            self.vf_optimizer.zero_grad()
 
             loss, info = self.compute_loss(data)
 
@@ -289,9 +286,9 @@ class PPO_OneStep:
 
         for t in range(self.local_steps_per_epoch):
             o = env.reset()
-            _, actions, log_probs = self.actor(o)
+            _, actions, log_probs = self.actor(o.to(self.device))
             _, r, _, _ = env.step(actions)
             ep_ret = r.mean()
 
-            self.buf.store(o, actions, r, log_probs)
+            self.buf.store(o, actions, r.to(self.device), log_probs)
             self.logger.store(EpisodeReturn=ep_ret)

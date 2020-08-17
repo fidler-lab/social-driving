@@ -8,8 +8,12 @@ import numpy as np
 import torch
 import wandb
 from torch import nn
-from sdriving.agents.buffer import CentralizedPPOBuffer
-from sdriving.agents.model import PPOLidarActorCritic
+from sdriving.agents.buffer import OneStepPPOBuffer, CentralizedPPOBuffer
+from sdriving.agents.model import (
+    PPOWaypointGaussianActor,
+    PPOWaypointCategoricalActor,
+    PPOLidarActorCritic,
+)
 from sdriving.agents.utils import (
     count_vars,
     trainable_parameters,
@@ -21,29 +25,29 @@ from torch.optim import SGD, Adam
 import horovod.torch as hvd
 
 
-class PPO_Distributed_Centralized_Critic:
+class PPO_Alternating_Optimization_Centralized_Critic:
     def __init__(
         self,
         env,
         env_params: dict,
         log_dir: str,
-        ac_kwargs: dict = {},
+        actor_kwargs: dict = dict(),
+        ac_kwargs: dict = dict(),
+        number_episodes_per_spline_update: int = 4000,
+        number_steps_per_controller_update: int = 4000,
         seed: int = 0,
-        steps_per_epoch: int = 4000,
         epochs: int = 50,
         gamma: float = 0.99,
         clip_ratio: float = 0.2,
         pi_lr: float = 3e-4,
         vf_lr: float = 1e-3,
-        train_iters: int = 100,
+        spline_lr: float = 3e-4,
+        train_iters: int = 20,
         entropy_coeff: float = 1e-2,
         lam: float = 0.97,
         target_kl: float = 0.01,
-        save_freq: int = 10,
         load_path=None,
-        render_train: bool = False,
         wandb_id: Optional[str] = None,
-        **kwargs,
     ):
         self.log_dir = log_dir
         self.render_dir = os.path.join(log_dir, "renders")
@@ -55,7 +59,7 @@ class PPO_Distributed_Centralized_Critic:
         self.softlink = os.path.abspath(
             os.path.join(self.ckpt_dir, f"ckpt_latest.pth")
         )
-        self.ac_params_file = os.path.join(log_dir, "ac_params.json")
+
         hparams = convert_json(locals())
         self.logger = EpochLogger(output_dir=self.log_dir, exp_name=wandb_id)
 
@@ -70,14 +74,21 @@ class PPO_Distributed_Centralized_Critic:
         else:
             device = torch.device("cpu")
 
-        #         env_params.update({"device": device})
         self.env = env(**env_params)
         self.ac_params = {k: v for k, v in ac_kwargs.items()}
         self.ac_params.update(
             {
-                "observation_space": self.env.observation_space,
-                "action_space": self.env.action_space,
+                "observation_space": self.env.observation_space[1],
+                "action_space": self.env.action_space[1],
                 "nagents": self.env.nagents,
+                "centralized": True,
+            }
+        )
+        self.actor_params = {k: v for k, v in actor_kwargs.items()}
+        self.actor_params.update(
+            {
+                "obs_dim": self.env.observation_space[0].shape[0],
+                "act_space": self.env.action_space[0],
             }
         )
 
@@ -86,8 +97,6 @@ class PPO_Distributed_Centralized_Critic:
 
         # Horovod: limit # of CPU threads to be used per worker.
         torch.set_num_threads(1)
-
-        torch.save(self.ac_params, self.ac_params_file)
 
         if os.path.isfile(self.softlink):
             self.logger.log("Restarting from latest checkpoint", color="red")
@@ -99,25 +108,29 @@ class PPO_Distributed_Centralized_Critic:
         np.random.seed(seed)
 
         self.nagents = self.env.nagents
-        self.ac = PPOLidarActorCritic(
-            self.env.observation_space,
-            self.env.action_space,
-            nagents=self.nagents,
-            centralized=True,
-            **ac_kwargs,
-        )
+
+        if isinstance(self.env.action_space[0], gym.spaces.Discrete):
+            self.actor = PPOWaypointCategoricalActor(**self.actor_params)
+        elif isinstance(self.env.action_space[0], gym.spaces.Box):
+            self.actor = PPOWaypointGaussianActor(**self.actor_params)
+        self.ac = PPOLidarActorCritic(**ac_kwargs)
 
         self.device = device
 
         self.pi_lr = pi_lr
         self.vf_lr = vf_lr
+        self.spline_lr = spline_lr
 
         self.load_path = load_path
+
         if load_path is not None:
             self.load_model(load_path)
         else:
             self.pi_optimizer = Adam(
                 trainable_parameters(self.ac.pi), lr=self.pi_lr, eps=1e-8
+            )
+            self.spline_optimizer = Adam(
+                trainable_parameters(self.actor), lr=self.spline_lr, eps=1e-8
             )
             self.vf_optimizer = Adam(
                 trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
@@ -125,11 +138,15 @@ class PPO_Distributed_Centralized_Critic:
 
         # Sync params across processes
         hvd.broadcast_parameters(self.ac.state_dict(), root_rank=0)
+        hvd.broadcast_parameters(self.ac.state_dict(), root_rank=0)
         hvd.broadcast_optimizer_state(self.pi_optimizer, root_rank=0)
         hvd.broadcast_optimizer_state(self.vf_optimizer, root_rank=0)
+        hvd.broadcast_optimizer_state(self.spline_optimizer, root_rank=0)
         self.ac = self.ac.to(device)
+        self.actor = self.actor.to(device)
         self.move_optimizer_to_device(self.pi_optimizer)
         self.move_optimizer_to_device(self.vf_optimizer)
+        self.move_optimizer_to_device(self.spline_optimizer)
 
         if hvd.rank() == 0:
             if wandb_id is None:
@@ -155,23 +172,43 @@ class PPO_Distributed_Centralized_Critic:
 
             wandb.watch(self.ac.pi, log="all")
             wandb.watch(self.ac.v, log="all")
+            wandb.watch(self.actor, log="all")
 
         # Count variables
         var_counts = tuple(
-            count_vars(module) for module in [self.ac.pi, self.ac.v]
+            count_vars(module)
+            for module in [self.ac.pi, self.ac.v, self.actor]
         )
         self.logger.log(
-            "\nNumber of parameters: \t pi: %d, \t v: %d\n" % var_counts,
+            "\nNumber of parameters: \t pi: %d, \t v: %d, \t spline: %d\n"
+            % var_counts,
             color="green",
         )
 
-        # Set up experience buffer
-        self.steps_per_epoch = steps_per_epoch
-        self.local_steps_per_epoch = int(steps_per_epoch / hvd.size())
-        self.buf = CentralizedPPOBuffer(
+        self.number_episodes_per_spline_update = (
+            number_episodes_per_spline_update
+        )
+        self.number_steps_per_controller_update = (
+            number_steps_per_controller_update
+        )
+        self.local_number_episodes = int(
+            self.number_episodes_per_spline_update / hvd.size()
+        )
+        self.local_steps_per_epoch = int(
+            self.number_steps_per_controller_update / hvd.size()
+        )
+
+        self.spline_buffer = OneStepPPOBuffer(
             self.env.observation_space[0].shape,
-            self.env.observation_space[1].shape,
-            self.env.action_space.shape,
+            self.env.action_space[0].shape,
+            self.local_number_episodes,
+            self.env.nagents,
+            self.device,
+        )
+        self.controller_buffer = CentralizedPPOBuffer(
+            self.env.observation_space[1][0].shape,
+            self.env.observation_space[1][1].shape,
+            self.env.action_space[1].shape,
             self.local_steps_per_epoch,
             gamma,
             lam,
@@ -184,9 +221,34 @@ class PPO_Distributed_Centralized_Critic:
         self.train_iters = train_iters
         self.target_kl = target_kl
         self.epochs = epochs
-        self.save_freq = save_freq
 
-    def compute_loss(self, data):
+    def compute_spline_loss(self, data):
+        device = self.device
+        clip_ratio = self.clip_ratio
+
+        obs, act, logp_old, ret, = [
+            data[k] for k in ["obs", "act", "logp", "ret"]
+        ]
+
+        # Policy loss
+        pi, _, logp = self.actor(obs, act)
+        ratio = torch.exp(logp - logp_old)  # N x B
+        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
+        loss_pi = -torch.min(ratio * adv, clip_adv).mean()
+
+        # Entropy Loss
+        ent = pi.entropy().mean()
+
+        loss = loss_pi - ent * self.entropy_coeff + value_loss
+        self.entropy_coeff -= self.entropy_coeff_decay
+
+        # Logging Utilities
+        approx_kl = (logp_old - logp).mean().detach().cpu()
+        info = dict(kl=approx_kl, ent=ent.item(), pi_loss=loss_pi.item(),)
+
+        return loss, info
+
+    def compute_controller_loss(self, data):
         device = self.device
         clip_ratio = self.clip_ratio
 
@@ -228,7 +290,6 @@ class PPO_Distributed_Centralized_Critic:
         # Entropy Loss
         ent = pi.entropy().mean()
 
-        # TODO: Search for a good set of coeffs
         loss = loss_pi - ent * self.entropy_coeff + value_loss
         self.entropy_coeff -= self.entropy_coeff_decay
 
@@ -244,16 +305,49 @@ class PPO_Distributed_Centralized_Critic:
 
         return loss, info
 
-    def update(self):
-        data = self.buf.get()  # Gets a type Buffer Return
-        local_steps_per_epoch = self.local_steps_per_epoch
+    def move_optimizer_to_device(self, opt):
+        for state in opt.state.values():
+            for k, v in state.items():
+                if torch.is_tensor(v):
+                    state[k] = v.to(self.device)
+
+    def update_spline(self):
+        data = self.spline_buffer.get()
+        train_iters = self.train_iters
+
+        for i in range(train_iters):
+            self.spline_optimizer.zero_grad()
+
+            loss, info = self.compute_spline_loss(data)
+
+            kl = hvd.allreduce(info["kl"], op=hvd.Average)
+            loss.backward()
+            hvd_average_grad(self.actor, self.device)
+            nn.utils.clip_grad_norm_(self.actor.parameters(), 5.0)
+            if kl > 1.5 * self.target_kl:
+                self.logger.log(
+                    f"Early stopping at step {i} due to reaching max kl.",
+                    color="red",
+                )
+                break
+            self.spline_optimizer.step()
+        self.logger.store(StopIterSpline=i)
+
+        # Log changes from update
+        ent, pi_l_old = info["ent"], info["pi_loss"]
+        self.logger.store(
+            LossActorSpline=pi_l_old, KLSpline=kl, EntropySpline=ent,
+        )
+
+    def update_controller(self):
+        data = self.controller_buffer.get()
         train_iters = self.train_iters
 
         for i in range(train_iters):
             self.pi_optimizer.zero_grad()
             self.vf_optimizer.zero_grad()
 
-            loss, info = self.compute_loss(data)
+            loss, info = self.compute_controller_loss(data)
 
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
@@ -268,7 +362,7 @@ class PPO_Distributed_Centralized_Critic:
                 break
             nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
             self.pi_optimizer.step()
-        self.logger.store(StopIter=i)
+        self.logger.store(StopIterController=i)
 
         # Log changes from update
         ent, pi_l_old, v_l_old, v_est = (
@@ -278,42 +372,45 @@ class PPO_Distributed_Centralized_Critic:
             info["value_est"],
         )
         self.logger.store(
-            LossActor=pi_l_old,
-            LossCritic=v_l_old,
-            KL=kl,
-            Entropy=ent,
-            ValueEstimate=v_est,
+            LossActorController=pi_l_old,
+            LossCriticController=v_l_old,
+            KLController=kl,
+            EntropyController=ent,
+            ValueEstimateController=v_est,
         )
 
-    def move_optimizer_to_device(self, opt):
-        for state in opt.state.values():
-            for k, v in state.items():
-                if torch.is_tensor(v):
-                    state[k] = v.to(self.device)
-
-    def save_model(self, epoch: int, ckpt_extra: dict = {}):
+    def save_model(self, epoch: int, ckpt_extra: dict = dict()):
         ckpt = {
-            "actor": self.ac.pi.state_dict(),
-            "critic": self.ac.v.state_dict(),
+            "controller_actor": self.ac.pi.state_dict(),
+            "controller_critic": self.ac.v.state_dict(),
+            "spline_actor": self.actor.state_dict(),
             "nagents": self.nagents,
             "pi_optimizer": self.pi_optimizer.state_dict(),
             "vf_optimizer": self.vf_optimizer.state_dict(),
+            "spline_optimizer": self.spline_optimizer.state_dict(),
             "ac_kwargs": self.ac_params,
+            "actor_kwargs": self.actor_params,
             "model": "centralized_critic",
+            "type": "bilevel_model",
         }
         ckpt.update(ckpt_extra)
         torch.save(ckpt, self.softlink)
         wandb.save(self.softlink)
 
-    def load_model(self, load_path):
+    def load_model(self, load_path: str):
         ckpt = torch.load(load_path, map_location="cpu")
-        self.ac.pi.load_state_dict(ckpt["actor"])
+        self.actor.load_state_dict(ckpt["spline_actor"])
+        self.spline_optimizer = Adam(
+            trainable_parameters(self.actor), lr=self.spline_lr, eps=1e-8
+        )
+        self.spline_optimizer.load_state_dict(ckpt["spline_optimizer"])
+        self.ac.pi.load_state_dict(ckpt["controller_actor"])
         self.pi_optimizer = Adam(
             trainable_parameters(self.ac.pi), lr=self.pi_lr, eps=1e-8
         )
         self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
         if ckpt["nagents"] == self.nagents:
-            self.ac.v.load_state_dict(ckpt["critic"])
+            self.ac.v.load_state_dict(ckpt["controller_critic"])
             self.vf_optimizer = Adam(
                 trainable_parameters(self.ac.v), lr=self.vf_lr, eps=1e-8
             )
@@ -327,7 +424,7 @@ class PPO_Distributed_Centralized_Critic:
                 "permutation_invariant" in self.ac_params
                 and self.ac_params["permutation_invariant"]
             ):
-                self.ac.v.load_state_dict(ckpt["critic"])
+                self.ac.v.load_state_dict(ckpt["controller_critic"])
                 self.vf_optimizer.load_state_dict(ckpt["vf_optimizer"])
                 self.logger.log(
                     "Agent doesn't depend on nagents. So continuing finetuning"
@@ -335,48 +432,63 @@ class PPO_Distributed_Centralized_Critic:
 
     def dump_tabular(self):
         self.logger.log_tabular("Epoch", average_only=True)
-        self.logger.log_tabular("EpisodeReturn", with_min_and_max=True)
-        self.logger.log_tabular("EpisodeLength", average_only=True)
-        self.logger.log_tabular("Entropy", average_only=True)
-        self.logger.log_tabular("KL", average_only=True)
-        self.logger.log_tabular("StopIter", average_only=True)
-        self.logger.log_tabular("ValueEstimate", average_only=True)
-        self.logger.log_tabular("LossActor", average_only=True)
-        self.logger.log_tabular("LossCritic", average_only=True)
-        self.logger.log_tabular("EpisodeRunTime", average_only=True)
-        self.logger.log_tabular("PPOUpdateTime", average_only=True)
+        self.logger.log_tabular("EpisodeReturnSpline", with_min_and_max=True)
+        self.logger.log_tabular("EntropySpline", average_only=True)
+        self.logger.log_tabular("KLSpline", average_only=True)
+        self.logger.log_tabular("StopIterSpline", average_only=True)
+        self.logger.log_tabular("LossActorSpline", average_only=True)
+        self.logger.log_tabular("EpisodeRunTimeSpline", average_only=True)
+        self.logger.log_tabular("PPOUpdateTimeSpline", average_only=True)
+        self.logger.log_tabular(
+            "EpisodeReturnController", with_min_and_max=True
+        )
+        self.logger.log_tabular("EpisodeLengthController", average_only=True)
+        self.logger.log_tabular("EntropyController", average_only=True)
+        self.logger.log_tabular("KLController", average_only=True)
+        self.logger.log_tabular("StopIterController", average_only=True)
+        self.logger.log_tabular("ValueEstimateController", average_only=True)
+        self.logger.log_tabular("LossActorController", average_only=True)
+        self.logger.log_tabular("LossCriticController", average_only=True)
+        self.logger.log_tabular("EpisodeRunTimeController", average_only=True)
+        self.logger.log_tabular("PPOUpdateTimeController", average_only=True)
         self.logger.dump_tabular()
 
     def train(self):
-        # Prepare for interaction with environment
         for epoch in range(self.epochs):
+            start_time = time.time()
+            self.controller_episode_runner()
+            self.logger.store(
+                EpisodeRunTimeController=time.time() - start_time
+            )
 
             start_time = time.time()
-            self.episode_runner()
-            self.logger.store(EpisodeRunTime=time.time() - start_time)
-            if (
-                (epoch % self.save_freq == 0) or (epoch == self.epochs - 1)
-            ) and hvd.rank() == 0:
+            self.update_controller()
+            self.logger.store(PPOUpdateTimeController=time.time() - start_time)
+
+            start_time = time.time()
+            self.spline_episode_runner()
+            self.logger.store(EpisodeRunTimeSpline=time.time() - start_time)
+
+            start_time = time.time()
+            self.update_spline()
+            self.logger.store(PPOUpdateTimeSpline=time.time() - start_time)
+
+            if hvd.rank() == 0:
                 self.save_model(epoch)
-
-            start_time = time.time()
-            self.update()
-            self.logger.store(PPOUpdateTime=time.time() - start_time)
-            self.logger.store(Epoch=epoch)
 
             self.dump_tabular()
 
-    def episode_runner(self):
+    def controller_episode_runner(self):
         env = self.env
-
         o, ep_ret, ep_len = env.reset(), 0, 0
+        o = env.step(0, self.actor.act(o.to(self.device), deterministic=True))
         prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
-        for t in range(self.local_steps_per_epoch):
+        for _ in range(self.local_steps_per_epoch):
             obs, lidar = o
-            actions, val_f, log_probs = self.ac.step(
-                [t.to(self.device) for t in o]
+            actions, valf, log_probs = self.ac.step(
+                [obs.to(self.device), lidar.to(self.device)]
             )
-            next_o, r, d, info = self.env.step(actions)
+            next_o, r, d, info = self.env.step(1, actions)
 
             ep_ret += r.mean()
             ep_len += 1
@@ -386,7 +498,7 @@ class PPO_Distributed_Centralized_Critic:
             for b in range(env.nagents):
                 if prev_done[b]:
                     continue
-                self.buf.store(
+                self.controller_buffer.store(
                     b,
                     obs[b],
                     lidar[b],
@@ -408,13 +520,41 @@ class PPO_Distributed_Centralized_Critic:
                     _, v, _ = self.ac.step([t.to(self.device) for t in o])
                 else:
                     v = torch.zeros(env.nagents, device=self.device)
-                self.buf.finish_path(v)
+                self.controller_buffer.finish_path(v)
 
                 if terminal:
                     self.logger.store(
-                        EpisodeReturn=ep_ret, EpisodeLength=ep_len
+                        EpisodeReturnController=ep_ret,
+                        EpisodeLengthController=ep_len,
                     )
                 o, ep_ret, ep_len = env.reset(), 0, 0
                 prev_done = torch.zeros(
                     env.nagents, 1, device=self.device
                 ).bool()
+                o = env.step(
+                    0, self.actor.act(o.to(self.device), deterministic=True)
+                )
+
+    def spline_episode_runner(self):
+        for _ in range(self.local_number_episodes):
+            obs = env.reset()
+            _, actions, log_probs = self.actor(obs)
+            o = env.step(0, actions)
+
+            done = False
+            acc_reward = torch.zeros(
+                self.nagents, 1, device=self.env.world.device
+            )
+            while not done:
+                action = self.ac.act(
+                    [t.to(self.device) for t in o], deterministic=True
+                )
+                o, r, d, _ = env.step(0, action)
+                done = d.all()
+                acc_reward += r
+            ep_ret = acc_reward.mean()
+
+            self.spline_buffer.store(
+                obs, actions, acc_reward.to(self.device), log_probs
+            )
+            self.logger.store(EpisodeReturnSpline=ep_ret)
