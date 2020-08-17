@@ -25,10 +25,19 @@ $ python setup.py develop
 
 ## Training an Agent
 
-Right now only a `PPO with Centralized Critic` is implemented for the current enviornments. To use it run the following command:
+Three variants of PPO are currently implemented:
+
+| Method                                | Python Module                         | Information                                                                                                      | Action Space                     | Observation Space | Compatible Environments |
+|---------------------------------------|---------------------------------------|------------------------------------------------------------------------------------------------------------------|----------------------------------|-------------------|-------------------------|
+| PPO\_Distributed\_Centralized\_Critic | sdriving.agents.ppo_distributed.train | Centralized Training with Decentralized Execution                                                                | Box / Discrete                   | Tuple             | 1, 2, 3, 4, 5           |
+| PPO\_OneStep                          | sdriving.agents.ppo_one_step.train    | Optimized Implementation for Single Step RL                                                                      | Box / Discrete                   | Box               | 5                       |
+| PPO\_Alternating\_Optimization        | sdriving.agents.ppo_altopt.train      | PPO with Bi-Level Optimization. Combines PPO\_Distributed\_ Centralized\_Critic and PPO\_OneStep into one module | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 6                       |
+
+
+To get the configurable parameters for the trainers use the following command
 
 ```
-$ python -m sdriving.agents.ppo_distributed.train --help
+$ python -m <module> --help
 ```
 
 Example usage:
@@ -44,3 +53,4 @@ $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoi
 3. `MultiAgentRoadIntersectionFixedTrackEnvironment`
 4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
 5. `MultiAgentOneShotSplinePredicitonEnvironment`
+6. `MultiAgentIntersectionSplineAccelerationDiscreteEnvironment`
