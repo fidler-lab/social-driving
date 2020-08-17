@@ -29,7 +29,7 @@ Three variants of PPO are currently implemented:
 
 | Method                             | Python Module   | Information                                       | Action Space                     | Observation Space | Compatible Environments |
 |------------------------------------|-----------------|---------------------------------------------------|----------------------------------|-------------------|-------------------------|
-| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1, 2, 3, 4, 5           |
+| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1, 2, 3, 4              |
 | PPO OneStep                        | ppo_one_step    | Optimized Implementation for Single Step RL       | Box / Discrete                   | Box               | 5                       |
 | PPO Alternating Optimization       | ppo_altopt      | PPO with Bi-Level Optimization                    | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 6                       |
 
