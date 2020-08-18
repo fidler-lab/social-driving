@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 from gym.spaces import Box, Discrete, Tuple
-from sdriving.environments.spline import (
+from sdriving.environments.spline_env import (
     MultiAgentOneShotSplinePredictionEnvironment,
 )
 from sdriving.tsim import (

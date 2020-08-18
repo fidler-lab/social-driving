@@ -8,7 +8,7 @@ import torch
 
 from gym.spaces import Box, Discrete, Tuple
 from sdriving.environments.intersection import (
-    MultiAgentIntersectionBicycleKinematicsEnvironment,
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
 from sdriving.tsim import (
     SplineModel,
@@ -18,7 +18,7 @@ from sdriving.agents.model import PPOLidarActorCritic
 
 
 class MultiAgentOneShotSplinePredictionEnvironment(
-    MultiAgentIntersectionBicycleKinematicsEnvironment
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
 ):
     def __init__(self, acceleration_agent: str, *args, **kwargs):
         """
