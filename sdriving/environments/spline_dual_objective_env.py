@@ -51,7 +51,7 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):
         return self.action_list[action]
-    
+
     def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
         return action
 

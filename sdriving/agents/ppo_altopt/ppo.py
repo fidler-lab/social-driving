@@ -561,6 +561,6 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                 obs.detach(),
                 actions.detach(),
                 acc_reward[:, 0].to(self.device).detach(),
-                log_probs.detach()
+                log_probs.detach(),
             )
             self.logger.store(EpisodeReturnSpline=ep_ret)

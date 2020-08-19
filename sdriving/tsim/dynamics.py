@@ -237,7 +237,7 @@ class _SplineModel(nn.Module):
         sgs = torch.where(
             (c1 <= self.distances) * (self.distances <= c2)
         )  # (N x 1, N x 1)
-        
+
         try:
             ts = self.motion(self.distances, sgs)  # N x 1
             pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2

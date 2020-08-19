@@ -173,20 +173,20 @@ class PPO_OneStep:
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, act, logp_old, ret, = [
-            data[k] for k in ["obs", "act", "logp", "ret"]
+        obs, act, logp_old, rew, = [
+            data[k] for k in ["obs", "act", "logp", "rew"]
         ]
 
         # Policy loss
         pi, _, logp = self.actor(obs, act)
         ratio = torch.exp(logp - logp_old)  # N x B
-        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
-        loss_pi = -torch.min(ratio * adv, clip_adv).mean()
+        clip_rew = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * rew
+        loss_pi = -torch.min(ratio * rew, clip_rew).mean()
 
         # Entropy Loss
         ent = pi.entropy().mean()
 
-        loss = loss_pi - ent * self.entropy_coeff + value_loss
+        loss = loss_pi - ent * self.entropy_coeff
         self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
@@ -265,6 +265,7 @@ class PPO_OneStep:
     def train(self):
         # Prepare for interaction with environment
         for epoch in range(self.epochs):
+            self.logger.store(Epoch=epoch)
 
             start_time = time.time()
             self.episode_runner()
@@ -290,5 +291,10 @@ class PPO_OneStep:
             _, r, _, _ = env.step(actions)
             ep_ret = r.mean()
 
-            self.buf.store(o, actions, r.to(self.device), log_probs)
+            self.buf.store(
+                o.detach(),
+                actions.detach(),
+                r[:, 0].to(self.device).detach(),
+                log_probs.detach(),
+            )
             self.logger.store(EpisodeReturn=ep_ret)
