@@ -69,8 +69,8 @@ def colorize(string, color, bold=False, highlight=False):
     attr.append(str(num))
     if bold:
         attr.append("1")
-    sttr = ";".join(attr)
-    return f"\x1b[{attr}m{string}\x1b[0"
+    attr = ";".join(attr)
+    return f"\x1b[{attr}m{string}\x1b[0m"
 
 
 class Logger:
@@ -172,7 +172,7 @@ class Logger:
             keystr = "%" + "%d" % max_key_len
             fmt = "| " + keystr + "s | %15s |"
             n_slashes = 22 + max_key_len
-            print("-" * n_slashes)
+            print("-" * n_slashes, flush=True)
             for key in self.log_headers:
                 val = self.log_current_row.get(key, "")
                 valstr = "%8.3g" % val if hasattr(val, "__float__") else val
@@ -259,7 +259,7 @@ class EpochLogger(Logger):
                 if isinstance(v[0], np.ndarray) and len(v[0].shape) > 0
                 else v
             )
-            vals = torch.as_tensor(vals)
+            vals = torch.as_tensor(vals).float()
             if with_min_and_max:
                 stats = hvd_scalar_statistics_with_min_max(vals)
             else:

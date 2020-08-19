@@ -113,7 +113,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
             self.actor = PPOWaypointCategoricalActor(**self.actor_params)
         elif isinstance(self.env.action_space[0], gym.spaces.Box):
             self.actor = PPOWaypointGaussianActor(**self.actor_params)
-        self.ac = PPOLidarActorCritic(**ac_kwargs)
+        self.ac = PPOLidarActorCritic(**self.ac_params)
 
         self.device = device
 
@@ -226,20 +226,20 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, act, logp_old, ret, = [
-            data[k] for k in ["obs", "act", "logp", "ret"]
+        obs, act, logp_old, rew, = [
+            data[k] for k in ["obs", "act", "logp", "rew"]
         ]
 
         # Policy loss
         pi, _, logp = self.actor(obs, act)
         ratio = torch.exp(logp - logp_old)  # N x B
-        clip_adv = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * adv
-        loss_pi = -torch.min(ratio * adv, clip_adv).mean()
+        clip_rew = torch.clamp(ratio, 1 - clip_ratio, 1 + clip_ratio) * rew
+        loss_pi = -torch.min(ratio * rew, clip_rew).mean()
 
         # Entropy Loss
         ent = pi.entropy().mean()
 
-        loss = loss_pi - ent * self.entropy_coeff + value_loss
+        loss = loss_pi - ent * self.entropy_coeff
         self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
@@ -455,6 +455,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
 
     def train(self):
         for epoch in range(self.epochs):
+            self.logger.store(Epoch=epoch)
             start_time = time.time()
             self.controller_episode_runner()
             self.logger.store(
@@ -483,9 +484,9 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         o, ep_ret, ep_len = env.reset(), 0, 0
         o = env.step(0, self.actor.act(o.to(self.device), deterministic=True))
         prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
-        for _ in range(self.local_steps_per_epoch):
+        for t in range(self.local_steps_per_epoch):
             obs, lidar = o
-            actions, valf, log_probs = self.ac.step(
+            actions, val_f, log_probs = self.ac.step(
                 [obs.to(self.device), lidar.to(self.device)]
             )
             next_o, r, d, info = self.env.step(1, actions)
@@ -536,6 +537,8 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                 )
 
     def spline_episode_runner(self):
+        env = self.env
+
         for _ in range(self.local_number_episodes):
             obs = env.reset()
             _, actions, log_probs = self.actor(obs)
@@ -549,12 +552,15 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                 action = self.ac.act(
                     [t.to(self.device) for t in o], deterministic=True
                 )
-                o, r, d, _ = env.step(0, action)
+                o, r, d, _ = env.step(1, action)
                 done = d.all()
                 acc_reward += r
             ep_ret = acc_reward.mean()
 
             self.spline_buffer.store(
-                obs, actions, acc_reward.to(self.device), log_probs
+                obs.detach(),
+                actions.detach(),
+                acc_reward[:, 0].to(self.device).detach(),
+                log_probs.detach()
             )
             self.logger.store(EpisodeReturnSpline=ep_ret)

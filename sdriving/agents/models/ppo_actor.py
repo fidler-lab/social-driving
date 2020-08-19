@@ -195,7 +195,7 @@ class PPOWaypointGaussianActor(PPOGaussianActor):
         self.apply(init_weights)
 
     def _get_mu_std(self, obs: torch.Tensor, std: bool = True):
-        out = self.net(obs)
+        out = self.net(obs.view(-1, obs.size(-1)))
 
         if std:
             return (

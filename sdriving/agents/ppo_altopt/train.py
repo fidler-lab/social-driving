@@ -35,7 +35,6 @@ if __name__ == "__main__":
     parser.add_argument("--lam", type=float, default=0.97)
     parser.add_argument("-tep", "--num-test-episodes", type=int, default=1)
     parser.add_argument("-ti", "--train_iters", type=int, default=80)
-    parser.add_argument("-f", "--save-freq", type=int, default=1)
     parser.add_argument("--actor-kwargs", type=json.loads, default={})
     parser.add_argument("--ac-kwargs", type=json.loads, default={})
     parser.add_argument("--logger-kwargs", type=json.loads, default={})
@@ -52,7 +51,7 @@ if __name__ == "__main__":
     env = ENV_REGISTRY[args.env]
     log_dir = os.path.join(args.save_dir, args.eid)
 
-    trainer = PPO_Distributed_Centralized_Critic(
+    trainer = PPO_Alternating_Optimization_Centralized_Critic(
         env,
         args.env_kwargs,
         log_dir,
@@ -70,7 +69,6 @@ if __name__ == "__main__":
         train_iters=args.train_iters,
         lam=args.lam,
         target_kl=args.target_kl,
-        save_freq=args.save_freq,
         load_path=args.model_checkpoint if args.resume else None,
         wandb_id=args.wandb_id,
         entropy_coeff=args.entropy_coeff,

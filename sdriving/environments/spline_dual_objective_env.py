@@ -49,6 +49,12 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
             MultiAgentOneShotSplinePredictionEnvironment, self
         ).get_reward(*args, **kwargs)
 
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        return self.action_list[action]
+    
+    def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
+        return action
+
     @torch.no_grad()
     def step(
         self,
@@ -64,7 +70,7 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
                 MultiAgentOneShotSplinePredictionEnvironment, self
             ).step(action, render, **render_kwargs)
 
-        action = self.discrete_to_continuous_actions(action)
+        action = self.discrete_to_continuous_actions_v2(action)
         action = action.to(self.world.device)
 
         vehicle = self.agents["agent"]
