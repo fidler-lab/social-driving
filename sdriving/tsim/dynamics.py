@@ -235,23 +235,17 @@ class _SplineModel(nn.Module):
         c1 = self.arc_lengths[:, :-1]  # N x (P - 1)
         c2 = self.arc_lengths[:, 1:]  # N x (P - 1)
         sgs = torch.where(
-            (c1 <= self.distances) * (self.distances <= c2)
+            (c1 <= self.distances) * (self.distances < c2)
         )  # (N x 1, N x 1)
 
-        try:
-            ts = self.motion(self.distances, sgs)  # N x 1
-            pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
+        ts = self.motion(self.distances, sgs)  # N x 1
+        pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
 
-            theta = self.theta[sgs[0], sgs[1]].reshape(pts.size(0), 1)
-            v = torch.min(
-                torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
-            )
-            return torch.cat([pts, v, theta], dim=1)
-        except:
-            print(self.distances)
-            print(self.arc_lengths)
-
-        return
+        theta = self.theta[sgs[0], sgs[1]].reshape(pts.size(0), 1)
+        v = torch.min(
+            torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
+        )
+        return torch.cat([pts, v, theta], dim=1)
 
 
 def SplineModel(*args, **kwargs):
