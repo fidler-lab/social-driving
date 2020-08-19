@@ -228,6 +228,8 @@ class EpochLogger(Logger):
             if not (k in self.epoch_dict.keys()):
                 self.epoch_dict[k] = []
             self.epoch_dict[k].append(v)
+        if hvd.rank() == 0:
+            wandb.log(kwargs)
 
     def log_tabular(
         self, key, val=None, with_min_and_max=False, average_only=False

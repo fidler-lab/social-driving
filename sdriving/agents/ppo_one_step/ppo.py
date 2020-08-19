@@ -73,8 +73,8 @@ class PPO_OneStep:
 
         #         env_params.update({"device": device})
         self.env = env(**env_params)
-        self.ac_params = {k: v for k, v in ac_kwargs.items()}
-        self.ac_params.update(
+        self.actor_params = {k: v for k, v in ac_kwargs.items()}
+        self.actor_params.update(
             {
                 "obs_dim": self.env.observation_space.shape[0],
                 "act_space": self.env.action_space,
