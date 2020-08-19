@@ -136,6 +136,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         action = self.discrete_to_continuous_actions(action)
         action = action.to(self.world.device)
 
+        vehicle = self.agents["agent"]
         rot_mat, offset = self.transformation
         action = action.view(self.nagents, -1, 2)
         radii = action[..., 0:1] * self.width / 2

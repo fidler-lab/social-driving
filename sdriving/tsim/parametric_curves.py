@@ -64,7 +64,9 @@ class _CatmullRomSpline(nn.Module):
         cps_01 = cps[:, 0, :] - cps[:, 1, :]
         cps_last_01 = cps[:, -1, :] - cps[:, -2, :]
         l_01 = (cps_01.pow(2).sum(1, keepdim=True) + EPS).sqrt().detach()
-        l_last_01 = (cps_last_01.pow(2).sum(1, keepdim=True) + EPS).sqrt().detach()
+        l_last_01 = (
+            (cps_last_01.pow(2).sum(1, keepdim=True) + EPS).sqrt().detach()
+        )
 
         auxillary_cps[:, 0, :] = cps[:, 0, :] - l_01 / l_last_01 * cps_last_01
         auxillary_cps[:, -1, :] = cps[:, -1, :] - l_last_01 / l_01 * cps_01
