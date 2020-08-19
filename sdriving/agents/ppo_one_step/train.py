@@ -9,9 +9,8 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.envs import REGISTRY as ENV_REGISTRY
+from sdriving.environments import REGISTRY as ENV_REGISTRY
 from sdriving.agents.ppo_one_step.ppo import PPO_OneStep
-from spinup.utils.mpi_tools import mpi_fork
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,8 +44,6 @@ if __name__ == "__main__":
 
     env = ENV_REGISTRY[args.env]
     log_dir = os.path.join(args.save_dir, args.eid)
-
-    mpi_fork(args.cpu)  # run parallel code with mpi
 
     trainer = PPO_OneStep(
         env,

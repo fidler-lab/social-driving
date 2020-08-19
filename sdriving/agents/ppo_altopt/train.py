@@ -10,7 +10,7 @@ import gym
 import numpy as np
 import torch
 from sdriving.environments import REGISTRY as ENV_REGISTRY
-from sdriving.agents.ppo_altopt import (
+from sdriving.agents.ppo_altopt.ppo import (
     PPO_Alternating_Optimization_Centralized_Critic,
 )
 import horovod.torch as hvd
