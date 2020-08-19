@@ -41,13 +41,13 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         self.accln_control_actions_list.unsqueeze_(1)
 
     def get_observation_space(self):
-        self.nwaypoints = 3
         return Box(
             low=np.array([-1.0] * 2 * self.nwaypoints),
             high=np.array([1.0] * 2 * self.nwaypoints),
         )
 
     def get_action_space(self):
+        self.nwaypoints = 3
         return Box(
             low=np.array([0.0] * 2 * self.nwaypoints),
             high=np.array([1.0, 2 * math.pi] * self.nwaypoints),
@@ -67,9 +67,6 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         vehicle = self.agents["agent"]
         destinations = vehicle.destination.unsqueeze(1)  # N x 1 x 2
         feasible_path = self.world.trajectory_points["agent"]  # N x B x 2
-        feasible_path = torch.cat(
-            [feasible_path, destinations], dim=1
-        )  # N x (B + 1) x 2
         lw = 2 * self.length + self.width
         rot_mat = get_2d_rotation_matrix(vehicle.orientation).permute(
             0, 2, 1
@@ -78,7 +75,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         self.transformation = (rot_mat, offset)
 
         local_feasible_path = torch.bmm(
-            feasible_path - offset, rot_mat  # N x (B + 1) x 2
+            feasible_path - offset, rot_mat  # N x B x 2
         )
         self.cached_path = local_feasible_path
 
@@ -146,7 +143,8 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         del_x = torch.cos(theta) * radii
         del_y = torch.sin(theta) * radii
         path = self.cached_path + torch.cat([del_x, del_y], dim=-1)
-        action = torch.baddmm(offset, path, torch.inverse(rot_mat))
+        action = torch.baddbmm(offset, path, torch.inverse(rot_mat))
+        action = torch.cat([vehicle.position.unsqueeze(1), action], dim=1)
 
         self.dynamics = SplineModel(
             action, v_lim=torch.ones(self.nagents) * 8.0

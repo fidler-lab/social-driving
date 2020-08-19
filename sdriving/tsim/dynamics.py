@@ -197,8 +197,8 @@ class _SplineModel(nn.Module):
         self.v_lim_neg = -self.v_lim
 
         self.device = cps.device
-        self.to(self.dim.device)
-        self.nbatch = dim.size(0)
+        self.to(self.v_lim.device)
+        self.nbatch = v_lim.size(0)
 
         self.motion = CatmullRomSpline(cps, p_num, alpha)
         self.distances = torch.zeros(self.nbatch, 1)
@@ -236,16 +236,14 @@ class _SplineModel(nn.Module):
         c2 = torch.cat(
             [self.arc_lengths[:, 1:], self.arc_lengths[:, 0:1]], dim=-1
         )  # N x P
-        sgs = (
+        sgs = torch.where(
             (c1 <= self.distances) * (self.distances < c2)
-        ).nonzero()  # (N x 1) x 2
+        )  # (N x 1, N x 1)
 
         ts = self.motion(self.distances, sgs)  # N x 1
         pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
 
-        theta = self.theta[tuple(sgs[:, 0]), tuple(sgs[:, 1])].reshape(
-            pts.size(0), 1
-        )
+        theta = self.theta[sgs[0], sgs[1]].reshape(pts.size(0), 1)
         v = torch.min(
             torch.max(v + acceleration * dt, self.v_lim_neg), self.v_lim
         )

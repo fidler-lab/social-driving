@@ -67,6 +67,7 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
         action = self.discrete_to_continuous_actions(action)
         action = action.to(self.world.device)
 
+        vehicle = self.agents["agent"]
         rot_mat, offset = self.transformation
         action = action.view(self.nagents, -1, 2)
         radii = action[..., 0:1] * self.width / 2
@@ -74,7 +75,8 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
         del_x = torch.cos(theta) * radii
         del_y = torch.sin(theta) * radii
         path = self.cached_path + torch.cat([del_x, del_y], dim=-1)
-        action = torch.baddmm(offset, path, torch.inverse(rot_mat))
+        action = torch.baddbmm(offset, path, torch.inverse(rot_mat))
+        action = torch.cat([vehicle.position.unsqueeze(1), action], dim=1)
 
         self.dynamics = SplineModel(
             action, v_lim=torch.ones(self.nagents) * 8.0

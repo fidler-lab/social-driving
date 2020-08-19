@@ -1,3 +1,4 @@
+from typing import List
 import math
 
 import torch
@@ -62,8 +63,8 @@ class _CatmullRomSpline(nn.Module):
 
         cps_01 = cps[:, 0, :] - cps[:, 1, :]
         cps_last_01 = cps[:, -1, :] - cps[:, -2, :]
-        l_01 = (cps_01.pow(2).sum(1) + EPS).sqrt().detach()
-        l_last_01 = (cps_last_01.pow(2).sum(1) + EPS).sqrt().detach()
+        l_01 = (cps_01.pow(2).sum(1, keepdim=True) + EPS).sqrt().detach()
+        l_last_01 = (cps_last_01.pow(2).sum(1, keepdim=True) + EPS).sqrt().detach()
 
         auxillary_cps[:, 0, :] = cps[:, 0, :] - l_01 / l_last_01 * cps_last_01
         auxillary_cps[:, -1, :] = cps[:, -1, :] - l_last_01 / l_01 * cps_01
@@ -121,25 +122,25 @@ class _CatmullRomSpline(nn.Module):
         ts = self.t.unsqueeze(1)
 
         c1, c2 = ts[:, :, 1:-2], ts[:, :, 2:-1]
-        idx = ((c1 <= t) * (t < c2)).nonzero()
-        idx0 = tuple(idx[:, 0])
+        idx = torch.where((c1 <= t) * (t < c2))
+        idx0 = idx[0]
 
-        idx10 = tuple(idx[:, 2])
+        idx10 = idx[2]
         t0 = self.t[idx0, idx10].reshape(t.size())
         aux0 = self.auxillary_cps[idx0, idx10, :].reshape(
             t.size(0), t.size(1), 2
         )
-        idx11 = tuple(idx[:, 2] + 1)
+        idx11 = idx10 + 1
         t1 = self.t[idx0, idx11].reshape(t.size())
         aux1 = self.auxillary_cps[idx0, idx11, :].reshape(
             t.size(0), t.size(1), 2
         )
-        idx12 = tuple(idx[:, 2] + 2)
+        idx12 = idx11 + 1
         t2 = self.t[idx0, idx12].reshape(t.size())
         aux2 = self.auxillary_cps[idx0, idx12, :].reshape(
             t.size(0), t.size(1), 2
         )
-        idx13 = tuple(idx[:, 2] + 3)
+        idx13 = idx12 + 1
         t3 = self.t[idx0, idx13].reshape(t.size())
         aux3 = self.auxillary_cps[idx0, idx12, :].reshape(
             t.size(0), t.size(1), 2
@@ -156,11 +157,11 @@ class _CatmullRomSpline(nn.Module):
 
         return (t2t * x012 - t1t * x123) / (t2 - t1)  # B x N x 2
 
-    def forward(self, s: torch.Tensor, sgs: torch.Tensor):
+    def forward(self, s: torch.Tensor, sgs: List[torch.Tensor]):
         # s --> B x N, sgs --> (B x N) X 2
         # s is sorted along dim 1
-        i0, i1 = tuple(sgs[:, 0]), tuple(sgs[:, 1])
-        i2 = tuple((sgs[:, 1] + 1) % self.npoints)
+        i0, i1 = sgs[0], sgs[1]
+        i2 = (sgs[1] + 1) % self.npoints
         s0 = self.arc_lengths[i0, i1].reshape(s.size())
         s1 = self.arc_lengths[i0, i2].reshape(s.size())
         t0 = self.ts[i0, i1].reshape(s.size())
