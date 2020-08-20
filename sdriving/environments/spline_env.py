@@ -20,7 +20,13 @@ from sdriving.agents.model import PPOLidarActorCritic
 class MultiAgentOneShotSplinePredictionEnvironment(
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment
 ):
-    def __init__(self, acceleration_agent: str, *args, **kwargs):
+    def __init__(
+        self,
+        acceleration_agent: str,
+        *args,
+        lateral_deviation: bool = False,
+        **kwargs
+    ):
         """
         `acceleration_agent`: Must be the path to a saved pretrained agent.
                               Should have been trained on the
@@ -29,6 +35,8 @@ class MultiAgentOneShotSplinePredictionEnvironment(
                               discrete.
         """
         super().__init__(*args, **kwargs)
+
+        self.lateral_deviation = lateral_deviation
 
         ckpt = torch.load(acceleration_agent, map_location=self.device)
         centralized = ckpt["model"] == "centralized_critic"
@@ -47,7 +55,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         )
 
     def get_action_space(self):
-        self.nwaypoints = 3
+        self.nwaypoints = 1 if self.lateral_deviation else 3
         return Box(
             low=np.array([0.0] * 2 * self.nwaypoints),
             high=np.array([1.0, 2 * math.pi] * self.nwaypoints),
@@ -59,6 +67,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
             # invoking `get_state` function. This check allows us
             # to invoke the `get_state` of the superclass
             return super().get_state()
+
         self.got_spline_state = True
         a_ids = self.get_agent_ids_list()
         # The points we receive from the world are in the global
@@ -127,6 +136,18 @@ class MultiAgentOneShotSplinePredictionEnvironment(
 
     def reset(self):
         self.got_spline_state = False
+
+        vehicle = self.agents["agent"]
+        cstheta = torch.cos(vehicle.orientation)
+        sstheta = torch.sin(vehicle.orientation)
+        cdtheta = torch.cos(vehicle.dest_orientation)
+        sdtheta = torch.sin(vehicle.dest_orientation)
+
+        self.start_pos = (
+            -15.0 * torch.cat([cstheta, sstheta], dim=-1) + vehicle.position
+        ).unsqueeze(1)
+        self.end_deviation = 15.0 * torch.cat([cdtheta, sdtheta], dim=-1)
+
         return super().reset()
 
     @torch.no_grad()
@@ -146,6 +167,9 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         path = self.cached_path + torch.cat([del_x, del_y], dim=-1)
         action = torch.baddbmm(offset, path, torch.inverse(rot_mat))
         action = torch.cat([vehicle.position.unsqueeze(1), action], dim=1)
+
+        end_pos = (action[:, -1, :] + self.end_deviation).unsqueeze(1)
+        action = torch.cat([action, end_pos, self.start_pos], dim=1)
 
         self.dynamics = SplineModel(
             action, v_lim=torch.ones(self.nagents) * 8.0

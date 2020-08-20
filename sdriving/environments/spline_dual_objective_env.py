@@ -19,9 +19,10 @@ from sdriving.tsim import (
 class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
     MultiAgentOneShotSplinePredictionEnvironment
 ):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lateral_deviation: bool = False, **kwargs):
         # The action and observation spaces are tuples containing each for
         # the 2 objectives
+        self.lateral_deviation = lateral_deviation
         super(MultiAgentOneShotSplinePredictionEnvironment, self).__init__(
             *args, **kwargs
         )
@@ -83,6 +84,9 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
         path = self.cached_path + torch.cat([del_x, del_y], dim=-1)
         action = torch.baddbmm(offset, path, torch.inverse(rot_mat))
         action = torch.cat([vehicle.position.unsqueeze(1), action], dim=1)
+
+        end_pos = (action[:, -1, :] + self.end_deviation).unsqueeze(1)
+        action = torch.cat([action, end_pos, self.start_pos], dim=1)
 
         self.dynamics = SplineModel(
             action, v_lim=torch.ones(self.nagents) * 8.0
