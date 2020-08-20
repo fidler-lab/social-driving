@@ -49,16 +49,17 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         self.accln_control_actions_list.unsqueeze_(1)
 
     def get_observation_space(self):
+        self.nwaypoints = 3
         return Box(
             low=np.array([-1.0] * 2 * self.nwaypoints),
             high=np.array([1.0] * 2 * self.nwaypoints),
         )
 
     def get_action_space(self):
-        self.nwaypoints = 1 if self.lateral_deviation else 3
+        self.nwaypoints_action = 1 if self.lateral_deviation else 3
         return Box(
-            low=np.array([0.0] * 2 * self.nwaypoints),
-            high=np.array([1.0, 2 * math.pi] * self.nwaypoints),
+            low=np.array([0.0] * 2 * self.nwaypoints_action),
+            high=np.array([1.0, 2 * math.pi] * self.nwaypoints_action),
         )
 
     def get_state(self):

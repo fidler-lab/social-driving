@@ -22,7 +22,8 @@ class RolloutSimulator:
         env_kwargs: dict,
         device: torch.device,
         save_dir: str,
-        load_path: Optional[str] = None
+        load_path: Optional[str] = None,
+        model_type: Optional[str] = None
     ):
         self.env_name = env_name
         self.env_kwargs = env_kwargs
@@ -42,6 +43,11 @@ class RolloutSimulator:
                 self.two_stage_rollout = False
         else:
             self.dummy_run = True
+            if model_type is None:
+                raise Exception(
+                    "Specify if the model is ['one_step'/'two_step']"
+                )
+            self.two_stage_rollout = model_type == "two_step"
 
         self.device = device
 
@@ -166,7 +172,9 @@ if __name__ == "__main__":
     parser.add_argument("-tep", "--num-test-episodes", type=int, default=1)
     parser.add_argument("--env", type=str, required=True)
     parser.add_argument("--env-kwargs", type=json.loads, default={})
-    parser.add_argument("--dummy-run", action="store_true")
+    parser.add_argument(
+        "--model-type", default=None, choices=["one_step", "two_step", None]
+    )
     parser.add_argument("--no-render", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -174,7 +182,12 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     simulator = RolloutSimulator(
-        args.env, args.env_kwargs, device, args.save_dir, args.model_save_path
+        args.env,
+        args.env_kwargs,
+        device,
+        args.save_dir,
+        args.model_save_path,
+        args.model_type
     )
 
     simulator.rollout(args.num_test_episodes, args.verbose, not args.no_render)

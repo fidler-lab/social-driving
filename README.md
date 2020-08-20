@@ -46,6 +46,16 @@ Example usage:
 $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoint/ --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 16000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 4567 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 908515 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 12, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"default_color\": true, \"balance_cars\": false}"
 ```
 
+## Generating Rollouts
+
+To generate rollouts for any of the registered environments run
+
+```
+python -m sdriving.scripts.rollout --help
+```
+
+To test proper functioning of an environment a good check is to generate a rollout for the same without passing any pretrained model. This will simulate the environment by sampling random actions from the action space. Even though this is not an exhaustive test and the training can still fail, it ensures that the pipeline for sampling environment observations and the episode rollout strategy used in the trainer works properly.
+
 ## Available Environments
 
 1. `MultiAgentRoadIntersectionBicycleKinematicsEnvironment`
@@ -54,3 +64,8 @@ $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoi
 4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
 5. `MultiAgentOneShotSplinePredicitonEnvironment`
 6. `MultiAgentIntersectionSplineAccelerationDiscreteEnvironment`
+
+## Suggestions for Running the Code
+
+* The environments heavily use JIT compilation for speed up. But it might return NaN gradients in some rare situations. The training will explicitly fail in such conditions. In these situations use `PYTORCH_JIT=0`.
+* A minor bottleneck might be horovod caching. Disable caching with `HOROVOD_CACHE_CAPACITY=0`.
