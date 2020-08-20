@@ -4,16 +4,17 @@ Design multi-agent environments and simple reward functions such that social dri
 ## Table of Contents
 
 * [Installation](#installation)
-    * [Agents Module](#agents-module)
-        * [Training an Agent](#training-an-agent)
-    * [Scripts Module](#scripts-module)
-        * [Generating Rollouts](#generating-rollouts)
-    * [Environments Module](#environments-module)
-        * [Available Environments](#available-environments)
-        * [Environment Configuration](#environment-configuration)
-        * [Writing New Environments](#writing-new-environments)
-    * [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
-    * [Additional Suggestions for Debugging](#additional-suggestions-for-debugging)
+* [Agents Module](#agents-module)
+    * [Training an Agent](#training-an-agent)
+    * [Trainer Description](#trainer-description)
+* [Scripts Module](#scripts-module)
+    * [Generating Rollouts](#generating-rollouts)
+* [Environments Module](#environments-module)
+    * [Available Environments](#available-environments)
+    * [Environment Configuration](#environment-configuration)
+    * [Writing New Environments](#writing-new-environments)
+* [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
+* [Additional Suggestions for Debugging](#additional-suggestions-for-debugging)
 
 ## Installation
 
@@ -68,6 +69,16 @@ $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoi
 
 **NOTE**: Even though it might be possible to run the training scripts without `mpirun` / `horovodrun`, I haven't tested them exhaustively. So just use `mpirun --np 1` if you need a single task.
 
+### Trainer Description
+
+The trainers make some assumptions about the environment which must be satisfied over and above the action & observation space restrictions.
+
+1. `PPO Distributed Centralized Critic`: The environment `step` function takes an action whose batch dim is of size `N` (number of agents). Currently it doesn't support variable `N` overtime but it is very simple to implement (so open an issue if needed). It needs to return the observation for next timestep, a BoolTensor of size `N x 1` specifying if simulation for that agent is completed, Reward Tensor of size `N x 1`, and `info` similar to OpenAI Gym Environments.
+
+2. `PPO OneStep`: The `step` function must return the Reward Tensor of size `N x 1`. By design it will assume the horizon is of size 1. This model will most likely **never** converge for any other horizon size.
+
+3. `PPO Alternating Optimization`: The `step` function takes 2 arguments. The first one represents `stage`, which when 0 is used to perform the single step RL action. The returned value when stage = 1, should be the observation of the controller. Any furthur call to `step` follows the same API as `PPO Distributed Centralized Critic`
+
 ## Scripts Module
 
 ### Generating Rollouts
@@ -103,7 +114,8 @@ To test proper functioning of an environment a good check is to generate a rollo
 
 [TODO]
 
-## Additional Suggestions for Debugging
+## Additional Suggestions for Debugging and Performance
 
 * The environments heavily use JIT compilation for speed up. But it might return NaN gradients in some rare situations. The training will explicitly fail in such conditions. In these situations use `PYTORCH_JIT=0`.
 * A minor bottleneck might be horovod caching. Disable caching with `HOROVOD_CACHE_CAPACITY=0`.
+* By default we simulate the environment on CPU, this is performant for low nagents due to the high kernel launch overhead. In case you want to use our `tsim` and `agents` modules for simulating a large number of vehicles, uncomment [this line](https://github.com/fidler-lab/social-driving/blob/b59dede27ebfed22e2c41165a79b8fce95f308da/sdriving/agents/ppo_distributed/ppo.py#L73) or the corresponding line in other trainers.
