@@ -32,7 +32,7 @@ class RolloutSimulator:
         if load_path is not None:
             self.dummy_run = False
             models, tag = checkpoint_parser(load_path)
-            if isinstance(models, [list, tuple]):
+            if isinstance(models, (list, tuple)):
                 self.ac, self.actor = models
                 self.ac.to(device)
                 self.actor.to(device)
@@ -65,13 +65,13 @@ class RolloutSimulator:
             if render:
                 path = self.save_dir / f"{self.env_name}_{ep}.mp4"
                 self.env.render(path=path)
-                print("Episode Render saved at {path}")
+                print(f"Episode Render saved at {path}")
 
         print(f"Mean Return over {nepisodes} episodes:"
               f" {total_ret / nepisodes}")
 
     def _move_object_to_device(self, obj: Union[tuple, list, torch.Tensor]):
-        if isinstance(obj, [list, tuple]):
+        if isinstance(obj, (list, tuple)):
             return [o.to(self.device) for o in obj]
         return obj.to(self.device)
 
@@ -134,7 +134,7 @@ class RolloutSimulator:
         o = self.env.step(0, a)
 
         while not done:
-            a = self._action_two_stage_rollout(o)
+            a = self._action_two_stage_rollout(1, o)
 
             if verbose:
                 print(f"Observation: {o}")

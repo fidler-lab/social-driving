@@ -136,6 +136,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
 
     def reset(self):
         self.got_spline_state = False
+        state = super().reset()
 
         vehicle = self.agents["agent"]
         cstheta = torch.cos(vehicle.orientation)
@@ -144,11 +145,11 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         sdtheta = torch.sin(vehicle.dest_orientation)
 
         self.start_pos = (
-            -15.0 * torch.cat([cstheta, sstheta], dim=-1) + vehicle.position
+            -45.0 * torch.cat([cstheta, sstheta], dim=-1) + vehicle.position
         ).unsqueeze(1)
-        self.end_deviation = 15.0 * torch.cat([cdtheta, sdtheta], dim=-1)
+        self.end_deviation = 45.0 * torch.cat([cdtheta, sdtheta], dim=-1)
 
-        return super().reset()
+        return state
 
     @torch.no_grad()
     def step(

@@ -214,7 +214,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
             while not successful_placement:
                 srd_new = (
                     (srd + 1) % 4
-                    if not self.balance_cars
+                    if self.balance_cars
                     else np.random.choice(range(4))
                 )
                 erd = (
