@@ -27,7 +27,7 @@ $ conda activate sdriving
 
 Follow the instructions given [here](https://pytorch.org/get-started/locally/) to install pytorch.
 
-Install the [Nuscenes DevKit](https://github.com/nutonomy/nuscenes-devkit/) for access to realistic simulation environments.
+Install the [Nuscenes DevKit](https://github.com/nutonomy/nuscenes-devkit/) for access to realistic simulation environments. Use the master branch instead of the pip version. Additionally download the map expansion pack.
 
 Finally install sdriving using the following instructions.
 

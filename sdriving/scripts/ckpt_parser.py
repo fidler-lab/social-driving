@@ -35,14 +35,13 @@ def checkpoint_parser(path: str) -> tuple:
             ac.v = None
             ac.pi.load_state_dict(ckpt["controller_actor"])
             return (
-                (ac, actor), "PPO_ALTERNATING_OPTIMIZATION_CENTRALIZED_CRITIC"
+                (ac, actor),
+                "PPO_ALTERNATING_OPTIMIZATION_CENTRALIZED_CRITIC",
             )
 
         # PPO_Centralized_Critic
         centralized = True
-        ac = PPOLidarActorCritic(
-            **ckpt["ac_kwargs"], centralized=centralized
-        )
+        ac = PPOLidarActorCritic(**ckpt["ac_kwargs"], centralized=centralized)
         ac.v = None
         ac.pi.load_state_dict(ckpt["actor"])
         return ac.pi, "PPO_CENTRALIZED_CRITIC"

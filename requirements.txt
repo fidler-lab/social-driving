@@ -5,3 +5,7 @@ numpy
 scipy
 matplotlib
 wandb
+opencv-python
+pyquaternion
+fire
+sklearn

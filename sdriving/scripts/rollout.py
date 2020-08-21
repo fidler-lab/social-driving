@@ -23,7 +23,7 @@ class RolloutSimulator:
         device: torch.device,
         save_dir: str,
         load_path: Optional[str] = None,
-        model_type: Optional[str] = None
+        model_type: Optional[str] = None,
     ):
         self.env_name = env_name
         self.env_kwargs = env_kwargs
@@ -55,7 +55,9 @@ class RolloutSimulator:
         self.save_dir.mkdir(exist_ok=True)
 
     @torch.no_grad()
-    def rollout(self, nepisodes: int, verbose: bool = False, render: bool = True):
+    def rollout(
+        self, nepisodes: int, verbose: bool = False, render: bool = True
+    ):
         for ep in range(nepisodes):
             total_ret = 0
 
@@ -73,8 +75,10 @@ class RolloutSimulator:
                 self.env.render(path=path)
                 print(f"Episode Render saved at {path}")
 
-        print(f"Mean Return over {nepisodes} episodes:"
-              f" {total_ret / nepisodes}")
+        print(
+            f"Mean Return over {nepisodes} episodes:"
+            f" {total_ret / nepisodes}"
+        )
 
     def _move_object_to_device(self, obj: Union[tuple, list, torch.Tensor]):
         if isinstance(obj, (list, tuple)):
@@ -84,10 +88,14 @@ class RolloutSimulator:
     @torch.no_grad()
     def _action_one_stage_rollout(self, obs):
         if self.dummy_run:
-            return torch.cat([
-                torch.as_tensor(self.env.action_space.sample()).unsqueeze(0)
-                for _ in range(self.env.nagents)
-            ]).cpu()
+            return torch.cat(
+                [
+                    torch.as_tensor(self.env.action_space.sample()).unsqueeze(
+                        0
+                    )
+                    for _ in range(self.env.nagents)
+                ]
+            ).cpu()
 
         obs = self._move_object_to_device(obs)
         return self.actor.act(obs, deterministic=True).cpu()
@@ -106,7 +114,7 @@ class RolloutSimulator:
             o, r, d, _ = self.env.step(
                 a,
                 render=render,
-                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)}
+                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
             )
 
             ep_ret = ep_ret + r
@@ -121,12 +129,16 @@ class RolloutSimulator:
         return ep_ret, ep_len
 
     @torch.no_grad()
-    def _action_two_stage_rollout(self, stage:int, obs):
+    def _action_two_stage_rollout(self, stage: int, obs):
         if self.dummy_run:
-            return torch.cat([
-                torch.as_tensor(self.env.action_space[stage].sample()).unsqueeze(0)
-                for _ in range(self.env.nagents)
-            ]).cpu()
+            return torch.cat(
+                [
+                    torch.as_tensor(
+                        self.env.action_space[stage].sample()
+                    ).unsqueeze(0)
+                    for _ in range(self.env.nagents)
+                ]
+            ).cpu()
 
         obs = self._move_object_to_device(obs)
         model = self.actor if stage == 0 else self.ac
@@ -150,7 +162,7 @@ class RolloutSimulator:
                 1,
                 a,
                 render=render,
-                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)}
+                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
             )
 
             ep_ret = ep_ret + r
@@ -187,8 +199,7 @@ if __name__ == "__main__":
         device,
         args.save_dir,
         args.model_save_path,
-        args.model_type
+        args.model_type,
     )
 
     simulator.rollout(args.num_test_episodes, args.verbose, not args.no_render)
-
