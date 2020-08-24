@@ -541,7 +541,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
 
         for _ in range(self.local_number_episodes):
             obs = env.reset()
-            _, actions, log_probs = self.actor(obs)
+            _, actions, log_probs = self.actor(obs.to(self.device))
             o = env.step(0, actions)
 
             done = False

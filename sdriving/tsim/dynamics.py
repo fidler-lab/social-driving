@@ -201,11 +201,15 @@ class _SplineModel(nn.Module):
         self.nbatch = v_lim.size(0)
 
         self.motion = CatmullRomSpline(cps, p_num, alpha)
-        self.distances = torch.zeros(self.nbatch, 1)
+        self.distances = torch.zeros(self.nbatch, 1, device=self.device)
         diff = self.motion.diff
         ratio = diff[:, :, 1] / (diff[:, :, 0] + EPS)
         self.arc_lengths = self.motion.arc_lengths
         self.curve_lengths = self.motion.curve_length.unsqueeze(1) - 1e-3
+        # Assume that last 2 points are not part of the spline.
+        self.distance_proxy = (
+            cps[:, :-3, :] - cps[:, 1:-2, :]
+        ).pow(2).sum(-1).sqrt().sum(-1, keepdim=True)
         self.theta = angle_normalize(
             torch.where(
                 diff[:, :, 0] > 0,
@@ -213,6 +217,10 @@ class _SplineModel(nn.Module):
                 math.pi + torch.atan(ratio),
             )
         ).unsqueeze(-1)
+    
+    @torch.jit.export
+    def reset(self):
+        self.distances = torch.zeros(self.nbatch, 1, device=self.device)
 
     def to(self, device):
         if device == self.device:
@@ -228,17 +236,16 @@ class _SplineModel(nn.Module):
         v = state[:, 2:3]
         acceleration = action[:, 0:1]
 
-        self.distances = (
-            self.distances + v * dt
-        ) % self.curve_lengths  # N x 1
+        self.distances = self.distances + v * dt
+        distances = self.distances % self.curve_lengths  # N x 1
 
         c1 = self.arc_lengths[:, :-1]  # N x (P - 1)
         c2 = self.arc_lengths[:, 1:]  # N x (P - 1)
         sgs = torch.where(
-            (c1 <= self.distances) * (self.distances < c2)
+            (c1 <= distances) * (distances < c2)
         )  # (N x 1, N x 1)
 
-        ts = self.motion(self.distances, sgs)  # N x 1
+        ts = self.motion(distances, sgs)  # N x 1
         pts = self.motion.sample_points(ts).reshape(-1, 2)  # N x 2
 
         theta = self.theta[sgs[0], sgs[1]].reshape(pts.size(0), 1)

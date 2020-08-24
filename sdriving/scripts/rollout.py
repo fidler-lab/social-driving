@@ -89,8 +89,8 @@ class RolloutSimulator:
     def _action_one_stage_rollout(self, obs):
         if self.dummy_run:
             return torch.cat(
-                [
-                    torch.as_tensor(self.env.action_space.sample()).unsqueeze(
+                [ # self.env.action_space.sample()
+                    torch.as_tensor([1.5]).unsqueeze(
                         0
                     )
                     for _ in range(self.env.nagents)
@@ -111,11 +111,7 @@ class RolloutSimulator:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            o, r, d, _ = self.env.step(
-                a,
-                render=render,
-                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
-            )
+            o, r, d, _ = self.env.step(a, render=render)
 
             ep_ret = ep_ret + r
             ep_len += 1
@@ -158,12 +154,7 @@ class RolloutSimulator:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            o, r, d, _ = self.env.step(
-                1,
-                a,
-                render=render,
-                lims={"x": (-100.0, 100.0), "y": (-100.0, 100.0)},
-            )
+            o, r, d, _ = self.env.step(1, a, render=render)
 
             ep_ret = ep_ret + r
             ep_len += 1

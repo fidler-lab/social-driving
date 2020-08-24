@@ -12,11 +12,17 @@ import json
 from sklearn.neighbors import KDTree
 from glob import glob
 import cv2
+import torch
 
 # use the master branch of nuscenes-devkit instead of pip installed version
 import nuscenes
 from nuscenes.map_expansion.map_api import NuScenesMap
 from nuscenes import NuScenes
+
+from sdriving.nuscenes.utils import (
+    nuscenes_map_to_line_representation,
+    get_drivable_area_matrix
+)
 
 
 def get_nusc_maps(map_folder):
@@ -367,6 +373,87 @@ def env_create(
     gui = GUI()
     gui.render()
     plt.show()
+    
+
+def preprocess_maps(dataroot, glob_path="./*.json"):
+    fs = glob(glob_path)
+    for fi, f in enumerate(fs):
+        with open(f, "r") as reader:
+            data = json.load(reader)
+        nusc_map = NuScenesMap(dataroot=dataroot, map_name=data["map_name"])
+        dataset = dict()
+        center, h, w = data["center"], data["height"], data["width"]
+        patch = [center[0] - w / 2, center[1] - h / 2, center[0] + w / 2, center[1] + h / 2]
+        dataset["patch"] = patch
+        dataset["center"] = np.array([center])
+        dataset["height"] = h
+        dataset["width"] = w
+        dataset["map_name"] = data["map_name"]
+        dataset["dx"] = np.array(data["dx"])
+        dataset["bx"] = np.array(data["bx"])
+        dataset["road_img"] = np.array(data["road_img"])
+        
+        # Needed for lidar sensors
+        pt1, pt2 = nuscenes_map_to_line_representation(nusc_map, patch, False)
+        dataset["edges"] = (pt1, pt2)
+        
+        drivable_area, xs, ys = get_drivable_area_matrix(data, patch, res=150)
+        dataset["plotting_utils"] = (
+            drivable_area.numpy().flatten(),
+            xs.numpy().flatten(),
+            ys.numpy().flatten(),
+            [(0.2, 0.1, 0) if row else (0, 1, 0) for row in drivable_area.numpy().flatten()],
+        )
+        
+        dataset["splines"] = dict()
+        for starti, (key, paths) in enumerate(data["all_paths"].items()):
+            dataset["splines"][starti] = dict()
+            for pathi, path in enumerate(paths):
+                dataset["splines"][starti][pathi] = []
+                path = np.array(path)
+                for i in range(0, 50, 10):
+                    cps = path[np.linspace(i, path.shape[0] - 15, 12, dtype=np.int), :2]
+
+                    diff = cps[0] - cps[1]
+                    theta = np.arctan2(diff[1], diff[0])
+                    start_orientation = angle_normalize(
+                        torch.as_tensor(math.pi + theta)
+                    ).float().reshape(1, 1)
+                    if i == 0:
+                        extra_pt1 = np.array(
+                            [[cps[0, 0] + np.cos(theta) * 15.0, cps[0, 1] + np.sin(theta) * 15.0]]
+                        )
+                    else:
+                        extra_pt1 = path[0:1, :2]
+
+                    diff = cps[-1] - cps[-2]
+                    theta = np.arctan2(diff[1], diff[0])
+                    dest_orientation = angle_normalize(
+                        torch.as_tensor(theta)
+                    ).float().reshape(1, 1)
+                    extra_pt2 = np.array(
+                        [[cps[-1, 0] + np.cos(theta) * 15.0, cps[-1, 1] + np.sin(theta) * 15.0]]
+                    )
+
+                    cps = torch.cat([
+                        torch.from_numpy(cps),
+                        torch.from_numpy(extra_pt2),
+                        torch.from_numpy(extra_pt1)
+                    ])[None, :, :].float()
+
+                    start_position = cps[:, 0, :]
+                    destination = cps[:, -3, :]
+
+                    dataset["splines"][starti][pathi].append(
+                        (start_position,
+                         destination,
+                         start_orientation,
+                         dest_orientation,
+                         cps)
+                    )
+        outname = f"env{data['map_name']}_{data['center'][0]}_{data['center'][1]}.pth"
+        print("saving", outname)
+        torch.save(dataset, outname)
 
 
 def viz_env(glob_path="./*.json"):
@@ -469,5 +556,6 @@ if __name__ == "__main__":
             "env_create": env_create,
             "find_center": find_center,
             "viz_env": viz_env,
+            "preprocess_maps": preprocess_maps,
         }
     )

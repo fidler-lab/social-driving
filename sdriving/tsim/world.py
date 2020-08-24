@@ -46,8 +46,9 @@ class World:
         self.ax = None
         self.cam = None
 
-        self.axis_cache = OrderedDict()
         self.device = torch.device("cpu")
+        
+        self.lims = (-100, 100)
 
     def to(self, device: torch.device):
         if device == self.device:
@@ -74,10 +75,13 @@ class World:
         return self.road_network.shortest_path_trajectory(
             start_pt, end_pt, orientation, dest_orientation
         )  # N x B  Assume all shortest paths are of equal length
+    
+    def get_road_edges(self):
+        return self.road_network.get_edges()
 
     def check_collision(self, vname: str):
         vehicle = self.vehicles[vname]
-        p1, p2 = self.road_network.get_edges()  # N x 2, N x 2
+        p1, p2 = self.get_road_edges()  # N x 2, N x 2
         p3, p4 = vehicle.get_edges()  # B x 4 x 2, B x 4 x 2
 
         p1s, p2s = [p1], [p2]
@@ -117,7 +121,7 @@ class World:
         self, state: torch.Tensor, vname: str, npoints: int
     ):
         p1, p2 = [], []
-        e1, e2 = self.road_network.get_edges()
+        e1, e2 = self.get_road_edges()
         p1.append(e1)
         p2.append(e2)
         for n, v in self.vehicles.items():
@@ -140,21 +144,6 @@ class World:
             obj.step(tstep)
         for ts, _ in self.traffic_signals.values():
             ts.update_lights(tstep)
-
-    def to(self, device: torch.device):
-        if device == self.device:
-            return
-        self.transfer_dict(self.__dict__, device)
-        self.device = device
-
-    def transfer_dict(self, d: Union[dict, OrderedDict], device: torch.device):
-        for k, t in d.items():
-            if torch.is_tensor(t):
-                d[k] = t.to(device)
-            elif hasattr(t, "to"):
-                t.to(device)
-            elif isinstance(t, (dict, OrderedDict)):
-                self.transfer_dict(t, device)
 
     def add_traffic_signal(
         self,
@@ -325,7 +314,9 @@ class World:
 
     def _render_background(self, ax):
         self.road_network.render(ax)
+        self._render_traffic_signal(ax)
 
+    def _render_traffic_signal(self, ax):
         for signal, pt in self.traffic_signals.values():
             ax.add_artist(
                 plt.Circle(
@@ -357,9 +348,10 @@ class World:
             self.fig = plt.figure(figsize=self.figsize)
             self.ax = self.fig.add_subplot(1, 1, 1)
             self.cam = Camera(self.fig)
-            plt.xlim(-100.0, 100.0)
-            plt.ylim(-100.0, 100.0)
-            plt.grid(True)
+            if hasattr(self, "lims"):
+                plt.xlim(self.lims)
+                plt.ylim(self.lims)
+            plt.grid(False)
 
         if lims is not None:
             self.ax.set_xlim(lims["x"])
