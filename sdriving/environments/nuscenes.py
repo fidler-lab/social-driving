@@ -55,6 +55,13 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         self.buffered_ones = torch.ones(self.nagents, 1, device=self.device)
 
+    def get_action_space(self):
+        self.max_accln = 1.5
+        self.normalization_factor = torch.as_tensor([self.max_accln])
+        return Box(
+            low=np.array([-self.max_accln]), high=np.array([self.max_accln]),
+        )
+
     def get_state(self):
         a_id = self.get_agent_ids_list()[0]
         ts = self.world.get_all_traffic_signal().unsqueeze(1)
@@ -204,3 +211,20 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         return super(
             MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self
         ).reset()
+
+
+class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
+    MultiAgentNuscenesIntersectionDrivingEnvironment
+):
+     def configure_action_space(self):
+        self.max_accln = 1.5
+        self.action_list = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, step=0.25
+        ).unsqueeze(1)
+
+    def get_action_space(self):
+        self.normalization_factor = torch.as_tensor([self.max_accln])
+        return Discrete(self.action_list.size(0))
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        return self.action_list[action]

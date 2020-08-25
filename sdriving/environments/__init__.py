@@ -19,6 +19,7 @@ from sdriving.environments.spline_dual_objective_env import (
 )
 from sdriving.environments.nuscenes import (
     MultiAgentNuscenesIntersectionDrivingEnvironment,
+    MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
 )
 
 REGISTRY = {}
