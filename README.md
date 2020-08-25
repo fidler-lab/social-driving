@@ -14,6 +14,7 @@ Design multi-agent environments and simple reward functions such that social dri
     * [Environment Configuration](#environment-configuration)
     * [Writing New Environments](#writing-new-environments)
 * [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
+* [Nuscenes](#nuscenes)
 * [Additional Suggestions for Debugging](#additional-suggestions-for-debugging)
 
 ## Installation
@@ -113,6 +114,22 @@ To test proper functioning of an environment a good check is to generate a rollo
 ## TSIM (Traffic Simulator) Module
 
 [TODO]
+
+## Nuscenes
+
+We provide a set of preprocessed maps from nuscenes for use with our simulator. Download the map expansion pack from their website if you don't have the `*.pth` map files. If you have the `*.json` files then run the following code:
+
+```
+$ python -m sdriving.nuscenes.nusc fix_json_maps --glob_path="./map_jsons/*.json"
+```
+
+You might need to run it 3 times (don't worry its super fast). This will clean up the provided json files. Keep running it if you get any message other than `Fixing *.json...`
+
+Next preprocess these json files so that the Simulator can directly read them.
+
+```
+$ python sdriving/nuscenes/nusc.py preprocess_maps nuScenes-map-expansion-v1.2 --glob_path="./map_jsons/*.json"
+```
 
 ## Additional Suggestions for Debugging and Performance
 
