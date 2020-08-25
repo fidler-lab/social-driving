@@ -89,10 +89,8 @@ class RolloutSimulator:
     def _action_one_stage_rollout(self, obs):
         if self.dummy_run:
             return torch.cat(
-                [ # self.env.action_space.sample()
-                    torch.as_tensor([1.5]).unsqueeze(
-                        0
-                    )
+                [  # self.env.action_space.sample()
+                    torch.as_tensor([1.5]).unsqueeze(0)
                     for _ in range(self.env.nagents)
                 ]
             ).cpu()

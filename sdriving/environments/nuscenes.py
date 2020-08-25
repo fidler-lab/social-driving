@@ -8,7 +8,7 @@ import torch
 
 from gym.spaces import Box, Discrete, Tuple
 from sdriving.environments.intersection import (
-    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
 from sdriving.tsim import (
     SplineModel,
@@ -43,30 +43,32 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         super(
             MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self
         ).__init__(world, nagents, horizon, timesteps, device)
-        
+
         self.queue1 = None
         self.queue2 = None
         self.lidar_noise = lidar_noise
-        
+
         bool_buffer = torch.ones(self.nagents * 4, self.nagents * 4)
         for i in range(0, self.nagents * 4, 4):
             bool_buffer[i : (i + 4), i : (i + 4)] -= 1
         self.bool_buffer = bool_buffer.bool()
-        
+
         self.buffered_ones = torch.ones(self.nagents, 1, device=self.device)
-    
+
     def get_state(self):
         a_id = self.get_agent_ids_list()[0]
         ts = self.world.get_all_traffic_signal().unsqueeze(1)
         vehicle = self.agents[a_id]
         head = vehicle.orientation
-        
+
         dist = vehicle.distance_from_destination()
         path_distance = self.dynamics.distance_proxy - self.dynamics.distances
-        inv_dist = torch.where(dist == 0, self.buffered_ones, 1 / path_distance)
-        
+        inv_dist = torch.where(
+            dist == 0, self.buffered_ones, 1 / path_distance
+        )
+
         speed = vehicle.speed
-        
+
         obs = torch.cat([ts, speed / self.dynamics.v_lim, head, inv_dist], -1)
         lidar = 1 / self.world.get_lidar_data_all_vehicles(self.npoints)
 
@@ -86,7 +88,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             )
         else:
             return obs, lidar
-        
+
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
         a_id = a_ids[0]
@@ -133,7 +135,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             * (self.horizon - self.nsteps - 1)
             / self.horizon
         )
-        
+
         self.collision_vector += new_collisions
 
         return (
@@ -142,7 +144,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             - penalty
             + goal_reach_bonus
         )
-    
+
     def add_vehicles_to_world(self):
         vehicle = None
         dims = torch.as_tensor([[4.48, 2.2]])
@@ -150,7 +152,10 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         for _ in range(self.nagents):
             successful_placement = False
             while not successful_placement:
-                idx, (spos, epos, orient, dorient, cps) = self.world.sample_new_vehicle_position()
+                (
+                    idx,
+                    (spos, epos, orient, dorient, cps),
+                ) = self.world.sample_new_vehicle_position()
                 if vehicle is None:
                     vehicle = BatchedVehicle(
                         position=spos,
@@ -196,4 +201,6 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.queue1 = deque(maxlen=self.history_len)
         self.queue2 = deque(maxlen=self.history_len)
 
-        return super(MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self).reset()
+        return super(
+            MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self
+        ).reset()

@@ -1,5 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import math
 import sys
 import os
 from pyquaternion import Quaternion
@@ -21,8 +22,9 @@ from nuscenes import NuScenes
 
 from sdriving.nuscenes.utils import (
     nuscenes_map_to_line_representation,
-    get_drivable_area_matrix
+    get_drivable_area_matrix,
 )
+from sdriving.tsim import angle_normalize
 
 
 def get_nusc_maps(map_folder):
@@ -373,7 +375,57 @@ def env_create(
     gui = GUI()
     gui.render()
     plt.show()
-    
+
+
+def fix_json_maps(glob_path="./*.json"):
+    fs = glob(glob_path)
+    for fi, f in enumerate(fs):
+        print(f"Fixing {f}...")
+        with open(f, "r") as reader:
+            data = json.load(reader)
+
+        # Some splines have repeated points. Clean those up
+        for k, paths in data["all_paths"].items():
+            new_paths = []
+            for path in paths:
+                path = np.array(path)
+                new_paths.append(
+                    [path[0].tolist()]
+                    + path[1:][(1 - (
+                        path[1:] == path[:-1]
+                    ).all(-1)).astype(np.bool)].tolist()
+                )
+                if path.shape[0] != len(new_paths[-1]):
+                    print(f"[Point Cleanup] Before: {path.shape[0]} |"
+                        f" After {len(new_paths[-1])}")
+            data["all_paths"][k] = new_paths
+
+        # Some splines merge into others. This causes issues in
+        # the downstream map preprocessing code. We need to fuse
+        # these
+        for starti, (key, paths) in enumerate(data["all_paths"].items()):
+            new_paths = []
+            for j, path in enumerate(paths):
+                path = np.array(path)[:, :2]
+                complete_path = path.tolist()
+                end = path[-1]
+                for i, p in enumerate(paths):
+                    p = np.array(p)[:, :2]
+                    if i == j:
+                        continue
+                    idxs = (end == p).all(axis=-1).nonzero()[0]
+                    for idx in idxs:
+                        if idx == p.shape[0] - 1:
+                            continue
+                        complete_path += p[(idx + 1):].tolist()
+                        print(f"[Spline Fusion] Before: {path.shape[0]} "
+                              f"| After: {len(complete_path)}")
+                new_paths.append(complete_path)
+            data["all_paths"][key] = new_paths
+
+        with open(f, "w") as writer:
+            json.dump(data, writer)
+
 
 def preprocess_maps(dataroot, glob_path="./*.json"):
     fs = glob(glob_path)
@@ -383,7 +435,12 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
         nusc_map = NuScenesMap(dataroot=dataroot, map_name=data["map_name"])
         dataset = dict()
         center, h, w = data["center"], data["height"], data["width"]
-        patch = [center[0] - w / 2, center[1] - h / 2, center[0] + w / 2, center[1] + h / 2]
+        patch = [
+            center[0] - w / 2,
+            center[1] - h / 2,
+            center[0] + w / 2,
+            center[1] + h / 2,
+        ]
         dataset["patch"] = patch
         dataset["center"] = np.array([center])
         dataset["height"] = h
@@ -392,64 +449,91 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
         dataset["dx"] = np.array(data["dx"])
         dataset["bx"] = np.array(data["bx"])
         dataset["road_img"] = np.array(data["road_img"])
-        
+
         # Needed for lidar sensors
         pt1, pt2 = nuscenes_map_to_line_representation(nusc_map, patch, False)
         dataset["edges"] = (pt1, pt2)
-        
+
         drivable_area, xs, ys = get_drivable_area_matrix(data, patch, res=150)
         dataset["plotting_utils"] = (
             drivable_area.numpy().flatten(),
             xs.numpy().flatten(),
             ys.numpy().flatten(),
-            [(0.2, 0.1, 0) if row else (0, 1, 0) for row in drivable_area.numpy().flatten()],
+            [
+                (0.2, 0.1, 0) if row else (0, 1, 0)
+                for row in drivable_area.numpy().flatten()
+            ],
         )
-        
+
         dataset["splines"] = dict()
         for starti, (key, paths) in enumerate(data["all_paths"].items()):
             dataset["splines"][starti] = dict()
             for pathi, path in enumerate(paths):
                 dataset["splines"][starti][pathi] = []
                 path = np.array(path)
+                if path.shape[0] < 75:
+                    print("Skipping spline as it contains very few control points")
+                    continue
                 for i in range(0, 50, 10):
-                    cps = path[np.linspace(i, path.shape[0] - 15, 12, dtype=np.int), :2]
+                    cps = path[
+                        np.linspace(i, path.shape[0] - 15, 12, dtype=np.int),
+                        :2,
+                    ]
 
                     diff = cps[0] - cps[1]
                     theta = np.arctan2(diff[1], diff[0])
-                    start_orientation = angle_normalize(
-                        torch.as_tensor(math.pi + theta)
-                    ).float().reshape(1, 1)
+                    start_orientation = (
+                        angle_normalize(torch.as_tensor(math.pi + theta))
+                        .float()
+                        .reshape(1, 1)
+                    )
                     if i == 0:
                         extra_pt1 = np.array(
-                            [[cps[0, 0] + np.cos(theta) * 15.0, cps[0, 1] + np.sin(theta) * 15.0]]
+                            [
+                                [
+                                    cps[0, 0] + np.cos(theta) * 15.0,
+                                    cps[0, 1] + np.sin(theta) * 15.0,
+                                ]
+                            ]
                         )
                     else:
                         extra_pt1 = path[0:1, :2]
 
                     diff = cps[-1] - cps[-2]
                     theta = np.arctan2(diff[1], diff[0])
-                    dest_orientation = angle_normalize(
-                        torch.as_tensor(theta)
-                    ).float().reshape(1, 1)
+                    dest_orientation = (
+                        angle_normalize(torch.as_tensor(theta))
+                        .float()
+                        .reshape(1, 1)
+                    )
                     extra_pt2 = np.array(
-                        [[cps[-1, 0] + np.cos(theta) * 15.0, cps[-1, 1] + np.sin(theta) * 15.0]]
+                        [
+                            [
+                                cps[-1, 0] + np.cos(theta) * 15.0,
+                                cps[-1, 1] + np.sin(theta) * 15.0,
+                            ]
+                        ]
                     )
 
-                    cps = torch.cat([
-                        torch.from_numpy(cps),
-                        torch.from_numpy(extra_pt2),
-                        torch.from_numpy(extra_pt1)
-                    ])[None, :, :].float()
+                    cps = torch.cat(
+                        [
+                            torch.from_numpy(cps),
+                            torch.from_numpy(extra_pt2),
+                            torch.from_numpy(extra_pt1),
+                        ]
+                    )[None, :, :].float()
 
                     start_position = cps[:, 0, :]
                     destination = cps[:, -3, :]
 
                     dataset["splines"][starti][pathi].append(
-                        (start_position,
-                         destination,
-                         start_orientation,
-                         dest_orientation,
-                         cps)
+                        (
+                            start_position,
+                            destination,
+                            start_orientation,
+                            dest_orientation,
+                            cps,
+                        )
                     )
         outname = f"env{data['map_name']}_{data['center'][0]}_{data['center'][1]}.pth"
         print("saving", outname)
@@ -557,5 +641,6 @@ if __name__ == "__main__":
             "find_center": find_center,
             "viz_env": viz_env,
             "preprocess_maps": preprocess_maps,
+            "fix_json_maps": fix_json_maps,
         }
     )

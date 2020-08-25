@@ -47,7 +47,7 @@ class World:
         self.cam = None
 
         self.device = torch.device("cpu")
-        
+
         self.lims = (-100, 100)
 
     def to(self, device: torch.device):
@@ -75,7 +75,7 @@ class World:
         return self.road_network.shortest_path_trajectory(
             start_pt, end_pt, orientation, dest_orientation
         )  # N x B  Assume all shortest paths are of equal length
-    
+
     def get_road_edges(self):
         return self.road_network.get_edges()
 

@@ -41,7 +41,7 @@ class NuscenesWorld(World):
         self.cam = None
 
         self.device = torch.device("cpu")
-        
+
         self.map_path = map_path
         self.parse_map_data()
 
@@ -53,7 +53,7 @@ class NuscenesWorld(World):
             if k in ["edges", "splines"]:
                 continue
             setattr(self, k, v)
-        
+
         # splines -> Which Pocket -> Which Path -> Which Point ->
         # (spos, epos, orient, eorient, cps)
         self.splines = data["splines"]
@@ -63,7 +63,7 @@ class NuscenesWorld(World):
                 list(product([k], range(len(v.keys())), range(5)))
             )
         self.sampling_indices = sampling_indices
-        
+
         self.sampling_indices_list = copy(self.sampling_indices)
 
     def reset(self):
@@ -76,13 +76,13 @@ class NuscenesWorld(World):
             random.randrange(len(self.sampling_indices_list))
         )
         return idx, self.splines[idx[0]][idx[1]][idx[2]]
-    
+
     def _render_background(self, ax):
         ax.scatter(
             self.plotting_utils[1],
             self.plotting_utils[2],
             c=self.plotting_utils[3],
-            alpha=0.1
+            alpha=0.1,
         )
         self._render_traffic_signal(ax)
 
@@ -99,11 +99,7 @@ class NuscenesWorld(World):
         # the drivable area
         # return torch.zeros(vehicle.nbatch, device=self.device).bool()
         return ~lies_in_drivable_area(
-            vehicle.position,
-            self.center,
-            self.bx,
-            self.dx,
-            self.road_img
+            vehicle.position, self.center, self.bx, self.dx, self.road_img
         )
 
     def add_traffic_signal(
@@ -120,7 +116,7 @@ class NuscenesWorld(World):
     ):
         # TODO
         raise NotImplementedError
-        
+
     def add_vehicle(self, vehicle, spline_idx):
         self.vehicles[vehicle.name] = vehicle
         # TODO: Add to the list of traffic signals
@@ -128,10 +124,12 @@ class NuscenesWorld(World):
         for b in range(nbatch):
             name = vehicle.name + str(b)
             self.traffic_signals_in_path[name] = deque()
-    
-    def update_state(self, vname: str, new_state: torch.Tensor, wait: bool = False):
+
+    def update_state(
+        self, vname: str, new_state: torch.Tensor, wait: bool = False
+    ):
         # wait is unnecessary here, but base_env calls with it
         vehicle = self.vehicles[vname]
         vehicle.update_state(new_state)
-        
+
         # TODO: Update the next traffic signal in path

@@ -208,8 +208,12 @@ class _SplineModel(nn.Module):
         self.curve_lengths = self.motion.curve_length.unsqueeze(1) - 1e-3
         # Assume that last 2 points are not part of the spline.
         self.distance_proxy = (
-            cps[:, :-3, :] - cps[:, 1:-2, :]
-        ).pow(2).sum(-1).sqrt().sum(-1, keepdim=True)
+            (cps[:, :-3, :] - cps[:, 1:-2, :])
+            .pow(2)
+            .sum(-1)
+            .sqrt()
+            .sum(-1, keepdim=True)
+        )
         self.theta = angle_normalize(
             torch.where(
                 diff[:, :, 0] > 0,
@@ -217,7 +221,7 @@ class _SplineModel(nn.Module):
                 math.pi + torch.atan(ratio),
             )
         ).unsqueeze(-1)
-    
+
     @torch.jit.export
     def reset(self):
         self.distances = torch.zeros(self.nbatch, 1, device=self.device)

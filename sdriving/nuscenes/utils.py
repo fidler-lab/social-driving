@@ -153,11 +153,11 @@ def get_drivable_area_matrix(
     within = np.logical_and(within, ixes[:, 1] < data["ny"])
     drivable = np.zeros(len(ixes))
     drivable[within] = drivable_area[ixes[within, 0], ixes[within, 1]]
-    
+
     return (
         torch.as_tensor(drivable.reshape(res, res)).float(),
         torch.as_tensor(xs.reshape(res, res)).float(),
-        torch.as_tensor(ys.reshape(res, res)).float()
+        torch.as_tensor(ys.reshape(res, res)).float(),
     )
 
 
