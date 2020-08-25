@@ -128,7 +128,7 @@ You might need to run it 3 times (don't worry its super fast). This will clean u
 Next preprocess these json files so that the Simulator can directly read them.
 
 ```
-$ python sdriving/nuscenes/nusc.py preprocess_maps nuScenes-map-expansion-v1.2 --glob_path="./map_jsons/*.json"
+$ python -m sdriving.nuscenes.nusc preprocess_maps nuScenes-map-expansion-v1.2 --glob_path="./map_jsons/*.json"
 ```
 
 ## Additional Suggestions for Debugging and Performance

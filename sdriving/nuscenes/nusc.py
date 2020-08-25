@@ -409,6 +409,7 @@ def fix_json_maps(glob_path="./*.json"):
                 path = np.array(path)[:, :2]
                 complete_path = path.tolist()
                 end = path[-1]
+                done = False
                 for i, p in enumerate(paths):
                     p = np.array(p)[:, :2]
                     if i == j:
@@ -420,6 +421,9 @@ def fix_json_maps(glob_path="./*.json"):
                         complete_path += p[(idx + 1):].tolist()
                         print(f"[Spline Fusion] Before: {path.shape[0]} "
                               f"| After: {len(complete_path)}")
+                        done = True
+                    if done:
+                        break
                 new_paths.append(complete_path)
             data["all_paths"][key] = new_paths
 
