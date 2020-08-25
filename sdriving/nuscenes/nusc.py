@@ -495,8 +495,8 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
                         extra_pt1 = np.array(
                             [
                                 [
-                                    cps[0, 0] + np.cos(theta) * 15.0,
-                                    cps[0, 1] + np.sin(theta) * 15.0,
+                                    cps[0, 0] + np.cos(theta) * 30.0,
+                                    cps[0, 1] + np.sin(theta) * 30.0,
                                 ]
                             ]
                         )
@@ -513,8 +513,8 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
                     extra_pt2 = np.array(
                         [
                             [
-                                cps[-1, 0] + np.cos(theta) * 15.0,
-                                cps[-1, 1] + np.sin(theta) * 15.0,
+                                cps[-1, 0] + np.cos(theta) * 30.0,
+                                cps[-1, 1] + np.sin(theta) * 30.0,
                             ]
                         ]
                     )
