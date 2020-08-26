@@ -53,13 +53,24 @@ class RolloutSimulator:
 
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(exist_ok=True)
+    
+    def _action_observation_hook(
+        self, action, observation, *args, **kwargs
+    ):
+        pass
+    
+    def _new_rollout_hook(self):
+        pass
+    
+    def _post_completion_hook(self):
+        pass
 
     @torch.no_grad()
     def rollout(
         self, nepisodes: int, verbose: bool = False, render: bool = True
     ):
+        total_ret = 0
         for ep in range(nepisodes):
-            total_ret = 0
 
             if self.two_stage_rollout:
                 ep_ret, ep_len = self._two_stage_rollout(verbose, render)
@@ -79,6 +90,8 @@ class RolloutSimulator:
             f"Mean Return over {nepisodes} episodes:"
             f" {total_ret / nepisodes}"
         )
+        
+        self._post_completion_hook()
 
     def _move_object_to_device(self, obj: Union[tuple, list, torch.Tensor]):
         if isinstance(obj, (list, tuple)):
@@ -90,9 +103,9 @@ class RolloutSimulator:
         if self.dummy_run:
             return torch.cat(
                 [
-                    torch.as_tensor(
-                        self.env.action_space.sample()
-                    ).unsqueeze(0)
+                    torch.as_tensor(self.env.action_space.sample()).unsqueeze(
+                        0
+                    )
                     for _ in range(self.env.nagents)
                 ]
             ).cpu()
@@ -103,9 +116,14 @@ class RolloutSimulator:
     @torch.no_grad()
     def _one_stage_rollout(self, verbose: bool, render: bool):
         o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        self._new_rollout_hook()
 
         while not done:
             a = self._action_one_stage_rollout(o)
+            
+            self._action_observation_hook(
+                self.env.discrete_to_continuous_actions(a), o
+            )
 
             if verbose:
                 print(f"Observation: {o}")
@@ -143,12 +161,20 @@ class RolloutSimulator:
     @torch.no_grad()
     def _two_stage_rollout(self, verbose: bool, render: bool):
         o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        self._new_rollout_hook()
 
         a = self._action_two_stage_rollout(0, o)
+        self._action_observation_hook(
+            self.env.discrete_to_continuous_actions(a), o, 0
+        )
+
         o = self.env.step(0, a)
 
         while not done:
             a = self._action_two_stage_rollout(1, o)
+            self._action_observation_hook(
+                self.env.discrete_to_continuous_actions(a), o, 1
+            )
 
             if verbose:
                 print(f"Observation: {o}")

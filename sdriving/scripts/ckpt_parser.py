@@ -12,7 +12,7 @@ def checkpoint_parser(path: str) -> tuple:
     ckpt = torch.load(path, map_location="cpu")
     if ckpt["model"] == "centralized_critic":
         # PPO_OneStep
-        if ckpt["type"] == "one_step_ppo":
+        if "type" in ckpt and ckpt["type"] == "one_step_ppo":
             params = ckpt["actor_kwargs"]
             if isinstance(params["act_space"], gym.spaces.Discrete):
                 model = PPOWaypointCategoricalActor
@@ -23,7 +23,7 @@ def checkpoint_parser(path: str) -> tuple:
             return actor, "PPO_ONESTEP"
 
         # PPO_Alternating_Optimization_Centralized_Critic
-        if ckpt["type"] == "bilevel_model":
+        if "type" in ckpt and ckpt["type"] == "bilevel_model":
             params = ckpt["actor_kwargs"]
             if isinstance(params["act_space"], gym.spaces.Discrete):
                 model = PPOWaypointCategoricalActor

@@ -118,7 +118,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             smoothness = 0.0
 
         # Goal Reach Bonus
-        reached_goal = distances <= 10.0
+        reached_goal = distances <= 5.0
         not_completed = ~self.completion_vector
         goal_reach_bonus = (not_completed * reached_goal).float()
         self.completion_vector = self.completion_vector + reached_goal
@@ -216,7 +216,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
     MultiAgentNuscenesIntersectionDrivingEnvironment
 ):
-     def configure_action_space(self):
+    def configure_action_space(self):
         self.max_accln = 1.5
         self.action_list = torch.arange(
             -self.max_accln, self.max_accln + 0.05, step=0.25

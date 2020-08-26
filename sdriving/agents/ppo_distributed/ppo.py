@@ -249,6 +249,7 @@ class PPO_Distributed_Centralized_Critic:
         local_steps_per_epoch = self.local_steps_per_epoch
         train_iters = self.train_iters
 
+        early_stop = False
         for i in range(train_iters):
             self.pi_optimizer.zero_grad()
             self.vf_optimizer.zero_grad()
@@ -260,15 +261,18 @@ class PPO_Distributed_Centralized_Critic:
             hvd_average_grad(self.ac, self.device)
             nn.utils.clip_grad_norm_(self.ac.v.parameters(), 5.0)
             self.vf_optimizer.step()
-            if kl > 1.5 * self.target_kl:
+            if kl > 1.5 * self.target_kl and not early_stop:
                 self.logger.log(
                     f"Early stopping at step {i} due to reaching max kl.",
                     color="red",
                 )
-                break
-            nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
-            self.pi_optimizer.step()
-        self.logger.store(StopIter=i)
+                early_stop = True
+                self.logger.store(StopIter=i)
+            if not early_stop:
+                nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
+                self.pi_optimizer.step()
+        if not early_stop:
+            self.logger.store(StopIter=i)
 
         # Log changes from update
         ent, pi_l_old, v_l_old, v_est = (

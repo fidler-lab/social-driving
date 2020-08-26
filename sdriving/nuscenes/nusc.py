@@ -391,13 +391,15 @@ def fix_json_maps(glob_path="./*.json"):
                 path = np.array(path)
                 new_paths.append(
                     [path[0].tolist()]
-                    + path[1:][(1 - (
-                        path[1:] == path[:-1]
-                    ).all(-1)).astype(np.bool)].tolist()
+                    + path[1:][
+                        (1 - (path[1:] == path[:-1]).all(-1)).astype(np.bool)
+                    ].tolist()
                 )
                 if path.shape[0] != len(new_paths[-1]):
-                    print(f"[Point Cleanup] Before: {path.shape[0]} |"
-                        f" After {len(new_paths[-1])}")
+                    print(
+                        f"[Point Cleanup] Before: {path.shape[0]} |"
+                        f" After {len(new_paths[-1])}"
+                    )
             data["all_paths"][k] = new_paths
 
         # Some splines merge into others. This causes issues in
@@ -418,9 +420,11 @@ def fix_json_maps(glob_path="./*.json"):
                     for idx in idxs:
                         if idx == p.shape[0] - 1:
                             continue
-                        complete_path += p[(idx + 1):].tolist()
-                        print(f"[Spline Fusion] Before: {path.shape[0]} "
-                              f"| After: {len(complete_path)}")
+                        complete_path += p[(idx + 1) :].tolist()
+                        print(
+                            f"[Spline Fusion] Before: {path.shape[0]} "
+                            f"| After: {len(complete_path)}"
+                        )
                         done = True
                     if done:
                         break
@@ -476,7 +480,9 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
                 dataset["splines"][starti][pathi] = []
                 path = np.array(path)
                 if path.shape[0] < 75:
-                    print("Skipping spline as it contains very few control points")
+                    print(
+                        "Skipping spline as it contains very few control points"
+                    )
                     continue
                 for i in range(0, 50, 10):
                     cps = path[
