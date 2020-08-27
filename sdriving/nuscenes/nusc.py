@@ -283,6 +283,8 @@ def env_create(
     height=100.0,  # meters
     resolution=0.3,
 ):
+    mpl.use("TkAgg")
+
     nusc_maps = get_nusc_maps(map_folder)
     maphelper = MapHelper(
         {k: v for k, v in nusc_maps.items() if k == map_name}
@@ -297,12 +299,30 @@ def env_create(
             fig.canvas.mpl_connect("button_press_event", self.onclick)
             fig.canvas.mpl_connect("key_press_event", self.onpress)
             self.starts = []
+            self.traffic_signals = []
+            self.starts_to_traffic_signal = []
+            self.ts_mapping = []
+            self.signal_num = 0
+            self.map_num = -1
+            self.last_mapped = -1
 
         def onclick(self, event):
             print(event)
-            self.starts.append([event.xdata, event.ydata])
-            self.render_pts()
-            print(self.starts)
+            if event.button == 1:
+                self.starts.append([event.xdata, event.ydata])
+                self.render_pts()
+                print(self.starts)
+            elif event.button == 3:
+                self.traffic_signals.append((event.xdata, event.ydata))
+                self.map_num += 1
+                for i in range(self.last_mapped + 1, len(self.starts)):
+                    self.starts_to_traffic_signal.append(self.map_num)
+                    print(f"Mapped {self.starts[i]} to {self.map_num}")
+                self.last_mapped = len(self.starts) - 1
+                self.ts_mapping.append(self.signal_num)
+                print(f"{self.traffic_signals[-1]} --> {self.ts_mapping[-1]}")
+                self.render_signals()
+                print(self.traffic_signals)
 
         def onpress(self, event):
             print(event.key)
@@ -312,6 +332,11 @@ def env_create(
                 plt.clf()
                 self.render()
                 self.render_pts()
+
+            if event.key == "o":
+                self.signal_num += 1
+                self.signal_num %= 2
+                print(f"Signal Flipped to {self.signal_num}")
 
             if event.key == "2":
                 all_paths = maphelper.collect_paths(
@@ -332,6 +357,9 @@ def env_create(
                     map_name, self.starts, (midx, midy), width, height
                 )
                 outname = f"{map_name}_{midx}_{midy}.json"
+
+                print(self.ts_mapping, self.starts_to_traffic_signal)
+
                 print("saving", outname)
                 info = {
                     "map_name": map_name,
@@ -339,11 +367,15 @@ def env_create(
                     "width": width,
                     "height": height,
                     "all_paths": all_paths,
+                    "starts": self.starts,
                     "road_img": road_img.tolist(),
                     "dx": dx.tolist(),
                     "bx": bx.tolist(),
                     "nx": nx,
                     "ny": ny,
+                    "signal_locations": self.traffic_signals,
+                    "mapping": self.ts_mapping,
+                    "starts_to_signal": self.starts_to_traffic_signal,
                 }
                 with open(outname, "w") as writer:
                     json.dump(info, writer)
@@ -355,6 +387,15 @@ def env_create(
                 [p[0] for p in self.starts],
                 [p[1] for p in self.starts],
                 "b.",
+                markersize=15,
+            )
+            plt.draw()
+
+        def render_signals(self):
+            plt.plot(
+                [p[0] for p in self.traffic_signals],
+                [p[1] for p in self.traffic_signals],
+                "g.",
                 markersize=15,
             )
             plt.draw()
