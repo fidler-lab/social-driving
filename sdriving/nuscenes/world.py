@@ -47,6 +47,8 @@ class NuscenesWorld(World):
 
     def parse_map_data(self):
         data = torch.load(self.map_path)
+        self.map_data = data
+
         self.pt1, self.pt2 = data["edges"]
 
         for k, v in data.items():
@@ -65,6 +67,29 @@ class NuscenesWorld(World):
         self.sampling_indices = sampling_indices
 
         self.sampling_indices_list = copy(self.sampling_indices)
+
+        val = [
+            torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
+            torch.as_tensor([1.0, 0.5, 0.0, 0.5])
+        ]
+        colors = [
+            ["r", "y", "g", "y"],
+            ["g", "y", "r", "y"]
+        ]
+        times = torch.as_tensor([100, 20, 100, 20])
+
+        for i in range(data["signal_locations"].size(0)):
+            col_map = data["color_mapping"][i]
+            self.traffic_signals[i] = (
+                TrafficSignal(
+                    val[col_map],
+                    0,
+                    times,
+                    f"signal_{i}",
+                    colors[col_map]
+                ),
+                data["signal_location"][i]
+            )
 
     def reset(self):
         self.sampling_indices_list = copy(self.sampling_indices)
@@ -114,22 +139,50 @@ class NuscenesWorld(World):
         location=None,
         location_rev=None,
     ):
-        # TODO
+        # NOTE: This function should not be called. Traffic Signals should
+        #       be placed in the preprocessed `pth` files. Else use our
+        #       interactive map generator to do the same.
         raise NotImplementedError
 
     def add_vehicle(self, vehicle, spline_idx):
         self.vehicles[vehicle.name] = vehicle
-        # TODO: Add to the list of traffic signals
         nbatch = vehicle.position.size(0)
         for b in range(nbatch):
             name = vehicle.name + str(b)
             self.traffic_signals_in_path[name] = deque()
+            self.traffic_signals_in_path[name].append(
+                (
+                    self.traffic_signal[
+                        self.map_data["starts_to_signal"][spline_idx[0]]
+                    ],
+                )
+            )
 
     def update_state(
         self, vname: str, new_state: torch.Tensor, wait: bool = False
     ):
-        # wait is unnecessary here, but base_env calls with it
         vehicle = self.vehicles[vname]
         vehicle.update_state(new_state)
 
-        # TODO: Update the next traffic signal in path
+        if wait:
+            return
+
+        ts = self.traffic_signals_in_path
+
+        p = vehicle.position
+        names = [vname + str(b) for b in range(vehicle.nbatch)]
+        locations = torch.cat([
+            ts[n][0][0][1].unsqueeze(0).to(self.device)
+            if len(ts[n]) > 0
+            else torch.ones(1, 2).type_as(p) * 1e12
+            for n in names
+        ])
+
+        head = vehicle.optimal_heading_to_point(locations)
+
+        crossed = torch.abs(head) > math.pi / 2
+
+        for b in range(new_state.size(0)):
+            if crossed[b]:
+                self.traffic_signals_in_path[vname + str(b)].popleft()
+

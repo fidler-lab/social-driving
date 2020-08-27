@@ -515,7 +515,20 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
         )
 
         dataset["splines"] = dict()
+        signal_loc = torch.as_tensor(data["signal_locations"])
+        signal_color = data["mapping"]
+        dataset["signal_locations"] = signal_loc
+        dataset["color_mapping"] = signal_color
+        dataset["starts_to_signal"] = data["starts_to_signal"]
+        dataset["signal_loc"] = []
+        dataset["signal_color"] = []
         for starti, (key, paths) in enumerate(data["all_paths"].items()):
+            idx = data["starts_to_signal"][starti]
+            loc = signal_loc[idx]
+            col = signal_color[idx]
+            dataset["signal_loc"].append(loc)
+            dataset["signal_color"].append(col)
+
             dataset["splines"][starti] = dict()
             for pathi, path in enumerate(paths):
                 dataset["splines"][starti][pathi] = []
@@ -651,9 +664,7 @@ def viz_env(glob_path="./*.json"):
                 )
 
         # plot each start position (N x 2)
-        starts = np.array(
-            [paths[0][0] for paths in data["all_paths"].values()]
-        )
+        starts = np.array(data["starts"])
         plt.plot(
             starts[:, 0],
             starts[:, 1],
@@ -661,6 +672,11 @@ def viz_env(glob_path="./*.json"):
             markersize=10,
             label="Start Positions",
         )
+
+        for loc, col in zip(data["signal_locations"], data["mapping"]):
+            plt.plot(
+                [loc[0]], [loc[1]], "g." if col == 1 else "r.", markersize=15
+            )
 
         # make the window slightly larger than the actual boundaries for viz
         fac = 1.1
