@@ -62,7 +62,7 @@ class NuscenesWorld(World):
         sampling_indices = []
         for k, v in self.splines.items():
             sampling_indices.extend(
-                list(product([k], range(len(v.keys())), range(5)))
+                list(product([k], list(v.keys()), range(5)))
             )
         self.sampling_indices = sampling_indices
 
@@ -88,7 +88,7 @@ class NuscenesWorld(World):
                     f"signal_{i}",
                     colors[col_map]
                 ),
-                data["signal_location"][i]
+                data["signal_locations"][i]
             )
 
     def reset(self):
@@ -152,8 +152,8 @@ class NuscenesWorld(World):
             self.traffic_signals_in_path[name] = deque()
             self.traffic_signals_in_path[name].append(
                 (
-                    self.traffic_signal[
-                        self.map_data["starts_to_signal"][spline_idx[0]]
+                    self.traffic_signals[
+                        self.map_data["starts_to_signal"][spline_idx[b][0]]
                     ],
                 )
             )
@@ -183,6 +183,7 @@ class NuscenesWorld(World):
         crossed = torch.abs(head) > math.pi / 2
 
         for b in range(new_state.size(0)):
-            if crossed[b]:
-                self.traffic_signals_in_path[vname + str(b)].popleft()
+            tn = self.traffic_signals_in_path[vname + str(b)]
+            if crossed[b] and len(tn) > 0:
+                tn.popleft()
 

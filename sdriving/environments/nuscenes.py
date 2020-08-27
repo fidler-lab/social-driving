@@ -2,6 +2,7 @@ import math
 import random
 from collections import deque
 from itertools import product
+from glob import glob
 
 import numpy as np
 import torch
@@ -24,7 +25,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 ):
     def __init__(
         self,
-        map_path: str,  # For now test with a single map
+        map_path: str,
         npoints: int = 360,
         horizon: int = 300,
         timesteps: int = 10,
@@ -38,8 +39,12 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.history_len = history_len
         self.time_green = time_green
         self.device = device
+        self.worlds = []
 
-        world = NuscenesWorld(map_path)
+        for path in glob(map_path):
+            self.worlds.append(NuscenesWorld(path))
+
+        world = random.choice(self.worlds)
         super(
             MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self
         ).__init__(world, nagents, horizon, timesteps, device)
@@ -156,6 +161,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         vehicle = None
         dims = torch.as_tensor([[4.48, 2.2]])
         self.cps = []
+        idxs = []
         for _ in range(self.nagents):
             successful_placement = False
             while not successful_placement:
@@ -183,13 +189,13 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
                         dimensions=dims,
                         initial_speed=torch.zeros(1, 1),
                     )
+            idxs.append(idx)
             self.cps.append(cps)
         self.cps = torch.cat(self.cps)
 
         vehicle.add_bool_buffer(self.bool_buffer)
 
-        # TODO: Send the sampled idxs
-        self.world.add_vehicle(vehicle, None)
+        self.world.add_vehicle(vehicle, idxs)
         self.store_dynamics(vehicle)
         self.agents[vehicle.name] = vehicle
 
@@ -202,6 +208,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
     def reset(self):
         # Keep the environment fixed for now
+        self.world = random.choice(self.worlds)
         self.world.reset()
         self.add_vehicles_to_world()
 

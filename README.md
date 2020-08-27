@@ -15,6 +15,7 @@ Design multi-agent environments and simple reward functions such that social dri
     * [Writing New Environments](#writing-new-environments)
 * [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
 * [Nuscenes](#nuscenes)
+    * [Interactive Map Generation](#interactive-map-generation)
 * [Additional Suggestions for Debugging](#additional-suggestions-for-debugging)
 
 ## Installation
@@ -130,6 +131,16 @@ Next preprocess these json files so that the Simulator can directly read them.
 ```
 $ python -m sdriving.nuscenes.nusc preprocess_maps nuScenes-map-expansion-v1.2 --glob_path="./map_jsons/*.json"
 ```
+
+### Interactive Map Generation
+
+We provide a GUI application to convert a patch of the nuscenes map into a drivable environment compatible with our simulator.
+
+```
+$ python -m sdriving.nuscenes.nusc env_create --map-folder </path/to/nuscenes/maps>
+```
+
+[TODO]: Instructions to use the application
 
 ## Additional Suggestions for Debugging and Performance
 
