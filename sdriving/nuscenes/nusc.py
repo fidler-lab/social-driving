@@ -531,13 +531,13 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
 
             dataset["splines"][starti] = dict()
             for pathi, path in enumerate(paths):
-                dataset["splines"][starti][pathi] = []
                 path = np.array(path)
                 if path.shape[0] < 75:
                     print(
                         "Skipping spline as it contains very few control points"
                     )
                     continue
+                dataset["splines"][starti][pathi] = []
                 for i in range(0, 50, 10):
                     cps = path[
                         np.linspace(i, path.shape[0] - 15, 12, dtype=np.int),
