@@ -13,6 +13,7 @@ from sdriving.tsim import (
     BicycleKinematicsModel,
     angle_normalize,
     BatchedVehicle,
+    SplineModel,
     World,
     intervehicle_collision_check,
     RoadNetwork,
@@ -52,11 +53,12 @@ class MultiAgentHighwayBicycleKinematicsModel(
     def generate_world_without_agents(self):
         network = RoadNetwork()
         length = 250.0
+        width = 25.0
         network.add_road(Road(
             f"highway",
             torch.zeros(1, 2),
             length,
-            20.0,
+            width,
             torch.zeros(1, 1),
             can_cross=[False] * 4,
             has_endpoints=[True, False, True, False]
@@ -67,7 +69,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
                 xlims=(-length / 2 - 10, length / 2 + 10),
                 ylims=(-length / 2 - 10, length / 2 + 10)
             ),
-            {"length": length}
+            {"length": length, "width": width}
         )
 
     def get_observation_space(self):
@@ -178,7 +180,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
             dim=0
         )
         diffs = torch.cat([diffs, torch.zeros(self.nagents, 1)], dim=-1)
-        spos = torch.as_tensor([[-self.length / 2 + 30.0, -5.0]]) + diffs
+        spos = torch.as_tensor([[-self.length / 2 + 30.0, 0.0]]) + diffs
         
         epos = torch.as_tensor([[self.length / 2 - 50.0, 0.0]]).repeat(self.nagents, 1)
         
@@ -236,7 +238,7 @@ class MultiAgentHighwayBicycleKinematicsDiscreteModel(
     MultiAgentHighwayBicycleKinematicsModel
 ):
     def configure_action_space(self):
-        self.max_accln = 1.5
+        self.max_accln = 3.0
         self.max_steering = 0.1
         actions = list(
             product(
@@ -260,3 +262,117 @@ class MultiAgentHighwayBicycleKinematicsDiscreteModel(
             actions.device
         )
         return actions
+
+
+class MultiAgentHighwaySplineAccelerationDiscreteModel(
+    MultiAgentHighwayBicycleKinematicsModel
+):
+    def configure_action_space(self):
+        self.max_accln = 3.0
+        self.action_list = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, step=0.25
+        ).unsqueeze(1)
+
+    def get_observation_space(self):
+        return (
+            Box(low=np.array([0.5]), high=np.array([1.0])),
+            Tuple(
+                [
+                    Box(
+                        low=np.array([0.0, -1.0] * self.history_len),
+                        high=np.array([1.0, 1.0] * self.history_len),
+                    ),
+                    Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
+                ]
+            )
+        )
+    
+    def get_action_space(self):
+        return (
+            Box(low=np.array([-0.75]), high=np.array([0.75])),
+            Discrete(self.action_list.size(0))
+        )
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        action = self.action_list[action]
+        return action * self.max_accln * self.accln_rating.to(action.device)
+
+    def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
+        return action
+
+    def get_state(self):
+        if not self.got_spline_state:
+            self.got_spline_state = True
+            return self.accln_rating
+
+        a_ids = self.get_agent_ids_list()
+
+        dist = torch.cat(
+            [(v.destination[:, 0:1] - v.position[:, 0:1]).abs()
+             for v in self.agents.values()]
+        )
+        inv_dist = 1 / dist.clamp(min=1.0)
+        speed = torch.cat([self.agents[v].speed for v in a_ids])
+        
+        obs = torch.cat([inv_dist, speed / self.dynamics.v_lim], -1)
+        lidar = 1 / self.world.get_lidar_data_all_vehicles(self.npoints)
+
+        if self.lidar_noise > 0:
+            lidar *= torch.rand_like(lidar) > self.lidar_noise
+
+        if self.history_len > 1:
+            while len(self.queue1) <= self.history_len - 1:
+                self.queue1.append(obs)
+                self.queue2.append(lidar)
+            self.queue1.append(obs)
+            self.queue2.append(lidar)
+
+            return (
+                torch.cat(list(self.queue1), dim=-1),
+                torch.cat(list(self.queue2), dim=-1),
+            )
+        else:
+            return obs, lidar
+    
+    @torch.no_grad()
+    def step(
+        self,
+        stage: int,  # Possible Values [0, 1]
+        action: torch.Tensor,
+        render: bool = False,
+        **render_kwargs
+    ):
+        assert stage in [0, 1]
+
+        if stage == 1:
+            return super().step(action, render, **render_kwargs)
+        
+        action = self.discrete_to_continuous_actions_v2(action)
+        action = action.to(self.world.device)
+
+        vehicle = self.agents["agent"]
+        pos = vehicle.position
+        farthest_pt = torch.as_tensor(
+            [[-self.length / 2, pos[0, 1].item()]]
+        ).to(pos.device).repeat(action.size(0), 1)
+        mid_point_x = pos[:, :1] + 50.0
+        mid_point_y = pos[:, 1:] + action * self.width / 2
+        mid_point = torch.cat([mid_point_x, mid_point_y], dim=-1)
+        last_pt = torch.cat([
+            torch.full((pos.size(0), 1), self.length / 2),
+            mid_point_y
+        ], dim=-1)
+
+        action = torch.cat([x.unsqueeze(1)
+                            for x in [pos, mid_point, last_pt, farthest_pt]],
+                            dim=1)
+
+        self.dynamics = SplineModel(
+            action, v_lim=self.vel_rating[:, 0] * self.max_velocity
+        )
+
+        return self.get_state()
+    
+    def reset(self):
+        self.got_spline_state = False
+        return super().reset()

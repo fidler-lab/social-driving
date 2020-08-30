@@ -25,7 +25,8 @@ from sdriving.environments.nuscenes import (
 )
 from sdriving.environments.highway import (
     MultiAgentHighwayBicycleKinematicsModel,
-    MultiAgentHighwayBicycleKinematicsDiscreteModel
+    MultiAgentHighwayBicycleKinematicsDiscreteModel,
+    MultiAgentHighwaySplineAccelerationDiscreteModel,
 )
 
 REGISTRY = {}

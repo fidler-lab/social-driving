@@ -168,7 +168,7 @@ class RolloutSimulator:
 
         a = self._action_two_stage_rollout(0, o)
         self._action_observation_hook(
-            self.env.discrete_to_continuous_actions(a), o, 0
+            self.env.discrete_to_continuous_actions_v2(a), o, 0
         )
 
         o = self.env.step(0, a)
