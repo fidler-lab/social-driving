@@ -29,6 +29,8 @@ class World:
         road_network: RoadNetwork,
         figsize: Tuple[int] = (10, 10),
         no_signal_val: float = 0.75,
+        xlims: tuple = (-100, 100),
+        ylims: tuple = (-100, 100)
     ):
         self.vehicles = OrderedDict()
         self.trajectory_nodes = OrderedDict()
@@ -48,7 +50,8 @@ class World:
 
         self.device = torch.device("cpu")
 
-        self.lims = (-100, 100)
+        self.xlims = xlims
+        self.ylims = ylims
 
     def to(self, device: torch.device):
         if device == self.device:
@@ -202,8 +205,13 @@ class World:
     def add_object(self, obj):
         self.objects[obj.name] = obj
 
-    def add_vehicle(self, vehicle):
+    def add_vehicle(self, vehicle, trajectory: bool = True):
         self.vehicles[vehicle.name] = vehicle
+        self.trajectory = trajectory
+
+        if not trajectory:
+            return
+        
         traj_points, traj_nodes = self.shortest_path_trajectory(
             vehicle.position,
             vehicle.destination,
@@ -244,7 +252,7 @@ class World:
         vehicle = self.vehicles[vname]
         vehicle.update_state(new_state)
 
-        if wait:
+        if wait or not self.trajectory:
             return
 
         pos = vehicle.position
@@ -348,9 +356,9 @@ class World:
             self.fig = plt.figure(figsize=self.figsize)
             self.ax = self.fig.add_subplot(1, 1, 1)
             self.cam = Camera(self.fig)
-            if hasattr(self, "lims"):
-                plt.xlim(self.lims)
-                plt.ylim(self.lims)
+            if hasattr(self, "xlims"):
+                plt.xlim(self.xlims)
+                plt.ylim(self.ylims)
             plt.grid(False)
 
         if lims is not None:

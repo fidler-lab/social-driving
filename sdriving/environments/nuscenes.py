@@ -13,6 +13,7 @@ from sdriving.environments.intersection import (
 )
 from sdriving.tsim import (
     SplineModel,
+    BicycleKinematicsModel,
     angle_normalize,
     BatchedVehicle,
     intervehicle_collision_check,
@@ -66,18 +67,24 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         return Box(
             low=np.array([-self.max_accln]), high=np.array([self.max_accln]),
         )
-
-    def get_state(self):
+    
+    def _get_distance_from_goal(self):
         a_id = self.get_agent_ids_list()[0]
-        ts = self.world.get_all_traffic_signal().unsqueeze(1)
         vehicle = self.agents[a_id]
-        head = vehicle.orientation
-
         dist = vehicle.distance_from_destination()
         path_distance = self.dynamics.distance_proxy - self.dynamics.distances
-        inv_dist = torch.where(
+        return torch.where(
             dist == 0, self.buffered_ones, 1 / path_distance
         )
+
+    def get_state(self):
+        a_ids = self.get_agent_ids_list()
+        a_id = a_ids[0]
+        ts = self.world.get_all_traffic_signal().unsqueeze(1)
+        vehicle = self.agents[a_id]
+        head = torch.cat([self.agents[v].optimal_heading() for v in a_ids])
+
+        inv_dist = self._get_distance_from_goal()
 
         speed = vehicle.speed
 
@@ -100,6 +107,9 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             )
         else:
             return obs, lidar
+        
+    def _get_distance_rwd_from_goal(self):
+        return self.dynamics.distance_proxy - self.dynamics.distances
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
@@ -108,7 +118,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         # Distance from destination
         # A bit hacky, but doesn't matter if the agent only goes forward
-        distances = self.dynamics.distance_proxy - self.dynamics.distances
+        distances = self._get_distance_rwd_from_goal()
 
         # Agent Speeds
         speeds = vehicle.speed
@@ -136,7 +146,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
                 ~self.completion_vector
             )
 
-        distances *= not_completed / self.dynamics.distance_proxy
+        distances *= not_completed / self.original_distances
 
         # Collision
         new_collisions = ~self.collision_vector * new_collisions
@@ -199,7 +209,10 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.store_dynamics(vehicle)
         self.agents[vehicle.name] = vehicle
 
-        self.original_distances = vehicle.distance_from_destination()
+        self.original_distances = self._get_original_distances()
+        
+    def _get_original_distances(self):
+        return self.dynamics.distance_proxy
 
     def store_dynamics(self, vehicle):
         self.dynamics = SplineModel(
@@ -231,6 +244,73 @@ class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
 
     def get_action_space(self):
         self.normalization_factor = torch.as_tensor([self.max_accln])
+        return Discrete(self.action_list.size(0))
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        return self.action_list[action]
+
+
+class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
+    MultiAgentNuscenesIntersectionDrivingEnvironment
+):
+    def store_dynamics(self, vehicle):
+        self.dynamics = BicycleKinematicsModel(
+            dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
+        )
+    
+    def get_action_space(self):
+        self.max_accln = 1.5
+        self.max_steering = 0.1
+        self.normalization_factor = torch.as_tensor(
+            [self.max_steering, self.max_accln]
+        )
+        return Box(
+            low=np.array([-self.max_steering, -self.max_accln]),
+            high=np.array([self.max_steering, self.max_accln]),
+        )
+    
+    def _get_distance_from_goal(self):
+        a_id = self.get_agent_ids_list()[0]
+        vehicle = self.agents[a_id]
+        dist = vehicle.distance_from_destination().clamp(min=1.0)
+        rval = 1 / dist
+        return rval
+    
+    def _get_distance_rwd_from_goal(self):
+        # This might give us incorrect results. We should use the nearest neighbor of
+        # the predefined splines for this
+        a_id = self.get_agent_ids_list()[0]
+        vehicle = self.agents[a_id]
+        dist = vehicle.distance_from_destination()
+        return dist
+    
+    def _get_original_distances(self):
+        a_id = self.get_agent_ids_list()[0]
+        vehicle = self.agents[a_id]
+        dist = vehicle.distance_from_destination()
+        return dist
+    
+
+class MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment(
+    MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment
+):
+    def configure_action_space(self):
+        self.max_accln = 1.5
+        self.max_steering = 0.1
+        actions = list(
+            product(
+                torch.arange(
+                    -self.max_steering, self.max_steering + 0.01, 0.05
+                ),
+                torch.arange(-self.max_accln, self.max_accln + 0.05, 0.5),
+            )
+        )
+        self.action_list = torch.as_tensor(actions)
+
+    def get_action_space(self):
+        self.normalization_factor = torch.as_tensor(
+            [self.max_steering, self.max_accln]
+        )
         return Discrete(self.action_list.size(0))
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):

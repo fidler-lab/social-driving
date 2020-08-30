@@ -117,6 +117,9 @@ class RolloutSimulator:
     def _one_stage_rollout(self, verbose: bool, render: bool):
         o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
         self._new_rollout_hook()
+        
+        if hasattr(self.env, "accln_rating"):
+            print(f"Acceleration / Velocity Rating: {self.env.accln_rating[:, 0]}")
 
         while not done:
             a = self._action_one_stage_rollout(o)

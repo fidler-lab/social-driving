@@ -20,6 +20,12 @@ from sdriving.environments.spline_dual_objective_env import (
 from sdriving.environments.nuscenes import (
     MultiAgentNuscenesIntersectionDrivingEnvironment,
     MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
+    MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment,
+    MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment
+)
+from sdriving.environments.highway import (
+    MultiAgentHighwayBicycleKinematicsModel,
+    MultiAgentHighwayBicycleKinematicsDiscreteModel
 )
 
 REGISTRY = {}
