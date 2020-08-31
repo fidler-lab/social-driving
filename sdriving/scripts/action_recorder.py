@@ -44,26 +44,26 @@ env2record = {
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
         + ["Episode", "Agent ID"]
     ),
-    "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": {
+    "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
-    },
-    "MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment": {
+    ),
+    "MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
-    },
-    "MultiAgentHighwayBicycleKinematicsModel": {
+    ),
+    "MultiAgentHighwayBicycleKinematicsModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
         + ["Steering Angle", "Position", "Acceleration Rating"]
-    },
-    "MultiAgentHighwayBicycleKinematicsDiscreteModel": {
+    ),
+    "MultiAgentHighwayBicycleKinematicsDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
         + ["Steering Angle", "Position", "Acceleration Rating"]
-    },
-    "MultiAgentHighwaySplineAccelerationDiscreteModel": {
+    ),
+    "MultiAgentHighwaySplineAccelerationDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
         + ["Position", "Acceleration Rating"]
-    },
+    ),
 }
 
 
