@@ -80,6 +80,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         self.record_steering = "Steering Angle" in self.record_items
         self.record_global_position = "Position" in self.record_items
         self.record_accln_rating = "Acceleration Raing" in self.record_items
+        self.record_traffic_signal = "Traffic Signal" in self.record_items
 
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
@@ -87,9 +88,6 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         if self.record_global_position:
             self.record["Env Width"] = []
             self.record["Env Length"] = []
-        
-        if self.record_accln_rating:
-            self.record["Acceleration Rating"] = []
 
     def _action_observation_hook(self, action, observation, *args, **kwargs):
         if len(args) == 1 and args[0] == 0:
@@ -104,7 +102,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         if self.record_accln_rating:
             rating = self.env.accln_rating
         for i in range(action.size(0)):
-            self.record["Traffic Signal"].append(ts[i].item())
+            if self.record_traffic_signal:
+                self.record["Traffic Signal"].append(ts[i].item())
             self.record["Velocity"].append(state[i, 2].item())
             self.record["Acceleration"].append(action[i, -1].item())
             self.record["Time Step"].append(self.timesteps[i])
