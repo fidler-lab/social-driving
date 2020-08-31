@@ -21,7 +21,7 @@ from sdriving.environments.nuscenes import (
     MultiAgentNuscenesIntersectionDrivingEnvironment,
     MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
     MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment,
-    MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment
+    MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment,
 )
 from sdriving.environments.highway import (
     MultiAgentHighwayBicycleKinematicsModel,

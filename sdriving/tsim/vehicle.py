@@ -15,8 +15,8 @@ from sdriving.tsim.utils import (
 
 class _BatchedVehicle(torch.nn.Module):
     """
-        A fleet of vehicles. A single vehicle is a batched vehicle with
-        1 as the batch size
+    A fleet of vehicles. A single vehicle is a batched vehicle with
+    1 as the batch size
     """
 
     def __init__(
@@ -137,7 +137,9 @@ class _BatchedVehicle(torch.nn.Module):
         if rot_mat.ndim == 2:
             rot_mat.unsqueeze_(0)
         self.coordinates = transform_2d_coordinates_rotation_matrix(
-            self.base_coordinates, rot_mat, self.position[:, None, :],
+            self.base_coordinates,
+            rot_mat,
+            self.position[:, None, :],
         )
         return self.coordinates
 
@@ -208,7 +210,9 @@ class _BatchedVehicle(torch.nn.Module):
 
     @torch.jit.export
     def collision_check_with_rectangle(
-        self, point1: torch.Tensor, point2: torch.Tensor,  # 4 x 2  # 4 x 2
+        self,
+        point1: torch.Tensor,
+        point2: torch.Tensor,  # 4 x 2  # 4 x 2
     ):
         p1, p2 = self.get_edges()
         p1, p2 = p1.view(-1, 2), p2.view(-1, 2)

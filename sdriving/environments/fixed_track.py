@@ -93,7 +93,8 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
         else:
             self.normalization_factor = torch.as_tensor([1.0, self.max_accln])
         return Box(
-            low=np.array([-self.max_accln]), high=np.array([self.max_accln]),
+            low=np.array([-self.max_accln]),
+            high=np.array([self.max_accln]),
         )
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):

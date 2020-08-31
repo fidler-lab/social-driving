@@ -80,9 +80,12 @@ class Road:
 
         cant_cross = [not cc for cc in can_cross]
         self.pt1 = self.coordinates[cant_cross]
-        self.pt2 = torch.cat([self.coordinates[1:], self.coordinates[0:1],])[
-            cant_cross
-        ]
+        self.pt2 = torch.cat(
+            [
+                self.coordinates[1:],
+                self.coordinates[0:1],
+            ]
+        )[cant_cross]
 
         self.end_coordinates = OrderedDict()
 
@@ -132,8 +135,7 @@ class Road:
     def rand_uniform(
         size: Union[List[int], Tuple[int], int], low: float, high: float
     ):
-        """Uniformly sample in the range [low, high]
-        """
+        """Uniformly sample in the range [low, high]"""
         return torch.rand(size) * (high - low) + low
 
     def sample(
@@ -144,7 +146,11 @@ class Road:
     ):
         bounds = torch.as_tensor([x_bound * self.x_len, y_bound * self.y_len])
         return transform_2d_coordinates_rotation_matrix(
-            self.rand_uniform((size, 2), bounds * 0.5, bounds * -0.5,),
+            self.rand_uniform(
+                (size, 2),
+                bounds * 0.5,
+                bounds * -0.5,
+            ),
             self.rot_matrix,
             self.center,
         ).to(self.device)

@@ -30,7 +30,7 @@ class World:
         figsize: Tuple[int] = (10, 10),
         no_signal_val: float = 0.75,
         xlims: tuple = (-100, 100),
-        ylims: tuple = (-100, 100)
+        ylims: tuple = (-100, 100),
     ):
         self.vehicles = OrderedDict()
         self.trajectory_nodes = OrderedDict()
@@ -117,7 +117,9 @@ class World:
 
     def get_lidar_data(self, vname: str, npoints: int):
         return self.get_lidar_data_from_state(
-            self.get_vehicle_state(vname), vname, npoints,
+            self.get_vehicle_state(vname),
+            vname,
+            npoints,
         )
 
     def get_lidar_data_from_state(
@@ -211,7 +213,7 @@ class World:
 
         if not trajectory:
             return
-        
+
         traj_points, traj_nodes = self.shortest_path_trajectory(
             vehicle.position,
             vehicle.destination,
@@ -336,7 +338,11 @@ class World:
         render_vehicle(v, ax, color="blue")
 
     def render(
-        self, pts=None, path=None, lims=None, render_lidar=False,
+        self,
+        pts=None,
+        path=None,
+        lims=None,
+        render_lidar=False,
     ):
         if path is not None:
             ani = self.cam.animate(blit=True, interval=80)

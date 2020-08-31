@@ -24,7 +24,8 @@ class PPOWaypointCentralizedCritic(nn.Module):
     ):
         super().__init__()
         self.v_net = mlp(
-            [obs_dim * nagents] + list(hidden_sizes) + [1], activation,
+            [obs_dim * nagents] + list(hidden_sizes) + [1],
+            activation,
         )
         self.nagents = nagents
         self.apply(init_weights)
@@ -91,7 +92,10 @@ class PPOWaypointPermutationInvariantCentralizedCritic(nn.Module):
         activation: torch.nn.Module,
     ):
         super().__init__()
-        self.f_net = mlp([obs_dim, hidden_sizes[0]], activation,)
+        self.f_net = mlp(
+            [obs_dim, hidden_sizes[0]],
+            activation,
+        )
         self.v_net = mlp(list(hidden_sizes[1:]) + [1], activation)
         self.apply(init_weights)
 
@@ -123,14 +127,18 @@ class PPOLidarPermutationInvariantCentralizedCritic(nn.Module):
     ):
         super().__init__()
         self.feature_net = mlp(
-            [obs_dim + feature_dim] + [hidden_sizes[0]], activation,
+            [obs_dim + feature_dim] + [hidden_sizes[0]],
+            activation,
         )
         self.lidar_features = nn.Sequential(
             nn.Conv1d(history_len, 1, 4, 2, 2, padding_mode="circular"),
             nn.Conv1d(1, 1, 4, 2, 2, padding_mode="circular"),
             nn.AdaptiveAvgPool1d(feature_dim),
         )
-        self.v_net = mlp(list(hidden_sizes) + [1], activation,)
+        self.v_net = mlp(
+            list(hidden_sizes) + [1],
+            activation,
+        )
         self.history_len = history_len
         self.apply(init_weights)
 

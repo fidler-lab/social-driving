@@ -44,6 +44,26 @@ env2record = {
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
         + ["Episode", "Agent ID"]
     ),
+    "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": {
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+    },
+    "MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment": {
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+    },
+    "MultiAgentHighwayBicycleKinematicsModel": {
+        ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
+        + ["Steering Angle", "Position"]
+    },
+    "MultiAgentHighwayBicycleKinematicsDiscreteModel": {
+        ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
+        + ["Steering Angle", "Position"]
+    },
+    "MultiAgentHighwaySplineAccelerationDiscreteModel": {
+        ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
+        + ["Position"]
+    },
 }
 
 
@@ -52,24 +72,22 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         super().__init__(*args, **kwargs)
 
         self.fname = self.save_dir / fname
-    
+
         # Parse the record items and check which quantities to store
         # Only negate the extra quatities
         self.record_items = env2record[self.env_name]
-        
+
         self.record_steering = "Steering Angle" in self.record_items
         self.record_global_position = "Position" in self.record_items
-        
+
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
 
         if self.record_global_position:
             self.record["Env Width"] = []
             self.record["Env Length"] = []
-        
-    def _action_observation_hook(
-        self, action, observation, *args, **kwargs
-    ):
+
+    def _action_observation_hook(self, action, observation, *args, **kwargs):
         if len(args) == 1 and args[0] == 0:
             return
         state = self.env.world.get_all_vehicle_state()
@@ -89,7 +107,9 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             if self.record_steering:
                 self.record["Steering Angle"].append(action[i, 0].item())
             if self.record_global_position:
-                self.record["Position"].append(state[i, :2].cpu().numpy().tolist())
+                self.record["Position"].append(
+                    state[i, :2].cpu().numpy().tolist()
+                )
                 self.record["Env Width"].append(self.env.width)
                 self.record["Env Length"].append(self.env.length)
 
@@ -98,11 +118,11 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
     def _new_rollout_hook(self):
         self.timesteps = [0] * self.env.nagents
         self.episode_number += 1
-    
+
     def _post_completion_hook(self):
         df = pd.DataFrame.from_dict(self.record)
         df.to_csv(str(self.fname))
-        
+
         print(f"Saved DataFrame to {self.fname}")
 
 

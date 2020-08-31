@@ -56,7 +56,9 @@ def transform_2d_coordinates_rotation_matrix(
 
 @torch.jit.script
 def transform_2d_coordinates(
-    coordinates: torch.Tensor, theta: torch.Tensor, offset: torch.Tensor,
+    coordinates: torch.Tensor,
+    theta: torch.Tensor,
+    offset: torch.Tensor,
 ) -> torch.Tensor:
     return transform_2d_coordinates_rotation_matrix(
         coordinates, get_2d_rotation_matrix(theta), offset

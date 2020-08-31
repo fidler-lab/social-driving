@@ -65,17 +65,16 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.max_accln = 1.5
         self.normalization_factor = torch.as_tensor([self.max_accln])
         return Box(
-            low=np.array([-self.max_accln]), high=np.array([self.max_accln]),
+            low=np.array([-self.max_accln]),
+            high=np.array([self.max_accln]),
         )
-    
+
     def _get_distance_from_goal(self):
         a_id = self.get_agent_ids_list()[0]
         vehicle = self.agents[a_id]
         dist = vehicle.distance_from_destination()
         path_distance = self.dynamics.distance_proxy - self.dynamics.distances
-        return torch.where(
-            dist == 0, self.buffered_ones, 1 / path_distance
-        )
+        return torch.where(dist == 0, self.buffered_ones, 1 / path_distance)
 
     def get_state(self):
         a_ids = self.get_agent_ids_list()
@@ -107,7 +106,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             )
         else:
             return obs, lidar
-        
+
     def _get_distance_rwd_from_goal(self):
         return self.dynamics.distance_proxy - self.dynamics.distances
 
@@ -210,7 +209,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.agents[vehicle.name] = vehicle
 
         self.original_distances = self._get_original_distances()
-        
+
     def _get_original_distances(self):
         return self.dynamics.distance_proxy
 
@@ -257,7 +256,7 @@ class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
         self.dynamics = BicycleKinematicsModel(
             dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0
         )
-    
+
     def get_action_space(self):
         self.max_accln = 1.5
         self.max_steering = 0.1
@@ -268,14 +267,14 @@ class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
             low=np.array([-self.max_steering, -self.max_accln]),
             high=np.array([self.max_steering, self.max_accln]),
         )
-    
+
     def _get_distance_from_goal(self):
         a_id = self.get_agent_ids_list()[0]
         vehicle = self.agents[a_id]
         dist = vehicle.distance_from_destination().clamp(min=1.0)
         rval = 1 / dist
         return rval
-    
+
     def _get_distance_rwd_from_goal(self):
         # This might give us incorrect results. We should use the nearest neighbor of
         # the predefined splines for this
@@ -283,13 +282,13 @@ class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
         vehicle = self.agents[a_id]
         dist = vehicle.distance_from_destination()
         return dist
-    
+
     def _get_original_distances(self):
         a_id = self.get_agent_ids_list()[0]
         vehicle = self.agents[a_id]
         dist = vehicle.distance_from_destination()
         return dist
-    
+
 
 class MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment(
     MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment

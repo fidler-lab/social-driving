@@ -176,11 +176,11 @@ def FixedTrackAccelerationModel(*args, **kwargs):
 
 class _SplineModel(nn.Module):
     """
-        IMPORTANT NOTE: Much like the FixedTrackAccelerationModel
-        this Model is stateful. Even though the state passed to it
-        must be of the shape N x 4, the x, y, and theta will be
-        simply ignored. This allows for a consistent API and
-        makes environment design simpler
+    IMPORTANT NOTE: Much like the FixedTrackAccelerationModel
+    this Model is stateful. Even though the state passed to it
+    must be of the shape N x 4, the x, y, and theta will be
+    simply ignored. This allows for a consistent API and
+    makes environment design simpler
     """
 
     def __init__(

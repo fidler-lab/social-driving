@@ -28,8 +28,7 @@ def trainable_parameters(net):
 
 
 def mpi_avg_grads(module):
-    """Average contents of gradient buffers across MPI processes.
-    """
+    """Average contents of gradient buffers across MPI processes."""
     if num_procs() == 1:
         return
     for p in trainable_parameters(module):

@@ -70,25 +70,18 @@ class NuscenesWorld(World):
 
         val = [
             torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
-            torch.as_tensor([1.0, 0.5, 0.0, 0.5])
+            torch.as_tensor([1.0, 0.5, 0.0, 0.5]),
         ]
-        colors = [
-            ["r", "y", "g", "y"],
-            ["g", "y", "r", "y"]
-        ]
+        colors = [["r", "y", "g", "y"], ["g", "y", "r", "y"]]
         times = torch.as_tensor([100, 20, 100, 20])
 
         for i in range(data["signal_locations"].size(0)):
             col_map = data["color_mapping"][i]
             self.traffic_signals[i] = (
                 TrafficSignal(
-                    val[col_map],
-                    0,
-                    times,
-                    f"signal_{i}",
-                    colors[col_map]
+                    val[col_map], 0, times, f"signal_{i}", colors[col_map]
                 ),
-                data["signal_locations"][i]
+                data["signal_locations"][i],
             )
 
     def reset(self):
@@ -171,12 +164,14 @@ class NuscenesWorld(World):
 
         p = vehicle.position
         names = [vname + str(b) for b in range(vehicle.nbatch)]
-        locations = torch.cat([
-            ts[n][0][0][1].unsqueeze(0).to(self.device)
-            if len(ts[n]) > 0
-            else torch.ones(1, 2).type_as(p) * 1e12
-            for n in names
-        ])
+        locations = torch.cat(
+            [
+                ts[n][0][0][1].unsqueeze(0).to(self.device)
+                if len(ts[n]) > 0
+                else torch.ones(1, 2).type_as(p) * 1e12
+                for n in names
+            ]
+        )
 
         head = vehicle.optimal_heading_to_point(locations)
 
@@ -186,4 +181,3 @@ class NuscenesWorld(World):
             tn = self.traffic_signals_in_path[vname + str(b)]
             if crossed[b] and len(tn) > 0:
                 tn.popleft()
-

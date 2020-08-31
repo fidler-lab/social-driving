@@ -226,9 +226,12 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         device = self.device
         clip_ratio = self.clip_ratio
 
-        obs, act, logp_old, rew, = [
-            data[k] for k in ["obs", "act", "logp", "rew"]
-        ]
+        (
+            obs,
+            act,
+            logp_old,
+            rew,
+        ) = [data[k] for k in ["obs", "act", "logp", "rew"]]
 
         # Policy loss
         pi, _, logp = self.actor(obs, act)
@@ -244,7 +247,11 @@ class PPO_Alternating_Optimization_Centralized_Critic:
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().detach().cpu()
-        info = dict(kl=approx_kl, ent=ent.item(), pi_loss=loss_pi.item(),)
+        info = dict(
+            kl=approx_kl,
+            ent=ent.item(),
+            pi_loss=loss_pi.item(),
+        )
 
         return loss, info
 
@@ -336,7 +343,9 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         # Log changes from update
         ent, pi_l_old = info["ent"], info["pi_loss"]
         self.logger.store(
-            LossActorSpline=pi_l_old, KLSpline=kl, EntropySpline=ent,
+            LossActorSpline=pi_l_old,
+            KLSpline=kl,
+            EntropySpline=ent,
         )
 
     def update_controller(self):

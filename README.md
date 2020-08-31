@@ -3,20 +3,22 @@ Design multi-agent environments and simple reward functions such that social dri
 
 ## Table of Contents
 
-* [Installation](#installation)
-* [Agents Module](#agents-module)
-    * [Training an Agent](#training-an-agent)
-    * [Trainer Description](#trainer-description)
-* [Scripts Module](#scripts-module)
-    * [Generating Rollouts](#generating-rollouts)
-* [Environments Module](#environments-module)
-    * [Available Environments](#available-environments)
-    * [Environment Configuration](#environment-configuration)
-    * [Writing New Environments](#writing-new-environments)
-* [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
-* [Nuscenes](#nuscenes)
-    * [Interactive Map Generation](#interactive-map-generation)
-* [Additional Suggestions for Debugging](#additional-suggestions-for-debugging)
+- [Social Driving](#social-driving)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Agents Module](#agents-module)
+    - [Training an Agent](#training-an-agent)
+    - [Trainer Description](#trainer-description)
+  - [Scripts Module](#scripts-module)
+    - [Generating Rollouts](#generating-rollouts)
+  - [Environments Module](#environments-module)
+    - [Available Environments](#available-environments)
+    - [Environment Configuration](#environment-configuration)
+    - [Writing New Environments](#writing-new-environments)
+  - [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
+  - [Nuscenes](#nuscenes)
+    - [Interactive Map Generation](#interactive-map-generation)
+  - [Additional Suggestions for Debugging and Performance](#additional-suggestions-for-debugging-and-performance)
 
 ## Installation
 
@@ -52,9 +54,9 @@ Three variants of PPO are currently implemented:
 
 | Method                             | Python Module   | Information                                       | Action Space                     | Observation Space | Compatible Environments |
 |------------------------------------|-----------------|---------------------------------------------------|----------------------------------|-------------------|-------------------------|
-| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1, 2, 3, 4              |
+| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1 - 3, 7 - 12           |
 | PPO OneStep                        | ppo_one_step    | Optimized Implementation for Single Step RL       | Box / Discrete                   | Box               | 5                       |
-| PPO Alternating Optimization       | ppo_altopt      | PPO with Bi-Level Optimization                    | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 6                       |
+| PPO Alternating Optimization       | ppo_altopt      | PPO with Bi-Level Optimization                    | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 6, 13                   |
 
 
 To get the configurable parameters for the trainers use the following command:
@@ -103,6 +105,13 @@ To test proper functioning of an environment a good check is to generate a rollo
 4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
 5. `MultiAgentOneShotSplinePredicitonEnvironment`
 6. `MultiAgentIntersectionSplineAccelerationDiscreteEnvironment`
+7. `MultiAgentNuscenesIntersectionDrivingEnvironment`
+8. `MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment`
+9. `MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment`
+10. `MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment`
+11. `MultiAgentHighwayBicycleKinematicsModel`
+12. `MultiAgentHighwayBicycleKinematicsDiscreteModel`
+13. `MultiAgentHighwaySplineAccelerationDiscreteModel`
 
 ### Environment Configuration
 

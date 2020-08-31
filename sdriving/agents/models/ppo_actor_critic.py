@@ -20,10 +20,10 @@ class PPOActorCritic(nn.Module):
 
     def _step_centralized(self, obs):
         """
-            obs: Should be of a valid format which can be given as input
-                 to both Actor and Critic. The standard input involves
-                 every tensor to be of shape (N x B x O) or (N x O)
-                 where N is the number of agents and B is the batch size
+        obs: Should be of a valid format which can be given as input
+             to both Actor and Critic. The standard input involves
+             every tensor to be of shape (N x B x O) or (N x O)
+             where N is the number of agents and B is the batch size
         """
         with torch.no_grad():
             _, actions, log_probs = self.pi(obs)
@@ -55,11 +55,17 @@ class PPOWaypointActorCritic(PPOActorCritic):
 
         if isinstance(action_space, Box):
             pi = PPOWaypointGaussianActor(
-                obs_dim, action_space, hidden_sizes, activation,
+                obs_dim,
+                action_space,
+                hidden_sizes,
+                activation,
             )
         elif isinstance(action_space, Discrete):
             pi = PPOWaypointCategoricalActor(
-                obs_dim, action_space, hidden_sizes, activation,
+                obs_dim,
+                action_space,
+                hidden_sizes,
+                activation,
             )
         else:
             raise Exception(

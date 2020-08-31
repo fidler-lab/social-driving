@@ -53,15 +53,13 @@ class RolloutSimulator:
 
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(exist_ok=True)
-    
-    def _action_observation_hook(
-        self, action, observation, *args, **kwargs
-    ):
+
+    def _action_observation_hook(self, action, observation, *args, **kwargs):
         pass
-    
+
     def _new_rollout_hook(self):
         pass
-    
+
     def _post_completion_hook(self):
         pass
 
@@ -90,7 +88,7 @@ class RolloutSimulator:
             f"Mean Return over {nepisodes} episodes:"
             f" {total_ret / nepisodes}"
         )
-        
+
         self._post_completion_hook()
 
     def _move_object_to_device(self, obj: Union[tuple, list, torch.Tensor]):
@@ -117,13 +115,15 @@ class RolloutSimulator:
     def _one_stage_rollout(self, verbose: bool, render: bool):
         o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
         self._new_rollout_hook()
-        
+
         if hasattr(self.env, "accln_rating"):
-            print(f"Acceleration / Velocity Rating: {self.env.accln_rating[:, 0]}")
+            print(
+                f"Acceleration / Velocity Rating: {self.env.accln_rating[:, 0]}"
+            )
 
         while not done:
             a = self._action_one_stage_rollout(o)
-            
+
             self._action_observation_hook(
                 self.env.discrete_to_continuous_actions(a), o
             )

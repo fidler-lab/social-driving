@@ -88,7 +88,8 @@ class PPOWaypointCategoricalActor(PPOCategoricalActor):
     ):
         super().__init__()
         self.deviation_net = mlp(
-            [obs_dim] + list(hidden_sizes) + [act_space.n], activation,
+            [obs_dim] + list(hidden_sizes) + [act_space.n],
+            activation,
         )
         self.apply(init_weights)
 
@@ -189,7 +190,10 @@ class PPOWaypointGaussianActor(PPOGaussianActor):
         act_dim = act_space.shape[0]
         self.act_high = torch.as_tensor(act_space.high)
         self.act_low = torch.as_tensor(act_space.low)
-        self.net = mlp([obs_dim] + list(hidden_sizes), activation,)
+        self.net = mlp(
+            [obs_dim] + list(hidden_sizes),
+            activation,
+        )
         self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
         self.log_std = nn.Parameter(-0.5 * torch.ones(act_dim))
         self.apply(init_weights)
