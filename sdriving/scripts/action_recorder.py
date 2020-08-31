@@ -54,15 +54,15 @@ env2record = {
     },
     "MultiAgentHighwayBicycleKinematicsModel": {
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position"]
+        + ["Steering Angle", "Position", "Acceleration Rating"]
     },
     "MultiAgentHighwayBicycleKinematicsDiscreteModel": {
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position"]
+        + ["Steering Angle", "Position", "Acceleration Rating"]
     },
     "MultiAgentHighwaySplineAccelerationDiscreteModel": {
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Position"]
+        + ["Position", "Acceleration Rating"]
     },
 }
 
@@ -79,6 +79,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
 
         self.record_steering = "Steering Angle" in self.record_items
         self.record_global_position = "Position" in self.record_items
+        self.record_accln_rating = "Acceleration Raing" in self.record_items
 
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
@@ -86,6 +87,9 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         if self.record_global_position:
             self.record["Env Width"] = []
             self.record["Env Length"] = []
+        
+        if self.record_accln_rating:
+            self.record["Acceleration Rating"] = []
 
     def _action_observation_hook(self, action, observation, *args, **kwargs):
         if len(args) == 1 and args[0] == 0:
@@ -97,6 +101,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             else observation[0]
         )
         ts = observation[:, -4]
+        if self.record_accln_rating:
+            rating = self.env.accln_rating
         for i in range(action.size(0)):
             self.record["Traffic Signal"].append(ts[i].item())
             self.record["Velocity"].append(state[i, 2].item())
@@ -112,6 +118,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 )
                 self.record["Env Width"].append(self.env.width)
                 self.record["Env Length"].append(self.env.length)
+            if self.record_accln_rating:
+                self.record["Acceleration Rating"].append(rating[i, 0].item())
 
             self.timesteps[i] += 1
 
