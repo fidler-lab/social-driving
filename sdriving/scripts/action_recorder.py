@@ -79,7 +79,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
 
         self.record_steering = "Steering Angle" in self.record_items
         self.record_global_position = "Position" in self.record_items
-        self.record_accln_rating = "Acceleration Raing" in self.record_items
+        self.record_accln_rating = "Acceleration Rating" in self.record_items
         self.record_traffic_signal = "Traffic Signal" in self.record_items
 
         self.record = {r: [] for r in self.record_items}
