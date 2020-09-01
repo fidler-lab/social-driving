@@ -2,9 +2,10 @@ import math
 from typing import Dict, List, Tuple, Union
 
 import torch
-from sdriving.tsim.utils import angle_normalize
-from sdriving.tsim.parametric_curves import CatmullRomSpline
 from torch import nn
+
+from sdriving.tsim.parametric_curves import CatmullRomSpline
+from sdriving.tsim.utils import angle_normalize, remove_batch_element
 
 EPS = 1e-7
 
@@ -225,6 +226,16 @@ class _SplineModel(nn.Module):
     @torch.jit.export
     def reset(self):
         self.distances = torch.zeros(self.nbatch, 1, device=self.device)
+
+    @torch.jit.export
+    def remove(self, idx: int):
+        self.motion.remove(idx)
+        self.nbatch -= 1
+        self.distances = remove_batch_element(self.distances, idx)
+        self.distance_proxy = remove_batch_element(self.distance_proxy, idx)
+        self.theta = remove_batch_element(self.theta, idx)
+        self.curve_length = remove_batch_element(self.curve_length, idx)
+        self.arc_lengths = remove_batch_element(self.arc_lengths, idx)
 
     def to(self, device):
         if device == self.device:

@@ -1,24 +1,18 @@
 import math
 import random
 from collections import deque
-from itertools import product
 from glob import glob
+from itertools import product
 
 import numpy as np
 import torch
-
 from gym.spaces import Box, Discrete, Tuple
-from sdriving.environments.intersection import (
-    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
-)
-from sdriving.tsim import (
-    SplineModel,
-    BicycleKinematicsModel,
-    angle_normalize,
-    BatchedVehicle,
-    intervehicle_collision_check,
-)
+
+from sdriving.environments.intersection import \
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
 from sdriving.nuscenes import NuscenesWorld
+from sdriving.tsim import (BatchedVehicle, BicycleKinematicsModel, SplineModel,
+                           angle_normalize, intervehicle_collision_check)
 
 
 class MultiAgentNuscenesIntersectionDrivingEnvironment(
@@ -60,6 +54,26 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.bool_buffer = bool_buffer.bool()
 
         self.buffered_ones = torch.ones(self.nagents, 1, device=self.device)
+
+    def remove(self, aname: str):  # Requires agent name not ID
+        idx = self.agent_names.index(aname)
+        self.agent_names.pop(idx)
+
+        if hasattr(self.dynamics, "remove"):
+            self.dynamics.remove(idx)
+
+        # No need to update bool_buffer. Let vehicle handle that
+        self.agents["agent"].remove(idx)
+
+        self.buffered_ones = self.buffered_ones[1:, ...]
+
+        def update_deque(queue, idx):
+            for i, item in enumerate(queue):
+                queue[i] = torch.cat([item[:idx, ...], item[idx + 1:, ...]])
+            return queue
+
+        self.queue1 = update_deque(self.queue1, idx)
+        self.queue2 = update_deque(self.queue2, idx)
 
     def get_action_space(self):
         self.max_accln = 1.5

@@ -1,9 +1,10 @@
-from typing import List
 import math
+from typing import List
 
 import torch
-from sdriving.tsim.utils import angle_normalize
 from torch import nn
+
+from sdriving.tsim.utils import angle_normalize, remove_batch_element
 
 EPS = 1e-7
 
@@ -91,31 +92,45 @@ class _CatmullRomSpline(nn.Module):
             dim=-1,
         )
 
-        self.t = t
-        self.cps = cps
+        self.t = t  # N x ...
+        self.cps = cps  # N x ...
         self.cp_num = cp_num
         self.p_num = p_num
-        self.auxillary_cps = auxillary_cps
+        self.auxillary_cps = auxillary_cps  # N x ...
 
         self.ts = batched_2d_linspace(
             self.t[:, 1:-2], self.t[:, 2:-1] - 0.01, p_num
-        ).reshape(cps.size(0), -1)
+        ).reshape(
+            cps.size(0), -1
+        )  # N x T1
         pts = self.sample_points(self.ts)
         diff = pts[:, 1:, :] - pts[:, :-1, :]
         dist = (diff.pow(2).sum(-1) + EPS).sqrt()
 
-        self.pts = pts
-        self.diff = diff
-        self.dist = dist
-        self.curve_length = dist.sum(-1).detach()
+        self.pts = pts  # N x T2 x 2
+        self.diff = diff  # N x (T2 - 1) x 2
+        self.dist = dist  # N x (T2 - 1)
+        self.curve_length = dist.sum(-1).detach()  # N
         self.arc_lengths = torch.cat(
             [
                 torch.zeros(cps.size(0), 1, device=self.device),
                 torch.cumsum(dist, dim=-1),
             ],
             dim=1,
-        )
+        )  # N x T2
         self.npoints = self.arc_lengths.size(1)
+
+    @torch.jit.export
+    def remove(self, idx: int):
+        self.t = remove_batch_element(self.t, idx)
+        self.cps = remove_batch_element(self.cps, idx)
+        self.auxillary_cps = remove_batch_element(self.auxillary_cps, idx)
+        self.ts = remove_batch_element(self.ts, idx)
+        self.pts = remove_batch_element(self.pts, idx)
+        self.diff = remove_batch_element(self.diff, idx)
+        self.dist = remove_batch_element(self.dist, idx)
+        self.curve_length = remove_batch_element(self.curve_length, idx)
+        self.arc_lengths = remove_batch_element(self.arc_lengths, idx)
 
     @torch.jit.export
     def sample_points(self, t: torch.Tensor):  # t --> B x N

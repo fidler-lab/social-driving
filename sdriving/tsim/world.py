@@ -13,11 +13,8 @@ from celluloid import Camera
 
 from sdriving.tsim.road import RoadNetwork
 from sdriving.tsim.traffic_signal import TrafficSignal
-from sdriving.tsim.utils import (
-    check_intersection_lines,
-    generate_lidar_data,
-    angle_normalize,
-)
+from sdriving.tsim.utils import (angle_normalize, check_intersection_lines,
+                                 generate_lidar_data, remove_batch_element)
 from sdriving.tsim.vehicle import render_vehicle
 
 matplotlib.use("Agg")
@@ -52,6 +49,19 @@ class World:
 
         self.xlims = xlims
         self.ylims = ylims
+
+    def remove(self, aname: str, idx: int):
+        del self.traffic_signals_in_path[aname]
+
+        self.trajectory_nodes["agent"] = remove_batch_element(
+            self.trajectory_nodes["agent"], idx
+        )
+        self.trajectory_points["agent"] = remove_batch_element(
+            self.trajectory_points["agent"], idx
+        )
+        self.current_positions["agent"] = remove_batch_element(
+            self.current_positions["agent"], idx
+        )
 
     def to(self, device: torch.device):
         if device == self.device:
@@ -242,7 +252,7 @@ class World:
         self.current_positions[vehicle.name] = torch.zeros(nbatch).long()
         tn = traj_nodes.detach().cpu().numpy()
         for b in range(nbatch):
-            name = vehicle.name + str(b)
+            name = vehicle.name + f"_{b}"
             self.traffic_signals_in_path[name] = deque()
             for i1, i2 in zip(tn[b, :-1], tn[b, 1:]):
                 if (i1, i2) in self.traffic_signals:
@@ -274,7 +284,7 @@ class World:
         cp = self.current_positions[vname]
         for b in range(new_state.size(0)):
             node = nodes[b, cp[b]]
-            ts = self.traffic_signals_in_path[vname + str(b)]
+            ts = self.traffic_signals_in_path[vname + f"_{b}"]
             if crossed[b] and len(ts) != 0 and (ts[0][-1] == node).all():
                 ts.popleft()
         self.current_positions[vname] = torch.clamp(
@@ -287,7 +297,7 @@ class World:
     def get_traffic_signal(self, vname: str):
         vehicle = self.vehicles[vname]
         ts = self.traffic_signals_in_path
-        names = [vname + str(b) for b in range(vehicle.nbatch)]
+        names = [vname + f"_{b}" for b in range(vehicle.nbatch)]
         p = vehicle.position
 
         locations = torch.cat(

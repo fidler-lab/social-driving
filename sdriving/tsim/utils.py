@@ -243,3 +243,8 @@ def is_perpendicular(
     vec2 = pt1 - pt3  # N x 2
     vec2 /= torch.norm(vec2, dim=1, keepdim=True)  # N x 2
     return (vec1 * vec2).sum(1).abs() < tol
+
+
+@torch.jit.script
+def remove_batch_element(t: torch.Tensor, idx: int):
+    return torch.cat([t[:idx, ...], t[idx + 1:, ...]])

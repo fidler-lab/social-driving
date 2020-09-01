@@ -34,6 +34,10 @@ class BaseMultiAgentDrivingEnvironment:
         # Setup agent ids
         self.nagents = nagents
         self.agent_ids = [f"agent"]  # All agents grouped into 1 vehicle
+        self.agent_names = [
+            f"agent_{i}" for i in range(self.nagents)
+        ]  # Right now we support removal of agents.
+        # This list is the actual set of agents present in the environment.
         self.agents = OrderedDict()
 
         # Stats
