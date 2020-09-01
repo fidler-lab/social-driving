@@ -8,11 +8,17 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
 
-from sdriving.environments.intersection import \
-    MultiAgentRoadIntersectionBicycleKinematicsEnvironment
+from sdriving.environments.intersection import (
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
+)
 from sdriving.nuscenes import NuscenesWorld
-from sdriving.tsim import (BatchedVehicle, BicycleKinematicsModel, SplineModel,
-                           angle_normalize, intervehicle_collision_check)
+from sdriving.tsim import (
+    BatchedVehicle,
+    BicycleKinematicsModel,
+    SplineModel,
+    angle_normalize,
+    intervehicle_collision_check,
+)
 
 
 class MultiAgentNuscenesIntersectionDrivingEnvironment(
@@ -69,7 +75,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         def update_deque(queue, idx):
             for i, item in enumerate(queue):
-                queue[i] = torch.cat([item[:idx, ...], item[idx + 1:, ...]])
+                queue[i] = torch.cat([item[:idx, ...], item[idx + 1 :, ...]])
             return queue
 
         self.queue1 = update_deque(self.queue1, idx)

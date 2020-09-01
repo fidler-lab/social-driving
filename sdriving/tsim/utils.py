@@ -247,4 +247,4 @@ def is_perpendicular(
 
 @torch.jit.script
 def remove_batch_element(t: torch.Tensor, idx: int):
-    return torch.cat([t[:idx, ...], t[idx + 1:, ...]])
+    return torch.cat([t[:idx, ...], t[idx + 1 :, ...]])

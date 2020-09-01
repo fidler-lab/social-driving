@@ -13,8 +13,12 @@ from celluloid import Camera
 
 from sdriving.tsim.road import RoadNetwork
 from sdriving.tsim.traffic_signal import TrafficSignal
-from sdriving.tsim.utils import (angle_normalize, check_intersection_lines,
-                                 generate_lidar_data, remove_batch_element)
+from sdriving.tsim.utils import (
+    angle_normalize,
+    check_intersection_lines,
+    generate_lidar_data,
+    remove_batch_element,
+)
 from sdriving.tsim.vehicle import render_vehicle
 
 matplotlib.use("Agg")

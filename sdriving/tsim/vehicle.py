@@ -5,10 +5,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from sdriving.tsim.utils import (angle_normalize, check_intersection_lines,
-                                 circle_area_overlap, get_2d_rotation_matrix,
-                                 remove_batch_element,
-                                 transform_2d_coordinates_rotation_matrix)
+from sdriving.tsim.utils import (
+    angle_normalize,
+    check_intersection_lines,
+    circle_area_overlap,
+    get_2d_rotation_matrix,
+    remove_batch_element,
+    transform_2d_coordinates_rotation_matrix,
+)
 
 
 class _BatchedVehicle(torch.nn.Module):
@@ -69,15 +73,17 @@ class _BatchedVehicle(torch.nn.Module):
         self.max_lidar_range = max_lidar_range
         self.min_lidar_range = min_lidar_range
         self.vision_range = vision_range
-    
+
     @torch.jit.export
-    def remove(self, idx: int):        
+    def remove(self, idx: int):
         self.nbatch -= 1
 
         self.speed = remove_batch_element(self.speed, idx)
         self.safety_circle = remove_batch_element(self.safety_circle, idx)
         self.area = remove_batch_element(self.area, idx)
-        self.base_coordinates = remove_batch_element(self.base_coordinates, idx)
+        self.base_coordinates = remove_batch_element(
+            self.base_coordinates, idx
+        )
 
         self.coordinates = self._get_coordinates()
 
