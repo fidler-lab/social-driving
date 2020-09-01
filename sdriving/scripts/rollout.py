@@ -54,7 +54,7 @@ class RolloutSimulator:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(exist_ok=True)
 
-    def _action_observation_hook(self, action, observation, *args, **kwargs):
+    def _action_observation_hook(self, action, observation, aids, *args, **kwargs):
         pass
 
     def _new_rollout_hook(self):
@@ -113,7 +113,7 @@ class RolloutSimulator:
 
     @torch.no_grad()
     def _one_stage_rollout(self, verbose: bool, render: bool):
-        o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        (o, aids), done, ep_ret, ep_len = self.env.reset(), False, 0, 0
         self._new_rollout_hook()
 
         if hasattr(self.env, "accln_rating"):
@@ -125,14 +125,14 @@ class RolloutSimulator:
             a = self._action_one_stage_rollout(o)
 
             self._action_observation_hook(
-                self.env.discrete_to_continuous_actions(a), o
+                self.env.discrete_to_continuous_actions(a), o, aids
             )
 
             if verbose:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            o, r, d, _ = self.env.step(a, render=render)
+            (o, aids), r, d, _ = self.env.step(a, render=render)
 
             ep_ret = ep_ret + r
             ep_len += 1
@@ -163,27 +163,27 @@ class RolloutSimulator:
 
     @torch.no_grad()
     def _two_stage_rollout(self, verbose: bool, render: bool):
-        o, done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        (o, aids), done, ep_ret, ep_len = self.env.reset(), False, 0, 0
         self._new_rollout_hook()
 
         a = self._action_two_stage_rollout(0, o)
         self._action_observation_hook(
-            self.env.discrete_to_continuous_actions_v2(a), o, 0
+            self.env.discrete_to_continuous_actions_v2(a), o, aids, 0
         )
 
-        o = self.env.step(0, a)
+        o, aids = self.env.step(0, a)
 
         while not done:
             a = self._action_two_stage_rollout(1, o)
             self._action_observation_hook(
-                self.env.discrete_to_continuous_actions(a), o, 1
+                self.env.discrete_to_continuous_actions(a), o, aids, 1
             )
 
             if verbose:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            o, r, d, _ = self.env.step(1, a, render=render)
+            (o, aids), r, d, _ = self.env.step(1, a, render=render)
 
             ep_ret = ep_ret + r
             ep_len += 1

@@ -57,15 +57,16 @@ class World:
     def remove(self, aname: str, idx: int):
         del self.traffic_signals_in_path[aname]
 
-        self.trajectory_nodes["agent"] = remove_batch_element(
-            self.trajectory_nodes["agent"], idx
-        )
-        self.trajectory_points["agent"] = remove_batch_element(
-            self.trajectory_points["agent"], idx
-        )
-        self.current_positions["agent"] = remove_batch_element(
-            self.current_positions["agent"], idx
-        )
+        if isinstance(self, World):
+            self.trajectory_nodes["agent"] = remove_batch_element(
+                self.trajectory_nodes["agent"], idx
+            )
+            self.trajectory_points["agent"] = remove_batch_element(
+                self.trajectory_points["agent"], idx
+            )
+            self.current_positions["agent"] = remove_batch_element(
+                self.current_positions["agent"], idx
+            )
 
     def to(self, device: torch.device):
         if device == self.device:
@@ -286,9 +287,9 @@ class World:
         nodes = self.trajectory_nodes[vname]
 
         cp = self.current_positions[vname]
-        for b in range(new_state.size(0)):
+        for b, k in enumerate(self.traffic_signals_in_path.items()):
             node = nodes[b, cp[b]]
-            ts = self.traffic_signals_in_path[vname + f"_{b}"]
+            ts = self.traffic_signals_in_path[k]
             if crossed[b] and len(ts) != 0 and (ts[0][-1] == node).all():
                 ts.popleft()
         self.current_positions[vname] = torch.clamp(
@@ -301,15 +302,14 @@ class World:
     def get_traffic_signal(self, vname: str):
         vehicle = self.vehicles[vname]
         ts = self.traffic_signals_in_path
-        names = [vname + f"_{b}" for b in range(vehicle.nbatch)]
         p = vehicle.position
 
         locations = torch.cat(
             [
-                ts[n][0][0][1].unsqueeze(0).to(self.device)
-                if len(ts[n]) > 0
+                v[0][0][1].unsqueeze(0).to(self.device)
+                if len(v) > 0
                 else torch.ones(1, 2).type_as(p) * 1e12
-                for n in names
+                for n, v in ts.items()
             ]
         )
 
@@ -318,9 +318,9 @@ class World:
         visible = distances < vehicle.vision_range
         signals = []
 
-        for i, n in enumerate(names):
-            if visible[i] and len(ts[n]) > 0:
-                signals.append(ts[n][0][0][0].get_value())
+        for i, (n, v) in enumerate(ts.items()):
+            if visible[i] and len(v) > 0:
+                signals.append(v[0][0][0].get_value())
             else:
                 signals.append(self.no_signal_val)
 

@@ -84,6 +84,13 @@ class _BatchedVehicle(torch.nn.Module):
         self.base_coordinates = remove_batch_element(
             self.base_coordinates, idx
         )
+        self.position = remove_batch_element(self.position, idx)
+        self.destination = remove_batch_element(self.destination, idx)
+        self.orientation = remove_batch_element(self.orientation, idx)
+        self.dest_orientation = remove_batch_element(
+            self.dest_orientation, idx
+        )
+        self.dimensions = remove_batch_element(self.dimensions, idx)
 
         self.coordinates = self._get_coordinates()
 

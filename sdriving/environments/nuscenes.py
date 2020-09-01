@@ -18,6 +18,7 @@ from sdriving.tsim import (
     SplineModel,
     angle_normalize,
     intervehicle_collision_check,
+    remove_batch_element,
 )
 
 
@@ -64,22 +65,31 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
     def remove(self, aname: str):  # Requires agent name not ID
         idx = self.agent_names.index(aname)
         self.agent_names.pop(idx)
+        self.nagents -= 1
 
         if hasattr(self.dynamics, "remove"):
             self.dynamics.remove(idx)
 
         # No need to update bool_buffer. Let vehicle handle that
         self.agents["agent"].remove(idx)
+        self.world.remove(aname, idx)
 
         self.buffered_ones = self.buffered_ones[1:, ...]
 
         def update_deque(queue, idx):
             for i, item in enumerate(queue):
-                queue[i] = torch.cat([item[:idx, ...], item[idx + 1 :, ...]])
+                queue[i] = remove_batch_element(item, idx)
             return queue
 
         self.queue1 = update_deque(self.queue1, idx)
         self.queue2 = update_deque(self.queue2, idx)
+
+        self.collision_vector = remove_batch_element(
+            self.collision_vector, idx
+        )
+        self.completion_vector = remove_batch_element(
+            self.completion_vector, idx
+        )
 
     def get_action_space(self):
         self.max_accln = 1.5
@@ -121,11 +131,14 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             self.queue2.append(lidar)
 
             return (
-                torch.cat(list(self.queue1), dim=-1),
-                torch.cat(list(self.queue2), dim=-1),
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                self.agent_names,
             )
         else:
-            return obs, lidar
+            return ((obs, lidar), self.agent_names)
 
     def _get_distance_rwd_from_goal(self):
         return self.dynamics.distance_proxy - self.dynamics.distances

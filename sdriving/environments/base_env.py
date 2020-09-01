@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from copy import copy
 from typing import Union
 
 import torch
@@ -33,6 +34,7 @@ class BaseMultiAgentDrivingEnvironment:
 
         # Setup agent ids
         self.nagents = nagents
+        self.actual_nagents = nagents
         self.agent_ids = [f"agent"]  # All agents grouped into 1 vehicle
         self.agent_names = [
             f"agent_{i}" for i in range(self.nagents)
@@ -69,6 +71,8 @@ class BaseMultiAgentDrivingEnvironment:
         self.completion_vector = torch.zeros(self.nagents, 1).bool()
         self.nsteps = 0
         self.nepisodes += 1
+        self.nagents = self.actual_nagents
+        self.agent_names = [f"agent_{i}" for i in range(self.nagents)]
         self.to(self.device)
         return self.get_state()
 
@@ -144,6 +148,12 @@ class BaseMultiAgentDrivingEnvironment:
             if self.collision_vector.all() or self.horizon <= self.nsteps:
                 break
             self.nsteps += 1
+
+        if hasattr(self, "remove_agent"):
+            agent_names_copy = copy(self.agent_names)
+            for i in range(self.nagents):
+                if self.collision_vector[i, 0] or self.completion_vector[i, 0]:
+                    self.remove_agent(agent_names_copy[i])
 
         self.cached_actions = action
 

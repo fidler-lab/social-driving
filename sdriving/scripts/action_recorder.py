@@ -89,7 +89,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record["Env Width"] = []
             self.record["Env Length"] = []
 
-    def _action_observation_hook(self, action, observation, *args, **kwargs):
+    def _action_observation_hook(self, action, observation, aids, *args, **kwargs):
         if len(args) == 1 and args[0] == 0:
             return
         state = self.env.world.get_all_vehicle_state()
@@ -108,7 +108,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record["Acceleration"].append(action[i, -1].item())
             self.record["Time Step"].append(self.timesteps[i])
             self.record["Episode"].append(self.episode_number)
-            self.record["Agent ID"].append(i)
+            self.record["Agent ID"].append(aids[i])
             if self.record_steering:
                 self.record["Steering Angle"].append(action[i, 0].item())
             if self.record_global_position:

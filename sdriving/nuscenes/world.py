@@ -141,7 +141,7 @@ class NuscenesWorld(World):
         self.vehicles[vehicle.name] = vehicle
         nbatch = vehicle.position.size(0)
         for b in range(nbatch):
-            name = vehicle.name + str(b)
+            name = vehicle.name + f"_{b}"
             self.traffic_signals_in_path[name] = deque()
             self.traffic_signals_in_path[name].append(
                 (
@@ -178,6 +178,6 @@ class NuscenesWorld(World):
         crossed = torch.abs(head) > math.pi / 2
 
         for b in range(new_state.size(0)):
-            tn = self.traffic_signals_in_path[vname + str(b)]
+            tn = self.traffic_signals_in_path[vname + f"_{b}"]
             if crossed[b] and len(tn) > 0:
                 tn.popleft()

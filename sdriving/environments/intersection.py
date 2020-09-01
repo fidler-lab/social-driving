@@ -119,11 +119,14 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
             self.queue2.append(lidar)
 
             return (
-                torch.cat(list(self.queue1), dim=-1),
-                torch.cat(list(self.queue2), dim=-1),
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                self.agent_names,
             )
         else:
-            return obs, lidar
+            return ((obs, lidar), self.agent_names)
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()

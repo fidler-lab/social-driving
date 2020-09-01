@@ -42,6 +42,13 @@ class _BicycleKinematicsModel(nn.Module):
             setattr(self, k, t.to(device))
         self.device = device
 
+    @torch.jit.export
+    def remove(self, idx: int):
+        self.nbatch -= 1
+        self.v_lim = remove_batch_element(self.v_lim, idx)
+        self.v_lim_neg = remove_batch_element(self.v_lim_neg, idx)
+        self.dim = remove_batch_element(self.dim, idx)
+
     def forward(self, state: torch.Tensor, action: torch.Tensor):
         """
         Args:
@@ -231,10 +238,12 @@ class _SplineModel(nn.Module):
     def remove(self, idx: int):
         self.motion.remove(idx)
         self.nbatch -= 1
+        self.v_lim = remove_batch_element(self.v_lim, idx)
+        self.v_lim_neg = remove_batch_element(self.v_lim_neg, idx)
         self.distances = remove_batch_element(self.distances, idx)
         self.distance_proxy = remove_batch_element(self.distance_proxy, idx)
         self.theta = remove_batch_element(self.theta, idx)
-        self.curve_length = remove_batch_element(self.curve_length, idx)
+        self.curve_lengths = remove_batch_element(self.curve_lengths, idx)
         self.arc_lengths = remove_batch_element(self.arc_lengths, idx)
 
     def to(self, device):

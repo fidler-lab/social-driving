@@ -89,7 +89,10 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         )
         self.cached_path = local_feasible_path
 
-        return local_feasible_path.view(self.nagents, -1) / lw
+        return (
+            local_feasible_path.view(self.nagents, -1) / lw,
+            self.agent_names,
+        )
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
