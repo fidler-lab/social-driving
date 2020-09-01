@@ -393,12 +393,12 @@ class PPO_Distributed_Centralized_Critic:
                 b = int(name.rsplit("_", 1)[-1])
                 self.buf.store(
                     b,
-                    obs[b],
-                    lidar[b],
-                    actions[b],
-                    r[b],
-                    val_f[b],
-                    log_probs[b],
+                    obs[i],
+                    lidar[i],
+                    actions[i],
+                    r[i],
+                    val_f[i],
+                    log_probs[i],
                 )
 
             o, a_ids = next_o, _a_ids
