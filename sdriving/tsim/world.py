@@ -57,16 +57,15 @@ class World:
     def remove(self, aname: str, idx: int):
         del self.traffic_signals_in_path[aname]
 
-        if isinstance(self, World):
-            self.trajectory_nodes["agent"] = remove_batch_element(
-                self.trajectory_nodes["agent"], idx
-            )
-            self.trajectory_points["agent"] = remove_batch_element(
-                self.trajectory_points["agent"], idx
-            )
-            self.current_positions["agent"] = remove_batch_element(
-                self.current_positions["agent"], idx
-            )
+        self.trajectory_nodes["agent"] = remove_batch_element(
+            self.trajectory_nodes["agent"], idx
+        )
+        self.trajectory_points["agent"] = remove_batch_element(
+            self.trajectory_points["agent"], idx
+        )
+        self.current_positions["agent"] = remove_batch_element(
+            self.current_positions["agent"], idx
+        )
 
     def to(self, device: torch.device):
         if device == self.device:

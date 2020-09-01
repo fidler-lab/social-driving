@@ -49,6 +49,9 @@ class NuscenesWorld(World):
 
         self.map_path = map_path
         self.parse_map_data()
+    
+    def remove(self, aname: str, idx: int):
+        del self.traffic_signals_in_path[aname]
 
     def parse_map_data(self):
         data = torch.load(self.map_path)

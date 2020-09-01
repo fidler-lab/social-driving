@@ -149,11 +149,11 @@ class BaseMultiAgentDrivingEnvironment:
                 break
             self.nsteps += 1
 
-        if hasattr(self, "remove_agent"):
+        if hasattr(self, "remove"):
             agent_names_copy = copy(self.agent_names)
-            for i in range(self.nagents):
-                if self.collision_vector[i, 0] or self.completion_vector[i, 0]:
-                    self.remove_agent(agent_names_copy[i])
+            idxs = torch.where(self.collision_vector + self.completion_vector)[0]
+            for i in idxs:
+                self.remove(agent_names_copy[i])
 
         self.cached_actions = action
 
