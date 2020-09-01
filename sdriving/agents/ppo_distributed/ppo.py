@@ -380,7 +380,7 @@ class PPO_Distributed_Centralized_Critic:
             actions, val_f, log_probs = self.ac.step(
                 [t.to(self.device) for t in o]
             )
-            (next_o, a_ids), r, d, info = self.env.step(actions)
+            (next_o, _a_ids), r, d, info = self.env.step(actions)
 
             ep_ret += r.mean()
             ep_len += 1
@@ -401,7 +401,7 @@ class PPO_Distributed_Centralized_Critic:
                     log_probs[b],
                 )
 
-            o = next_o
+            o, a_ids = next_o, _a_ids
             prev_done = d
 
             timeout = info["timeout"] if "timeout" in info else done

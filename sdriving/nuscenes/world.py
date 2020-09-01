@@ -170,7 +170,7 @@ class NuscenesWorld(World):
         ts = self.traffic_signals_in_path
 
         p = vehicle.position
-        names = [vname + str(b) for b in range(vehicle.nbatch)]
+        names = [vname + f"_{b}" for b in range(vehicle.nbatch)]
         locations = torch.cat(
             [
                 ts[n][0][0][1].unsqueeze(0).to(self.device)
