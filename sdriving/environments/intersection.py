@@ -132,6 +132,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         a_ids = self.get_agent_ids_list()
 
         # Distance from destination
+        # FIXME: Taking L2 distance creates issues in BKM
         distances = torch.cat(
             [self.agents[v].distance_from_destination() for v in a_ids]
         )
@@ -215,7 +216,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         srd = np.random.choice([0, 1, 2, 3])
         self.srd = []
         self.erd = []
-        for _ in range(self.nagents):
+        for _ in range(self.actual_nagents):
 
             successful_placement = False
             while not successful_placement:

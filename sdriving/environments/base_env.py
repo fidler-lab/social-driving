@@ -67,11 +67,11 @@ class BaseMultiAgentDrivingEnvironment:
         pass
 
     def reset(self):
+        self.nagents = self.actual_nagents
         self.collision_vector = torch.zeros(self.nagents, 1).bool()
         self.completion_vector = torch.zeros(self.nagents, 1).bool()
         self.nsteps = 0
         self.nepisodes += 1
-        self.nagents = self.actual_nagents
         self.agent_names = [f"agent_{i}" for i in range(self.nagents)]
         self.to(self.device)
         return self.get_state()
@@ -151,7 +151,7 @@ class BaseMultiAgentDrivingEnvironment:
 
         if hasattr(self, "remove"):
             agent_names_copy = copy(self.agent_names)
-            idxs = torch.where(self.collision_vector + self.completion_vector)[0]
+            idxs = torch.where(self.completion_vector)[0]
             for i in idxs:
                 self.remove(agent_names_copy[i])
 
@@ -161,9 +161,11 @@ class BaseMultiAgentDrivingEnvironment:
 
         timeout = self.horizon <= self.nsteps
 
+        dones = self.collision_vector + timeout + (len(self.agent_names) == 0)
+
         return (
-            self.get_state(),
+            self.get_state() if not dones.all() else (None, None),
             accumulated_reward,
-            self.collision_vector + timeout,
+            dones,
             {"timeout": timeout},
         )

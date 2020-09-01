@@ -49,7 +49,7 @@ class NuscenesWorld(World):
 
         self.map_path = map_path
         self.parse_map_data()
-    
+
     def remove(self, aname: str, idx: int):
         del self.traffic_signals_in_path[aname]
 
@@ -173,13 +173,12 @@ class NuscenesWorld(World):
         ts = self.traffic_signals_in_path
 
         p = vehicle.position
-        names = [vname + f"_{b}" for b in range(vehicle.nbatch)]
         locations = torch.cat(
             [
-                ts[n][0][0][1].unsqueeze(0).to(self.device)
-                if len(ts[n]) > 0
+                v[0][0][1].unsqueeze(0).to(self.device)
+                if len(v) > 0
                 else torch.ones(1, 2).type_as(p) * 1e12
-                for n in names
+                for n, v in ts.items()
             ]
         )
 
@@ -187,7 +186,6 @@ class NuscenesWorld(World):
 
         crossed = torch.abs(head) > math.pi / 2
 
-        for b in range(new_state.size(0)):
-            tn = self.traffic_signals_in_path[vname + f"_{b}"]
-            if crossed[b] and len(tn) > 0:
-                tn.popleft()
+        for b, v in enumerate(ts.values()):
+            if crossed[b] and len(v) != 0:
+                v.popleft()

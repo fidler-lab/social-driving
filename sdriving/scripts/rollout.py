@@ -113,7 +113,8 @@ class RolloutSimulator:
 
     @torch.no_grad()
     def _one_stage_rollout(self, verbose: bool, render: bool):
-        (o, aids), done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        (o, aids), done = self.env.reset(), False
+        ep_ret, ep_len = torch.zeros(self.env.nagents, 1, device=self.env.device), 0
         self._new_rollout_hook()
 
         if hasattr(self.env, "accln_rating"):
@@ -132,7 +133,13 @@ class RolloutSimulator:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            (o, aids), r, d, _ = self.env.step(a, render=render)
+            (o, _aids), _r, d, _ = self.env.step(a, render=render)
+
+            r = torch.zeros_like(ep_ret)
+            for i, a_id in enumerate(aids):
+                b = int(a_id.rsplit("_", 1)[-1])
+                r[b] = _r[i]
+            aids = _aids
 
             ep_ret = ep_ret + r
             ep_len += 1
@@ -183,7 +190,13 @@ class RolloutSimulator:
                 print(f"Observation: {o}")
                 print(f"Action: {a}")
 
-            (o, aids), r, d, _ = self.env.step(1, a, render=render)
+            (o, _aids), _r, d, _ = self.env.step(1, a, render=render)
+
+            r = torch.zeros_like(ep_ret)
+            for i, a_id in enumerate(aids):
+                b = int(a_id.rsplit("_", 1)[-1])
+                r[b] = _r[i]
+            aids = _aids
 
             ep_ret = ep_ret + r
             ep_len += 1

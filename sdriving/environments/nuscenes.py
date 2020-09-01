@@ -1,6 +1,7 @@
 import math
 import random
 from collections import deque
+from copy import copy
 from glob import glob
 from itertools import product
 
@@ -91,6 +92,10 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
             self.completion_vector, idx
         )
 
+        self.original_distances = remove_batch_element(
+            self.original_distances, idx
+        )
+
     def get_action_space(self):
         self.max_accln = 1.5
         self.normalization_factor = torch.as_tensor([self.max_accln])
@@ -103,6 +108,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         a_id = self.get_agent_ids_list()[0]
         vehicle = self.agents[a_id]
         dist = vehicle.distance_from_destination()
+
         path_distance = self.dynamics.distance_proxy - self.dynamics.distances
         return torch.where(dist == 0, self.buffered_ones, 1 / path_distance)
 
@@ -135,10 +141,10 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
                     torch.cat(list(self.queue1), dim=-1),
                     torch.cat(list(self.queue2), dim=-1),
                 ),
-                self.agent_names,
+                copy(self.agent_names),
             )
         else:
-            return ((obs, lidar), self.agent_names)
+            return ((obs, lidar), copy(self.agent_names))
 
     def _get_distance_rwd_from_goal(self):
         return self.dynamics.distance_proxy - self.dynamics.distances
@@ -154,15 +160,6 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         # Agent Speeds
         speeds = vehicle.speed
-
-        # Action Regularization
-        if self.cached_actions is not None:
-            smoothness = (
-                (action - self.cached_actions).pow(2)
-                / (2 * self.normalization_factor).pow(2)
-            ).sum(-1, keepdim=True)
-        else:
-            smoothness = 0.0
 
         # Goal Reach Bonus
         reached_goal = distances <= 5.0
@@ -193,7 +190,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.collision_vector += new_collisions
 
         return (
-            -(distances + smoothness) * (~self.collision_vector) / self.horizon
+            -distances * (~self.collision_vector) / self.horizon
             - (speeds / 8.0).abs() * self.completion_vector / self.horizon
             - penalty
             + goal_reach_bonus
@@ -204,7 +201,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         dims = torch.as_tensor([[4.48, 2.2]])
         self.cps = []
         idxs = []
-        for _ in range(self.nagents):
+        for _ in range(self.actual_nagents):
             successful_placement = False
             while not successful_placement:
                 (
@@ -248,7 +245,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
     def store_dynamics(self, vehicle):
         self.dynamics = SplineModel(
-            self.cps, v_lim=torch.ones(self.nagents) * 8.0
+            self.cps, v_lim=torch.ones(self.actual_nagents) * 8.0
         )
 
     def reset(self):
@@ -259,6 +256,10 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         self.queue1 = deque(maxlen=self.history_len)
         self.queue2 = deque(maxlen=self.history_len)
+
+        self.buffered_ones = torch.ones(
+            self.actual_nagents, 1, device=self.device
+        )
 
         return super(
             MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self

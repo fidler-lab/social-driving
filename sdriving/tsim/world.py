@@ -286,9 +286,8 @@ class World:
         nodes = self.trajectory_nodes[vname]
 
         cp = self.current_positions[vname]
-        for b, k in enumerate(self.traffic_signals_in_path.items()):
+        for b, ts in enumerate(self.traffic_signals_in_path.values()):
             node = nodes[b, cp[b]]
-            ts = self.traffic_signals_in_path[k]
             if crossed[b] and len(ts) != 0 and (ts[0][-1] == node).all():
                 ts.popleft()
         self.current_positions[vname] = torch.clamp(

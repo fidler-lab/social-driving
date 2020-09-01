@@ -15,6 +15,14 @@ from sdriving.tsim.utils import (
 )
 
 
+@torch.jit.script
+def generate_bool_buffer(n: int, device: torch.device):
+    bool_buffer = torch.ones(n * 4, n * 4, dtype=torch.bool, device=device)
+    for i in range(0, n * 4, 4):
+        bool_buffer[i : (i + 4), i : (i + 4)] = False
+    return bool_buffer
+
+
 class _BatchedVehicle(torch.nn.Module):
     """
     A fleet of vehicles. A single vehicle is a batched vehicle with
@@ -93,6 +101,7 @@ class _BatchedVehicle(torch.nn.Module):
         self.dimensions = remove_batch_element(self.dimensions, idx)
 
         self.coordinates = self._get_coordinates()
+        self.bool_buffer = generate_bool_buffer(self.nbatch, self.device)
 
     def to(self, device: torch.device):
         if device == self.device:
@@ -227,7 +236,8 @@ class _BatchedVehicle(torch.nn.Module):
         p1, p2 = self.get_edges()
         p1, p2 = p1.view(-1, 2), p2.view(-1, 2)
 
-        c = check_intersection_lines(p1, p2, p1, p2) * self.bool_buffer
+        c = check_intersection_lines(p1, p2, p1, p2)
+        c = c * self.bool_buffer
         return c.view(self.nbatch, 4, -1).any(1).any(1)
 
     @torch.jit.export
