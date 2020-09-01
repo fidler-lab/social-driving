@@ -40,6 +40,7 @@ class BaseMultiAgentDrivingEnvironment:
             f"agent_{i}" for i in range(self.nagents)
         ]  # Right now we support removal of agents.
         # This list is the actual set of agents present in the environment.
+        self.agent_names_copy = [f"agent_{i}" for i in range(self.nagents)]
         self.agents = OrderedDict()
 
         # Stats
@@ -73,6 +74,7 @@ class BaseMultiAgentDrivingEnvironment:
         self.nsteps = 0
         self.nepisodes += 1
         self.agent_names = [f"agent_{i}" for i in range(self.nagents)]
+        self.agent_names_copy = [f"agent_{i}" for i in range(self.nagents)]
         self.to(self.device)
         return self.get_state()
 
@@ -150,10 +152,9 @@ class BaseMultiAgentDrivingEnvironment:
             self.nsteps += 1
 
         if hasattr(self, "remove"):
-            agent_names_copy = copy(self.agent_names)
             idxs = torch.where(self.completion_vector)[0]
             for i in idxs:
-                self.remove(agent_names_copy[i])
+                self.remove(self.agent_names_copy[i])
 
         self.cached_actions = action
 
