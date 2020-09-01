@@ -44,7 +44,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.worlds = []
 
         for path in glob(map_path):
-            self.worlds.append(NuscenesWorld(path))
+            self.worlds.append(NuscenesWorld(path, True))
 
         world = random.choice(self.worlds)
         super(
@@ -285,6 +285,12 @@ class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
 class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
     MultiAgentNuscenesIntersectionDrivingEnvironment
 ):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for world in self.worlds:
+            # Nuscenes Fixed Track sets to to True for fast runtime
+            world.disable_collision_check = False
+
     def store_dynamics(self, vehicle):
         self.dynamics = BicycleKinematicsModel(
             dim=vehicle.dimensions[:, 0], v_lim=torch.ones(self.nagents) * 8.0

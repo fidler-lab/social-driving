@@ -24,6 +24,7 @@ class NuscenesWorld(World):
     def __init__(
         self,
         map_path: str,
+        disable_collision_check: bool = False,
         figsize: Tuple[int] = (10, 10),
         no_signal_val: float = 0.75,
     ):
@@ -32,6 +33,10 @@ class NuscenesWorld(World):
         self.traffic_signals = OrderedDict()
         self.objects = OrderedDict()
         self.current_positions = OrderedDict()
+
+        # This can be set to True for speedup especially if you are using the predefined
+        # splines and know that such collisions are not possible
+        self.disable_collision_check = disable_collision_check
 
         self.no_signal_val = no_signal_val
 
@@ -115,10 +120,12 @@ class NuscenesWorld(World):
         vehicle = self.vehicles[vname]
         # Since we are using predefined splines the agents must lie inside
         # the drivable area
-        # return torch.zeros(vehicle.nbatch, device=self.device).bool()
-        return ~lies_in_drivable_area(
-            vehicle.position, self.center, self.bx, self.dx, self.road_img
-        )
+        if self.disable_collision_check:
+            return torch.zeros(vehicle.nbatch, device=self.device).bool()
+        else:
+            return ~lies_in_drivable_area(
+                vehicle.position, self.center, self.bx, self.dx, self.road_img
+            )
 
     def add_traffic_signal(
         self,
