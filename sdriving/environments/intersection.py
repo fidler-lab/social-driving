@@ -167,6 +167,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
 
         # Collision
         new_collisions = ~self.collision_vector * new_collisions
+        self.agents["agent"].speed *= new_collisions
         penalty = (
             new_collisions.float()
             + new_collisions

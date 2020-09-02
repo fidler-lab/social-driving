@@ -153,8 +153,9 @@ class BaseMultiAgentDrivingEnvironment:
 
         if hasattr(self, "remove"):
             idxs = torch.where(self.completion_vector)[0]
+            agent_names_copy = copy(self.agent_names)
             for i in idxs:
-                self.remove(self.agent_names_copy[i])
+                self.remove(agent_names_copy[i])
 
         self.cached_actions = action
 

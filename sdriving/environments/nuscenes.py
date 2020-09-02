@@ -179,6 +179,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
         # Collision
         new_collisions = ~self.collision_vector * new_collisions
+        vehicle.speed *= ~new_collisions   # Stop the collided vehicles
         penalty = (
             new_collisions.float()
             + new_collisions
