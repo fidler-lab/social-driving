@@ -54,6 +54,44 @@ class World:
         self.xlims = xlims
         self.ylims = ylims
 
+    def initialize_communication_channel(self, width: int):
+        vehicle = self.vehicles["agent"]  # There is only one Vehicle always
+        self.comm_channel = [
+            torch.zeros(
+                (vehicle.nbatch, width), dtype=torch.float, device=self.device
+            ),  # The communication channel which agents populate
+            torch.zeros_like(vehicle.position), 
+            # Location from where it was broadcasted
+        ]
+
+    def broadcast_data(self, data: torch.Tensor, location: torch.Tensor):
+        self.comm_channel[0] = data
+        self.comm_channel[1] = location
+
+    def get_broadcast_data_all_agents(self):
+        vehicle = self.vehicles["agent"]
+
+        # Agents can only see things that are in front of them and within their
+        # range of vision
+        data, broadcast_locations = self.comm_channel  # (N x W, N x 2)
+        broadcast_locations = broadcast_locations.view(1, -1, 2).repeat(
+            vehicle.nbatch, 1, 1
+        )  # N x N x 2
+
+        head = vehicle.optimal_heading_to_points(broadcast_locations)[..., 0]  # N x N x 1
+        dist = vehicle.distance_from_points(broadcast_locations)[..., 0]  # N x N x 1
+
+        dist_to_visible = (
+            (dist > vehicle.vision_range) + (head.abs() > math.pi / 6)
+        ) * 1e12 + dist
+
+        _, idxs = dist_to_visible.min(1)
+
+        value = []
+        for idx in idxs:
+            value.append(data[idx:(idx + 1), :])
+        return torch.cat(value)
+
     def remove(self, aname: str, idx: int):
         del self.traffic_signals_in_path[aname]
 
@@ -66,6 +104,12 @@ class World:
         self.current_positions["agent"] = remove_batch_element(
             self.current_positions["agent"], idx
         )
+
+        if hasattr(self, "comm_channel"):
+            self.comm_channel = (
+                remove_batch_element(self.comm_channel[0], idx),
+                remove_batch_element(self.comm_channel[1], idx)
+            )
 
     def to(self, device: torch.device):
         if device == self.device:

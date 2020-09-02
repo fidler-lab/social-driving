@@ -207,6 +207,12 @@ class _BatchedVehicle(torch.nn.Module):
     @torch.jit.export
     def distance_from_point(self, point: torch.Tensor):
         return (self.position - point).pow(2).sum(1, keepdim=True).sqrt()
+    
+    @torch.jit.export
+    def distance_from_points(self, points: torch.Tensor):
+        return (
+            self.position.unsqueeze(1) - points
+        ).pow(2).sum(2, keepdim=True).sqrt()
 
     @torch.jit.export
     def distance_from_destination(self):
@@ -226,6 +232,21 @@ class _BatchedVehicle(torch.nn.Module):
                 .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
             )
         )
+
+    @torch.jit.export
+    def optimal_heading_to_points(self, points: torch.Tensor):  # N x B x 2
+        vec = points - self.position.unsqueeze(1)
+        vec = vec / (torch.norm(vec, dim=2, keepdim=True) + 1e-7)  # N X B x 2
+        cur_vec = torch.cat(
+            [torch.cos(self.orientation), torch.sin(self.orientation)], dim=-1
+        ).unsqueeze(1)  # N x 1 x 2
+        return angle_normalize(
+            torch.acos(
+                (vec * cur_vec)
+                .sum(1, keepdim=True)
+                .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
+            ).view(-1, points.shape[-1])
+        ).view(points.shape)
 
     @torch.jit.export
     def optimal_heading(self):
