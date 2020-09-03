@@ -490,35 +490,37 @@ class PPO_Alternating_Optimization_Centralized_Critic:
 
     def controller_episode_runner(self):
         env = self.env
-        o, ep_ret, ep_len = env.reset(), 0, 0
-        o = env.step(0, self.actor.act(o.to(self.device), deterministic=True))
+        (o, _), ep_ret, ep_len = env.reset(), 0, 0
+        o, a_ids = env.step(0, self.actor.act(o.to(self.device), deterministic=True))
         prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
         for t in range(self.local_steps_per_epoch):
             obs, lidar = o
             actions, val_f, log_probs = self.ac.step(
                 [obs.to(self.device), lidar.to(self.device)]
             )
-            next_o, r, d, info = self.env.step(1, actions)
+            (next_o, _a_ids), r, d, info = self.env.step(1, actions)
 
             ep_ret += r.mean()
             ep_len += 1
 
             done = d.all()
 
-            for b in range(env.nagents):
-                if prev_done[b]:
+            for i, name in enumerate(a_ids):
+                if prev_done[i]:
                     continue
+                b = int(name.rsplit("_", 1)[-1])
                 self.controller_buffer.store(
                     b,
-                    obs[b],
-                    lidar[b],
-                    actions[b],
-                    r[b],
-                    val_f[b],
-                    log_probs[b],
+                    obs[i],
+                    lidar[i],
+                    actions[i],
+                    r[i],
+                    val_f[i],
+                    log_probs[i],
                 )
 
             o = next_o
+            a_ids = _a_ids
             prev_done = d
 
             timeout = info["timeout"] if "timeout" in info else done
@@ -526,10 +528,11 @@ class PPO_Alternating_Optimization_Centralized_Critic:
             epoch_ended = t == self.local_steps_per_epoch - 1
 
             if terminal or epoch_ended:
+                v = torch.zeros(env.actual_nagents, device=self.device)
                 if epoch_ended and not terminal:
-                    _, v, _ = self.ac.step([t.to(self.device) for t in o])
-                else:
-                    v = torch.zeros(env.nagents, device=self.device)
+                    _, _v, _ = self.ac.step([t.to(self.device) for t in o])
+                    for i, a_id in enumerate(a_ids):
+                        v[int(a_id.rsplit("_", 1)[-1])] = _v[i]
                 self.controller_buffer.finish_path(v)
 
                 if terminal:
@@ -537,11 +540,11 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                         EpisodeReturnController=ep_ret,
                         EpisodeLengthController=ep_len,
                     )
-                o, ep_ret, ep_len = env.reset(), 0, 0
+                (o, _), ep_ret, ep_len = env.reset(), 0, 0
                 prev_done = torch.zeros(
                     env.nagents, 1, device=self.device
                 ).bool()
-                o = env.step(
+                o, a_ids = env.step(
                     0, self.actor.act(o.to(self.device), deterministic=True)
                 )
 
@@ -549,9 +552,9 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         env = self.env
 
         for _ in range(self.local_number_episodes):
-            obs = env.reset()
+            obs, _ = env.reset()
             _, actions, log_probs = self.actor(obs.to(self.device))
-            o = env.step(0, actions)
+            o, _ = env.step(0, actions)
 
             done = False
             acc_reward = torch.zeros(
@@ -561,7 +564,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                 action = self.ac.act(
                     [t.to(self.device) for t in o], deterministic=True
                 )
-                o, r, d, _ = env.step(1, action)
+                (o, _), r, d, _ = env.step(1, action)
                 done = d.all()
                 acc_reward += r
             ep_ret = acc_reward.mean()

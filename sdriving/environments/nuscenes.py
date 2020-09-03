@@ -284,6 +284,88 @@ class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
         return self.action_list[action]
 
 
+class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
+    MultiAgentNuscenesIntersectionDrivingEnvironment
+):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for world in self.worlds:
+            world.initialize_communication_channel(self.actual_nagents, 3)
+
+    def configure_action_space(self):
+        self.max_accln = 1.5
+
+        accln_values = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, step=0.25
+        ).numpy().tolist()
+        comm_values = [0.0, 1.0]
+        self.action_list = torch.as_tensor(list(
+            product(accln_values, comm_values, comm_values, comm_values)
+        )).float()
+
+    def get_action_space(self):
+        self.normalization_factor = torch.as_tensor([self.max_accln])
+        return Discrete(self.action_list.size(0))
+    
+    def get_observation_space(self):
+        return Tuple(
+            [
+                Box(
+                    low=np.array(
+                        [0.0, -1.0, -math.pi, 0.0, 0.0, 0.0, 0.0] * self.history_len
+                    ),
+                    high=np.array(
+                        [1.0, 1.0, math.pi, np.inf, 1.0, 1.0, 1.0] * self.history_len
+                    ),
+                ),
+                Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
+            ]
+        )
+    
+    def get_state(self):
+        a_ids = self.get_agent_ids_list()
+        a_id = a_ids[0]
+        ts = self.world.get_all_traffic_signal().unsqueeze(1)
+        vehicle = self.agents[a_id]
+        head = torch.cat([self.agents[v].optimal_heading() for v in a_ids])
+
+        comm_data = self.world.get_broadcast_data_all_agents()
+
+        inv_dist = self._get_distance_from_goal()
+
+        speed = vehicle.speed
+
+        obs = torch.cat([ts, speed / self.dynamics.v_lim, head, inv_dist, comm_data], -1)
+        lidar = 1 / self.world.get_lidar_data_all_vehicles(self.npoints)
+
+        if self.lidar_noise > 0:
+            lidar *= torch.rand_like(lidar) > self.lidar_noise
+
+        if self.history_len > 1:
+            while len(self.queue1) <= self.history_len - 1:
+                self.queue1.append(obs)
+                self.queue2.append(lidar)
+            self.queue1.append(obs)
+            self.queue2.append(lidar)
+
+            return (
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                copy(self.agent_names),
+            )
+        else:
+            return ((obs, lidar), copy(self.agent_names))
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        action = self.action_list[action]
+        comm = action[:, 1:]
+        pos = self.agents["agent"].position
+        self.world.broadcast_data(comm, pos)
+        return action[:, :1]  # Only return accln
+
 class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
     MultiAgentNuscenesIntersectionDrivingEnvironment
 ):

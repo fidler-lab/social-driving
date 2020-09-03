@@ -54,13 +54,12 @@ class World:
         self.xlims = xlims
         self.ylims = ylims
 
-    def initialize_communication_channel(self, width: int):
-        vehicle = self.vehicles["agent"]  # There is only one Vehicle always
+    def initialize_communication_channel(self, num: int, width: int):
         self.comm_channel = [
             torch.zeros(
-                (vehicle.nbatch, width), dtype=torch.float, device=self.device
+                (num, width), dtype=torch.float, device=self.device
             ),  # The communication channel which agents populate
-            torch.zeros_like(vehicle.position), 
+            torch.zeros(num, 2, device=self.device), 
             # Location from where it was broadcasted
         ]
 
@@ -106,10 +105,10 @@ class World:
         )
 
         if hasattr(self, "comm_channel"):
-            self.comm_channel = (
+            self.comm_channel = [
                 remove_batch_element(self.comm_channel[0], idx),
                 remove_batch_element(self.comm_channel[1], idx)
-            )
+            ]
 
     def to(self, device: torch.device):
         if device == self.device:

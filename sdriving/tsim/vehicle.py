@@ -243,10 +243,10 @@ class _BatchedVehicle(torch.nn.Module):
         return angle_normalize(
             torch.acos(
                 (vec * cur_vec)
-                .sum(1, keepdim=True)
+                .sum(2, keepdim=True)
                 .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
-            ).view(-1, points.shape[-1])
-        ).view(points.shape)
+            ).view(-1, 1)
+        ).view(points.shape[:2])
 
     @torch.jit.export
     def optimal_heading(self):

@@ -295,7 +295,7 @@ class PPO_OneStep:
         env = self.env
 
         for t in range(self.local_steps_per_epoch):
-            o = env.reset()
+            (o, a_ids) = env.reset()
             _, actions, log_probs = self.actor(o.to(self.device))
             _, r, _, _ = env.step(actions)
             ep_ret = r.mean()

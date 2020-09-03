@@ -14,6 +14,7 @@ from sdriving.tsim import (
     TrafficSignal,
     World,
     check_intersection_lines,
+    remove_batch_element,
     generate_lidar_data,
     angle_normalize,
 )
@@ -53,6 +54,12 @@ class NuscenesWorld(World):
     def remove(self, aname: str, idx: int):
         del self.traffic_signals_in_path[aname]
 
+        if hasattr(self, "comm_channel"):
+            self.comm_channel = [
+                remove_batch_element(self.comm_channel[0], idx),
+                remove_batch_element(self.comm_channel[1], idx)
+            ]
+
     def parse_map_data(self):
         data = torch.load(self.map_path)
         self.map_data = data
@@ -80,7 +87,7 @@ class NuscenesWorld(World):
             torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
             torch.as_tensor([1.0, 0.5, 0.0, 0.5]),
         ]
-        colors = [["r", "y", "g", "y"], ["g", "y", "r", "y"]]
+        colors = [["g", "y", "r", "y"], ["r", "y", "g", "y"]]
         times = torch.as_tensor([100, 20, 100, 20])
 
         for i in range(data["signal_locations"].size(0)):
