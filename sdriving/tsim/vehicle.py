@@ -222,31 +222,26 @@ class _BatchedVehicle(torch.nn.Module):
     def optimal_heading_to_point(self, point: torch.Tensor):
         vec = point - self.position
         vec = vec / (torch.norm(vec, dim=1, keepdim=True) + 1e-7)  # N x 2
-        cur_vec = torch.cat(
-            [torch.cos(self.orientation), torch.sin(self.orientation)], dim=-1
-        )  # N x 2
-        return angle_normalize(
-            torch.acos(
-                (vec * cur_vec)
-                .sum(1, keepdim=True)
-                .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
-            )
+        phi = torch.atan2(vec[:, :1], vec[:, 1:])
+        theta = torch.where(
+            self.orientation >= 0,
+            self.orientation,
+            self.orientation + 2 * math.pi
         )
+        return angle_normalize(phi - theta)
 
     @torch.jit.export
     def optimal_heading_to_points(self, points: torch.Tensor):  # N x B x 2
         vec = points - self.position.unsqueeze(1)
         vec = vec / (torch.norm(vec, dim=2, keepdim=True) + 1e-7)  # N X B x 2
-        cur_vec = torch.cat(
-            [torch.cos(self.orientation), torch.sin(self.orientation)], dim=-1
-        ).unsqueeze(1)  # N x 1 x 2
-        return angle_normalize(
-            torch.acos(
-                (vec * cur_vec)
-                .sum(2, keepdim=True)
-                .clamp(-1.0 + 1e-5, 1.0 - 1e-5)
-            ).view(-1, 1)
-        ).view(points.shape[:2])
+        phi = torch.atan2(vec[..., :1], vec[..., 1:]) # N x B x 1
+        theta = torch.where(
+            self.orientation >= 0,
+            self.orientation,
+            self.orientation + 2 * math.pi
+        ).unsqueeze(1)  # N x 1 x 1
+        diff = phi - theta
+        return angle_normalize(diff.view(-1, 1)).view(points.shape[:2])
 
     @torch.jit.export
     def optimal_heading(self):
