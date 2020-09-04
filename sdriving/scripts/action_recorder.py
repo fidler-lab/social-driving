@@ -17,52 +17,52 @@ from sdriving.scripts.rollout import RolloutSimulator
 
 env2record = {
     "MultiAgentRoadIntersectionBicycleKinematicsEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
     ),
     "MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
     ),
     "MultiAgentRoadIntersectionFixedTrackEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
     ),
     "MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
     ),
     "MultiAgentIntersectionSplineAccelerationDiscreteEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Position"]
     ),
     "MultiAgentNuscenesIntersectionDrivingEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
     ),
     "MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment": (
-        ["Traffic Signal", "Velocity", "Acceleration", "Time Step"]
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Steering Angle", "Position"]
     ),
     "MultiAgentHighwayBicycleKinematicsModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position", "Acceleration Rating"]
+        + ["Steering Angle", "Position", "Acceleration Rating", "Heading"]
     ),
     "MultiAgentHighwayBicycleKinematicsDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position", "Acceleration Rating"]
+        + ["Steering Angle", "Position", "Acceleration Rating", "Heading"]
     ),
     "MultiAgentHighwaySplineAccelerationDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Position", "Acceleration Rating"]
+        + ["Position", "Acceleration Rating", "Heading"]
     ),
 }
 
@@ -99,6 +99,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             else observation[0]
         )
         ts = observation[:, -4]
+        heading = self.env.agents["agent"].optimal_heading()
         if self.record_accln_rating:
             rating = self.env.accln_rating
         for i in range(action.size(0)):
@@ -109,6 +110,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record["Time Step"].append(self.timesteps[i])
             self.record["Episode"].append(self.episode_number)
             self.record["Agent ID"].append(aids[i])
+            self.record["Heading"].append(heading[i, 0].item())
             if self.record_steering:
                 self.record["Steering Angle"].append(action[i, 0].item())
             if self.record_global_position:
