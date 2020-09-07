@@ -23,6 +23,8 @@ from sdriving.tsim.vehicle import render_vehicle
 
 matplotlib.use("Agg")
 
+X = [-10, 10]
+Y = [-10, 10]
 
 class World:
     def __init__(
@@ -400,7 +402,7 @@ class World:
         render_lidar=False,
     ):
         if path is not None:
-            ani = self.cam.animate(blit=True, interval=80)
+            ani = self.cam.animate(blit=False, interval=80)
             path_root, path_ext = os.path.splitext(path)
             if path_ext == ".gif":
                 lg.warning(

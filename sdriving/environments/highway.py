@@ -30,7 +30,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
         horizon: int = 200,
         timesteps: int = 25,
         history_len: int = 5,
-        nagents: int = 4,
+        nagents: int = 12,
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
     ):
@@ -316,11 +316,14 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
 
     def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
         return action
+    
+    def _get_spline_state(self):
+        self.got_spline_state = True
+        return self.accln_rating, self.agent_names
 
     def get_state(self):
         if not self.got_spline_state:
-            self.got_spline_state = True
-            return self.accln_rating, self.agent_names
+            return self._get_spline_state()
 
         a_ids = self.get_agent_ids_list()
 
@@ -375,12 +378,14 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
         vehicle = self.agents["agent"]
         pos = vehicle.position
         farthest_pt = (
-            torch.as_tensor([[-self.length / 2, pos[0, 1].item()]])
+            torch.cat([
+                torch.full((pos.size(0), 1), -self.length / 2),
+                pos[:, 1:]
+            ], dim=-1)
             .to(pos.device)
-            .repeat(action.size(0), 1)
         )
         mid_point_x = pos[:, :1] + 50.0
-        mid_point_y = pos[:, 1:] + action * self.width / 2
+        mid_point_y = action * self.width / 2
         mid_point = torch.cat([mid_point_x, mid_point_y], dim=-1)
         last_pt = torch.cat(
             [torch.full((pos.size(0), 1), self.length / 2), mid_point_y],
@@ -401,3 +406,96 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
     def reset(self):
         self.got_spline_state = False
         return super().reset()
+
+
+class MultiAgentLongHighwaySplineAccelerationDiscreteModel(
+    MultiAgentHighwaySplineAccelerationDiscreteModel
+):
+    def get_observation_space(self):
+        return (
+            Box(low=np.array([0.5, -1.0]), high=np.array([1.0, 1.0])),
+            Tuple(
+                [
+                    Box(
+                        low=np.array([0.0, -1.0] * self.history_len),
+                        high=np.array([1.0, 1.0] * self.history_len),
+                    ),
+                    Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
+                ]
+            ),
+        )
+    
+    def _get_spline_state(self):
+        self.got_spline_state = True
+        ypos = self.agents["agent"].position[:, 1:] * 2 / self.width
+        return torch.cat([self.accln_rating, ypos], dim=-1), self.agent_names
+    
+    def generate_world_without_agents(self):
+        network = RoadNetwork()
+        length = 500.0
+        width = 30.0
+        network.add_road(
+            Road(
+                f"highway",
+                torch.zeros(1, 2),
+                length,
+                width,
+                torch.zeros(1, 1),
+                can_cross=[False] * 4,
+                has_endpoints=[True, False, True, False],
+            )
+        )
+        return (
+            World(
+                network,
+                xlims=(-length / 2 - 10, length / 2 + 10),
+                ylims=(-length / 2 - 10, length / 2 + 10),
+            ),
+            {"length": length, "width": width},
+        )
+
+    def add_vehicles_to_world(self):
+        self.max_accln = 3.0
+        self.max_velocity = 16.0
+
+        vehicle = None
+        dims = torch.as_tensor([[4.48, 2.2]])
+        d1 = torch.as_tensor([[-self.length * 0.45, self.width * 0.375]])
+        d2 = torch.as_tensor([[-self.length * 0.3, -self.width * 0.375]])
+        epos = torch.as_tensor([[self.length * 0.3, 0.0]])
+        orient = dorient = torch.zeros(1, 1)
+        for _ in range(self.actual_nagents):
+            successful_placement = False
+            while not successful_placement:
+                spos = torch.rand(1, 2) * (d1 - d2) + d2
+                if vehicle is None:
+                    vehicle = BatchedVehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1),
+                        name="agent",
+                    )
+                    break
+                else:
+                    successful_placement = vehicle.add_vehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1),
+                    )
+
+        vehicle.add_bool_buffer(self.bool_buffer)
+
+        self.accln_rating = (torch.rand(self.nagents, 1) + 1) * 0.5
+        self.vel_rating = self.accln_rating
+
+        self.world.add_vehicle(vehicle, False)
+        self.store_dynamics(vehicle)
+        self.agents[vehicle.name] = vehicle
+
+        self.original_distances = vehicle.distance_from_destination()
