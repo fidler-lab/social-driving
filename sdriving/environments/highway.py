@@ -122,11 +122,14 @@ class MultiAgentHighwayBicycleKinematicsModel(
             self.queue2.append(lidar)
 
             return (
-                torch.cat(list(self.queue1), dim=-1),
-                torch.cat(list(self.queue2), dim=-1),
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                self.agent_names
             )
         else:
-            return obs, lidar
+            return (obs, lidar), self.agent_names
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
@@ -317,7 +320,7 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
     def get_state(self):
         if not self.got_spline_state:
             self.got_spline_state = True
-            return self.accln_rating
+            return self.accln_rating, self.agent_names
 
         a_ids = self.get_agent_ids_list()
 
@@ -344,11 +347,14 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
             self.queue2.append(lidar)
 
             return (
-                torch.cat(list(self.queue1), dim=-1),
-                torch.cat(list(self.queue2), dim=-1),
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                self.agent_names
             )
         else:
-            return obs, lidar
+            return (obs, lidar), self.agent_names
 
     @torch.no_grad()
     def step(

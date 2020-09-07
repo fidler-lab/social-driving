@@ -107,7 +107,6 @@ class RolloutSimulator:
                     for _ in range(self.env.nagents)
                 ]
             ).cpu()
-
         obs = self._move_object_to_device(obs)
         return self.actor.act(obs, deterministic=True).cpu()
 
@@ -170,7 +169,8 @@ class RolloutSimulator:
 
     @torch.no_grad()
     def _two_stage_rollout(self, verbose: bool, render: bool):
-        (o, aids), done, ep_ret, ep_len = self.env.reset(), False, 0, 0
+        (o, aids), done = self.env.reset(), False
+        ep_ret, ep_len = torch.zeros(self.env.nagents, 1, device=self.env.device), 0
         self._new_rollout_hook()
 
         a = self._action_two_stage_rollout(0, o)
