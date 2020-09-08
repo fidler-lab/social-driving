@@ -76,20 +76,21 @@ class World:
         # Agents can only see things that are in front of them and within their
         # range of vision
         data, broadcast_locations = self.comm_channel  # (N x W, N x 2)
+        if data.size(0) == 0:
+            return torch.rand((0, data.size(1))).type_as(data)
+
         broadcast_locations = broadcast_locations.view(1, -1, 2).repeat(
             vehicle.nbatch, 1, 1
         )  # N x N x 2
 
-        head = vehicle.optimal_heading_to_points(broadcast_locations)[
-            ..., 0
-        ]  # N x N x 1
+        head = vehicle.optimal_heading_to_points(broadcast_locations)  # N x N
         dist = vehicle.distance_from_points(broadcast_locations)[
             ..., 0
-        ]  # N x N x 1
+        ]  # N x N
 
         dist_to_visible = (
             (dist > vehicle.vision_range) + (head.abs() > math.pi / 6)
-        ) * 1e12 + dist
+        ) * 1e12 + dist  # N x N
 
         _, idxs = dist_to_visible.min(1)
 
