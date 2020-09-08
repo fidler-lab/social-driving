@@ -126,7 +126,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
                     torch.cat(list(self.queue1), dim=-1),
                     torch.cat(list(self.queue2), dim=-1),
                 ),
-                self.agent_names
+                self.agent_names,
             )
         else:
             return (obs, lidar), self.agent_names
@@ -316,7 +316,7 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
 
     def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
         return action
-    
+
     def _get_spline_state(self):
         self.got_spline_state = True
         return self.accln_rating, self.agent_names
@@ -354,7 +354,7 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
                     torch.cat(list(self.queue1), dim=-1),
                     torch.cat(list(self.queue2), dim=-1),
                 ),
-                self.agent_names
+                self.agent_names,
             )
         else:
             return (obs, lidar), self.agent_names
@@ -377,13 +377,10 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
 
         vehicle = self.agents["agent"]
         pos = vehicle.position
-        farthest_pt = (
-            torch.cat([
-                torch.full((pos.size(0), 1), -self.length / 2),
-                pos[:, 1:]
-            ], dim=-1)
-            .to(pos.device)
-        )
+        farthest_pt = torch.cat(
+            [torch.full((pos.size(0), 1), -self.length / 2), pos[:, 1:]],
+            dim=-1,
+        ).to(pos.device)
         mid_point_x = pos[:, :1] + 50.0
         mid_point_y = action * self.width / 2
         mid_point = torch.cat([mid_point_x, mid_point_y], dim=-1)
@@ -424,12 +421,12 @@ class MultiAgentLongHighwaySplineAccelerationDiscreteModel(
                 ]
             ),
         )
-    
+
     def _get_spline_state(self):
         self.got_spline_state = True
         ypos = self.agents["agent"].position[:, 1:] * 2 / self.width
         return torch.cat([self.accln_rating, ypos], dim=-1), self.agent_names
-    
+
     def generate_world_without_agents(self):
         network = RoadNetwork()
         length = 500.0

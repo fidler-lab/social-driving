@@ -22,13 +22,13 @@ from sdriving.environments.nuscenes import (
     MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
     MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment,
     MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment,
-    MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment
+    MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment,
 )
 from sdriving.environments.highway import (
     MultiAgentHighwayBicycleKinematicsModel,
     MultiAgentHighwayBicycleKinematicsDiscreteModel,
     MultiAgentHighwaySplineAccelerationDiscreteModel,
-    MultiAgentLongHighwaySplineAccelerationDiscreteModel
+    MultiAgentLongHighwaySplineAccelerationDiscreteModel,
 )
 
 REGISTRY = {}

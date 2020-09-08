@@ -491,7 +491,9 @@ class PPO_Alternating_Optimization_Centralized_Critic:
     def controller_episode_runner(self):
         env = self.env
         (o, _), ep_ret, ep_len = env.reset(), 0, 0
-        o, a_ids = env.step(0, self.actor.act(o.to(self.device), deterministic=True))
+        o, a_ids = env.step(
+            0, self.actor.act(o.to(self.device), deterministic=True)
+        )
         prev_done = torch.zeros(env.nagents, 1, device=self.device).bool()
         for t in range(self.local_steps_per_epoch):
             obs, lidar = o

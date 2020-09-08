@@ -26,6 +26,7 @@ matplotlib.use("Agg")
 X = [-10, 10]
 Y = [-10, 10]
 
+
 class World:
     def __init__(
         self,
@@ -61,7 +62,7 @@ class World:
             torch.zeros(
                 (num, width), dtype=torch.float, device=self.device
             ),  # The communication channel which agents populate
-            torch.zeros(num, 2, device=self.device), 
+            torch.zeros(num, 2, device=self.device),
             # Location from where it was broadcasted
         ]
 
@@ -79,8 +80,12 @@ class World:
             vehicle.nbatch, 1, 1
         )  # N x N x 2
 
-        head = vehicle.optimal_heading_to_points(broadcast_locations)[..., 0]  # N x N x 1
-        dist = vehicle.distance_from_points(broadcast_locations)[..., 0]  # N x N x 1
+        head = vehicle.optimal_heading_to_points(broadcast_locations)[
+            ..., 0
+        ]  # N x N x 1
+        dist = vehicle.distance_from_points(broadcast_locations)[
+            ..., 0
+        ]  # N x N x 1
 
         dist_to_visible = (
             (dist > vehicle.vision_range) + (head.abs() > math.pi / 6)
@@ -90,7 +95,7 @@ class World:
 
         value = []
         for idx in idxs:
-            value.append(data[idx:(idx + 1), :])
+            value.append(data[idx : (idx + 1), :])
         return torch.cat(value)
 
     def remove(self, aname: str, idx: int):
@@ -109,7 +114,7 @@ class World:
         if hasattr(self, "comm_channel"):
             self.comm_channel = [
                 remove_batch_element(self.comm_channel[0], idx),
-                remove_batch_element(self.comm_channel[1], idx)
+                remove_batch_element(self.comm_channel[1], idx),
             ]
 
     def to(self, device: torch.device):
@@ -402,7 +407,7 @@ class World:
         render_lidar=False,
     ):
         if path is not None:
-            ani = self.cam.animate(blit=False, interval=80)
+            ani = self.cam.animate(blit=True, interval=80)
             path_root, path_ext = os.path.splitext(path)
             if path_ext == ".gif":
                 lg.warning(

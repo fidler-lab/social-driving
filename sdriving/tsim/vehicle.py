@@ -207,12 +207,15 @@ class _BatchedVehicle(torch.nn.Module):
     @torch.jit.export
     def distance_from_point(self, point: torch.Tensor):
         return (self.position - point).pow(2).sum(1, keepdim=True).sqrt()
-    
+
     @torch.jit.export
     def distance_from_points(self, points: torch.Tensor):
         return (
-            self.position.unsqueeze(1) - points
-        ).pow(2).sum(2, keepdim=True).sqrt()
+            (self.position.unsqueeze(1) - points)
+            .pow(2)
+            .sum(2, keepdim=True)
+            .sqrt()
+        )
 
     @torch.jit.export
     def distance_from_destination(self):
@@ -226,7 +229,7 @@ class _BatchedVehicle(torch.nn.Module):
         theta = torch.where(
             self.orientation >= 0,
             self.orientation,
-            self.orientation + 2 * math.pi
+            self.orientation + 2 * math.pi,
         )
         return angle_normalize(phi - theta)
 
@@ -234,12 +237,14 @@ class _BatchedVehicle(torch.nn.Module):
     def optimal_heading_to_points(self, points: torch.Tensor):  # N x B x 2
         vec = points - self.position.unsqueeze(1)
         vec = vec / (torch.norm(vec, dim=2, keepdim=True) + 1e-7)  # N X B x 2
-        phi = torch.atan2(vec[..., :1], vec[..., 1:]) # N x B x 1
+        phi = torch.atan2(vec[..., :1], vec[..., 1:])  # N x B x 1
         theta = torch.where(
             self.orientation >= 0,
             self.orientation,
-            self.orientation + 2 * math.pi
-        ).unsqueeze(1)  # N x 1 x 1
+            self.orientation + 2 * math.pi,
+        ).unsqueeze(
+            1
+        )  # N x 1 x 1
         diff = phi - theta
         return angle_normalize(diff.view(-1, 1)).view(points.shape[:2])
 
