@@ -25,11 +25,17 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment
 ):
     def __init__(
-        self, *args, turns: bool = False, default_color: bool = True, **kwargs
+        self,
+        *args,
+        turns: bool = False,
+        default_color: bool = True,
+        learn_right_of_way: bool = False,
+        **kwargs
     ):
         self.lane_side = 1
         self.turns = turns
         self.default_color = default_color
+        self.learn_right_of_way = learn_right_of_way
         super().__init__(*args, **kwargs)
 
     def generate_world_without_agents(self):
@@ -46,6 +52,7 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
                 time_green=time_green,
                 ordering=random.choice(range(8)),
                 default_colmap=self.default_color,
+                merge_same_signals=self.learn_right_of_way
             ),
             {"length": length, "width": width},
         )

@@ -64,6 +64,10 @@ env2record = {
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
         + ["Position", "Acceleration Rating", "Heading"]
     ),
+    "MultiAgentLongHighwaySplineAccelerationDiscreteModel": (
+        ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
+        + ["Position", "Acceleration Rating", "Heading"]
+    ),
 }
 
 

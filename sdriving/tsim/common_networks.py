@@ -111,6 +111,7 @@ def generate_intersection_world_12signals(
     time_green: int = 100,
     ordering: int = 0,
     default_colmap: bool = True,
+    merge_same_signals: bool = False,
 ) -> World:
     net = generate_nway_intersection_block(
         4, closed, length, road_width, name, center, orientation, has_endpoints
@@ -123,6 +124,51 @@ def generate_intersection_world_12signals(
         col_map = {0.0: "g", 1.0: "r", 0.5: "y"}
     else:
         col_map = {1.0: "g", 0.0: "r", 0.5: "y"}
+
+    if merge_same_signals:
+        for i in range(4):
+            if i != 0:
+                world.add_traffic_signal(
+                    f"{name}_0",
+                    f"{name}_{i}",
+                    val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
+                    start_signal=0 if ordering == 0 else 2,
+                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    colors=["g", "y", "r", "y"],
+                    add_reverse=False,
+                )
+            if i != 2:
+                world.add_traffic_signal(
+                    f"{name}_2",
+                    f"{name}_{i}",
+                    val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
+                    start_signal=0 if ordering == 0 else 2,
+                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    colors=["g", "y", "r", "y"],
+                    add_reverse=False,
+                )
+            if i != 1:
+                world.add_traffic_signal(
+                    f"{name}_1",
+                    f"{name}_{i}",
+                    val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
+                    start_signal=2 if ordering == 0 else 0,
+                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    colors=["g", "y", "r", "y"],
+                    add_reverse=False,
+                )            
+            if i != 3:
+                world.add_traffic_signal(
+                    f"{name}_3",
+                    f"{name}_{i}",
+                    val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
+                    start_signal=2 if ordering == 0 else 0,
+                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    colors=["g", "y", "r", "y"],
+                    add_reverse=True,
+                )
+
+        return world
 
     vals = []
     vals.append([0.0, 0.5] + [1.0, 1.0] * 2 + [1.0, 0.5])
