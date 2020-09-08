@@ -287,6 +287,12 @@ class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
 class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
     MultiAgentNuscenesIntersectionDrivingEnvironment
 ):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for world in self.worlds:
+            world.initialize_communication_channel(self.actual_nagents, 3)
+
     def configure_action_space(self):
         self.max_accln = 1.5
 
