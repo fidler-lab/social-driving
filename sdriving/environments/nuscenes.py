@@ -253,6 +253,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         # Keep the environment fixed for now
         self.world = random.choice(self.worlds)
         self.world.reset()
+        self.world.initialize_communication_channel(self.actual_nagents, 3)
         self.add_vehicles_to_world()
 
         self.queue1 = deque(maxlen=self.history_len)
@@ -287,12 +288,6 @@ class MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment(
 class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
     MultiAgentNuscenesIntersectionDrivingEnvironment
 ):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        for world in self.worlds:
-            world.initialize_communication_channel(self.actual_nagents, 3)
-
     def configure_action_space(self):
         self.max_accln = 1.5
 
@@ -335,7 +330,6 @@ class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
         head = torch.cat([self.agents[v].optimal_heading() for v in a_ids])
 
         comm_data = self.world.get_broadcast_data_all_agents()
-
         inv_dist = self._get_distance_from_goal()
 
         speed = vehicle.speed
@@ -371,11 +365,6 @@ class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
         pos = self.agents["agent"].position
         self.world.broadcast_data(comm, pos)
         return action[:, :1]  # Only return accln
-
-    def reset(self):
-        ret_val = super().reset()
-        self.world.initialize_communication_channel(self.actual_nagents, 3)
-        return ret_val
 
 
 class MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment(
