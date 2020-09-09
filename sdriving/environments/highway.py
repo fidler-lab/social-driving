@@ -33,6 +33,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
         nagents: int = 12,
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
+        lateral_noise_variance: float = 0.0
     ):
         self.npoints = npoints
         self.history_len = history_len
@@ -49,6 +50,8 @@ class MultiAgentHighwayBicycleKinematicsModel(
         for i in range(0, self.nagents * 4, 4):
             bool_buffer[i : (i + 4), i : (i + 4)] -= 1
         self.bool_buffer = bool_buffer.bool()
+
+        self.lateral_noise_variance = lateral_noise_variance
 
     def generate_world_without_agents(self):
         network = RoadNetwork()
@@ -130,6 +133,21 @@ class MultiAgentHighwayBicycleKinematicsModel(
             )
         else:
             return (obs, lidar), self.agent_names
+
+    def vehicle_collision_check(self, vehicle):
+        if self.lateral_noise_variance == 0.0:
+            return vehicle.collision_check()
+        # Hopefully this doesn't get messed up by some inplace operation
+        position_dup = vehicle.position.clone()
+        position_noise = torch.rand_like(
+            position_dup[:, 1]
+        ) * self.lateral_noise_variance
+        vehicle.position[:, 1] += position_noise
+        vehicle.cached_coordinates = False
+        collision = vehicle.collision_check()
+        vehicle.position = position_dup
+        vehicle.cached_coordinates = False
+        return collision
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
         a_ids = self.get_agent_ids_list()
@@ -403,50 +421,3 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
     def reset(self):
         self.got_spline_state = False
         return super().reset()
-
-
-class MultiAgentLongHighwaySplineAccelerationDiscreteModel(
-    MultiAgentHighwaySplineAccelerationDiscreteModel
-):
-    def get_observation_space(self):
-        return (
-            Box(low=np.array([0.5, -1.0]), high=np.array([1.0, 1.0])),
-            Tuple(
-                [
-                    Box(
-                        low=np.array([0.0, -1.0] * self.history_len),
-                        high=np.array([1.0, 1.0] * self.history_len),
-                    ),
-                    Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
-                ]
-            ),
-        )
-
-    def _get_spline_state(self):
-        self.got_spline_state = True
-        ypos = self.agents["agent"].position[:, 1:] * 2 / self.width
-        return torch.cat([self.accln_rating, ypos], dim=-1), self.agent_names
-
-    def generate_world_without_agents(self):
-        network = RoadNetwork()
-        length = 500.0
-        width = 30.0
-        network.add_road(
-            Road(
-                f"highway",
-                torch.zeros(1, 2),
-                length,
-                width,
-                torch.zeros(1, 1),
-                can_cross=[False] * 4,
-                has_endpoints=[True, False, True, False],
-            )
-        )
-        return (
-            World(
-                network,
-                xlims=(-length / 2 - 10, length / 2 + 10),
-                ylims=(-length / 2 - 10, length / 2 + 10),
-            ),
-            {"length": length, "width": width},
-        )

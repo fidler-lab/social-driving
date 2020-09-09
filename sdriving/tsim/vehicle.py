@@ -323,8 +323,6 @@ def render_vehicle(
         box = obj.get_coordinates()[b, :, :].detach().cpu().numpy()
         lr = obj.max_lidar_range
 
-        arrow_head = pos + dim / 2.0 * np.array([np.cos(h), np.sin(h)])
-
         # Draw the vehicle and the heading
         ax.fill(box[:, 0], box[:, 1], color, edgecolor="k", alpha=0.5)
         ax.plot(

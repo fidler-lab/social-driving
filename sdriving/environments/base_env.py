@@ -109,6 +109,10 @@ class BaseMultiAgentDrivingEnvironment:
     def render(self, *args, **kwargs):
         self.world.render(*args, **kwargs)
 
+    def vehicle_collision_check(self, v):
+        # This function is needed when experimenting with lateral deviation noise
+        return v.collision_check()
+
     @torch.no_grad()
     def step(
         self, action: torch.Tensor, render: bool = False, **render_kwargs
@@ -135,7 +139,7 @@ class BaseMultiAgentDrivingEnvironment:
                 i += v.nbatch
                 # TODO: Cross Vehicle Collision (should ideally be avoided
                 #       by having only one fleet of vehicles)
-                collision_vehicle.append(v.collision_check())
+                collision_vehicle.append(self.vehicle_collision_check(v))
                 collision_object.append(self.world.check_collision(n))
             collision_vehicle = torch.cat(collision_vehicle)
             collision_object = torch.cat(collision_object)
