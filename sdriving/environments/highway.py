@@ -33,7 +33,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
         nagents: int = 12,
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
-        lateral_noise_variance: float = 0.0
+        lateral_noise_variance: float = 0.0,
     ):
         self.npoints = npoints
         self.history_len = history_len
@@ -139,9 +139,9 @@ class MultiAgentHighwayBicycleKinematicsModel(
             return vehicle.collision_check()
         # Hopefully this doesn't get messed up by some inplace operation
         position_dup = vehicle.position.clone()
-        position_noise = torch.rand_like(
-            position_dup[:, 1]
-        ) * self.lateral_noise_variance
+        position_noise = (
+            torch.rand_like(position_dup[:, 1]) * self.lateral_noise_variance
+        )
         vehicle.position[:, 1] += position_noise
         vehicle.cached_coordinates = False
         collision = vehicle.collision_check()

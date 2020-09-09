@@ -10,6 +10,7 @@ from sdriving.environments.intersection import (
 from sdriving.environments.fixed_track import (
     MultiAgentRoadIntersectionFixedTrackEnvironment,
     MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment,
+    MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment,
 )
 from sdriving.environments.spline_env import (
     MultiAgentOneShotSplinePredictionEnvironment,

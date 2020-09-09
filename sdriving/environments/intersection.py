@@ -97,7 +97,6 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
     def get_state(self):
         a_ids = self.get_agent_ids_list()
         ts = self.world.get_all_traffic_signal().unsqueeze(1)
-        # TODO: Local Goals
         head = torch.cat([self.agents[v].optimal_heading() for v in a_ids])
         dist = torch.cat(
             [self.agents[v].distance_from_destination() for v in a_ids]

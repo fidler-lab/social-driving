@@ -313,9 +313,11 @@ def Vehicle(*args, **kwargs):
 def render_vehicle(
     obj: Union[_BatchedVehicle, _Vehicle],
     ax,
-    color: str = "g",
+    color: Union[str, List[Union[tuple, str]]] = "g",
     draw_lidar_range: bool = False,
 ):
+    if isinstance(color, str):
+        color = [color] * obj.nbatch
     for b in range(obj.nbatch):
         pos = obj.position[b, :].detach().cpu().numpy()
         h = obj.orientation[b, :].detach().cpu().numpy()
@@ -324,16 +326,16 @@ def render_vehicle(
         lr = obj.max_lidar_range
 
         # Draw the vehicle and the heading
-        ax.fill(box[:, 0], box[:, 1], color, edgecolor="k", alpha=0.5)
+        ax.fill(box[:, 0], box[:, 1], color[b], edgecolor="k", alpha=0.5)
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
             [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
-            "g",
+            "c",
         )
 
         # Draw the destination if available
         dest = obj.destination[b, :].detach().cpu().numpy()
-        ax.plot(dest[0], dest[1], color, marker="x", markersize=5)
+        ax.plot(dest[0], dest[1], "b", marker="x", markersize=5)
 
         # Draw the lidar sensor range
         if draw_lidar_range:

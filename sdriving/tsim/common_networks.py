@@ -133,7 +133,9 @@ def generate_intersection_world_12signals(
                     f"{name}_{i}",
                     val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
                     start_signal=0 if ordering == 0 else 2,
-                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    times=torch.as_tensor(
+                        [time_green - 10, 10, time_green - 10, 10]
+                    ),
                     colors=["g", "y", "r", "y"],
                     add_reverse=False,
                 )
@@ -143,7 +145,9 @@ def generate_intersection_world_12signals(
                     f"{name}_{i}",
                     val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
                     start_signal=0 if ordering == 0 else 2,
-                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    times=torch.as_tensor(
+                        [time_green - 10, 10, time_green - 10, 10]
+                    ),
                     colors=["g", "y", "r", "y"],
                     add_reverse=False,
                 )
@@ -153,17 +157,21 @@ def generate_intersection_world_12signals(
                     f"{name}_{i}",
                     val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
                     start_signal=2 if ordering == 0 else 0,
-                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    times=torch.as_tensor(
+                        [time_green - 10, 10, time_green - 10, 10]
+                    ),
                     colors=["g", "y", "r", "y"],
                     add_reverse=False,
-                )            
+                )
             if i != 3:
                 world.add_traffic_signal(
                     f"{name}_3",
                     f"{name}_{i}",
                     val=torch.as_tensor([0.0, 0.5, 1.0, 0.5]),
                     start_signal=2 if ordering == 0 else 0,
-                    times=torch.as_tensor([time_green - 10, 10, time_green - 10, 10]),
+                    times=torch.as_tensor(
+                        [time_green - 10, 10, time_green - 10, 10]
+                    ),
                     colors=["g", "y", "r", "y"],
                     add_reverse=True,
                 )

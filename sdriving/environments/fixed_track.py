@@ -52,7 +52,7 @@ class MultiAgentRoadIntersectionFixedTrackEnvironment(
                 time_green=time_green,
                 ordering=random.choice(range(8)),
                 default_colmap=self.default_color,
-                merge_same_signals=self.learn_right_of_way
+                merge_same_signals=self.learn_right_of_way,
             ),
             {"length": length, "width": width},
         )
@@ -132,3 +132,103 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment(
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):
         return self.action_list[action]
+
+
+class MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment(
+    MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment
+):
+    def configure_action_space(self):
+        self.max_accln = 1.5
+        self.action_list = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, step=0.25
+        ).unsqueeze(1)
+        accln_values = (
+            torch.arange(-self.max_accln, self.max_accln + 0.05, step=0.25)
+            .numpy()
+            .tolist()
+        )
+        comm_values = [0.0, 1.0]
+        self.action_list = torch.as_tensor(
+            list(product(accln_values, comm_values, comm_values, comm_values))
+        ).float()
+        if not self.turns:
+            self.action_list = torch.cat(
+                [
+                    torch.zeros((self.action_list.size(0), 1)).type_as(
+                        self.action_list
+                    ),
+                    self.action_list,
+                ],
+                dim=-1,
+            )
+
+    def discrete_to_continuous_actions(self, action: torch.Tensor):
+        action = self.action_list[action]
+        comm = action[:, 1:] if self.turns else action[:, 2:]
+        print(f"Comm: {comm}")
+        pos = self.agents["agent"].position
+        self.world.broadcast_data(comm, pos)
+        return (
+            action[:, :1] if self.turns else action[:, :2]
+        )  # Only return controls
+
+    def generate_world_without_agents(self):
+        world, params = super().generate_world_without_agents()
+        if hasattr(self, "actual_nagents"):
+            # this is needed for the first call to this function
+            world.initialize_communication_channel(self.actual_nagents, 3)
+        return world, params
+
+    def get_observation_space(self):
+        return Tuple(
+            [
+                Box(
+                    low=np.array(
+                        [0.0, -1.0, -math.pi, 0.0, 0.0, 0.0, 0.0]
+                        * self.history_len
+                    ),
+                    high=np.array(
+                        [1.0, 1.0, math.pi, np.inf, 1.0, 1.0, 1.0]
+                        * self.history_len
+                    ),
+                ),
+                Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
+            ]
+        )
+
+    def get_state(self):
+        a_ids = self.get_agent_ids_list()
+        ts = self.world.get_all_traffic_signal().unsqueeze(1)
+        head = torch.cat([self.agents[v].optimal_heading() for v in a_ids])
+        dist = torch.cat(
+            [self.agents[v].distance_from_destination() for v in a_ids]
+        )
+        inv_dist = 1 / dist.clamp(min=1.0)
+        speed = torch.cat([self.agents[v].speed for v in a_ids])
+
+        comm_data = self.world.get_broadcast_data_all_agents()
+
+        obs = torch.cat(
+            [ts, speed / self.dynamics.v_lim, head, inv_dist, comm_data], -1
+        )
+        lidar = 1 / self.world.get_lidar_data_all_vehicles(self.npoints)
+
+        if self.lidar_noise > 0:
+            lidar *= torch.rand_like(lidar) > self.lidar_noise
+
+        if self.history_len > 1:
+            while len(self.queue1) <= self.history_len - 1:
+                self.queue1.append(obs)
+                self.queue2.append(lidar)
+            self.queue1.append(obs)
+            self.queue2.append(lidar)
+
+            return (
+                (
+                    torch.cat(list(self.queue1), dim=-1),
+                    torch.cat(list(self.queue2), dim=-1),
+                ),
+                self.agent_names,
+            )
+        else:
+            return ((obs, lidar), self.agent_names)
