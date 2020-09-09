@@ -259,7 +259,7 @@ class PPO_Distributed_Centralized_Critic:
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
             hvd_average_grad(self.ac, self.device)
-            nn.utils.clip_grad_norm_(self.ac.v.parameters(), 5.0)
+            # nn.utils.clip_grad_norm_(self.ac.v.parameters(), 5.0)
             self.vf_optimizer.step()
             if kl > 1.5 * self.target_kl and not early_stop:
                 self.logger.log(
@@ -269,7 +269,7 @@ class PPO_Distributed_Centralized_Critic:
                 early_stop = True
                 self.logger.store(StopIter=i)
             if not early_stop:
-                nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
+                # nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
                 self.pi_optimizer.step()
         if not early_stop:
             self.logger.store(StopIter=i)
