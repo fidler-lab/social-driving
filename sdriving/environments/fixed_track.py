@@ -165,7 +165,6 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment(
     def discrete_to_continuous_actions(self, action: torch.Tensor):
         action = self.action_list[action]
         comm = action[:, 1:] if self.turns else action[:, 2:]
-        print(f"Comm: {comm}")
         pos = self.agents["agent"].position
         self.world.broadcast_data(comm, pos)
         return (
