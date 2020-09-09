@@ -66,6 +66,10 @@ class NuscenesWorld(World):
 
         self.pt1, self.pt2 = data["edges"]
 
+        c = self.pt1.sum(1)
+        self.xlims = (c[0].item() - 60.0, c[0].item() + 60.0)
+        self.ylims = (c[1].item() - 60.0, c[1].item() + 60.0)
+
         for k, v in data.items():
             if k in ["edges", "splines"]:
                 continue
