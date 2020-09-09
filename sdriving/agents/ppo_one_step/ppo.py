@@ -215,7 +215,6 @@ class PPO_OneStep:
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
             hvd_average_grad(self.actor, self.device)
-            nn.utils.clip_grad_norm_(self.actor.parameters(), 5.0)
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
                     f"Early stopping at step {i} due to reaching max kl.",

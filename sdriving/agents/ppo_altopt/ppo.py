@@ -330,7 +330,6 @@ class PPO_Alternating_Optimization_Centralized_Critic:
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
             hvd_average_grad(self.actor, self.device)
-            nn.utils.clip_grad_norm_(self.actor.parameters(), 5.0)
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
                     f"Early stopping at step {i} due to reaching max kl.",
@@ -361,7 +360,6 @@ class PPO_Alternating_Optimization_Centralized_Critic:
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
             hvd_average_grad(self.ac, self.device)
-            nn.utils.clip_grad_norm_(self.ac.v.parameters(), 5.0)
             self.vf_optimizer.step()
             if kl > 1.5 * self.target_kl:
                 self.logger.log(
@@ -369,7 +367,6 @@ class PPO_Alternating_Optimization_Centralized_Critic:
                     color="red",
                 )
                 break
-            nn.utils.clip_grad_norm_(self.ac.pi.parameters(), 5.0)
             self.pi_optimizer.step()
         self.logger.store(StopIterController=i)
 
