@@ -326,7 +326,7 @@ def render_vehicle(
         lr = obj.max_lidar_range
 
         # Draw the vehicle and the heading
-        ax.fill(box[:, 0], box[:, 1], color[b], edgecolor="k", alpha=0.5)
+        ax.fill(box[:, 0], box[:, 1], facecolor=color[b], edgecolor="black", alpha=0.5)
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
             [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
@@ -335,7 +335,7 @@ def render_vehicle(
 
         # Draw the destination if available
         dest = obj.destination[b, :].detach().cpu().numpy()
-        ax.plot(dest[0], dest[1], "b", marker="x", markersize=5)
+        ax.plot([dest[0]], [dest[1]], color="b", marker="x", markersize=5)
 
         # Draw the lidar sensor range
         if draw_lidar_range:
