@@ -32,6 +32,10 @@ env2record = {
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
     ),
+    "MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment": (
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
+        + ["Episode", "Agent ID", "Communication"]
+    ),
     "MultiAgentIntersectionSplineAccelerationDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID", "Position"]
@@ -43,6 +47,10 @@ env2record = {
     "MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
         + ["Episode", "Agent ID"]
+    ),
+    "MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment": (
+        ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
+        + ["Episode", "Agent ID", "Communication"]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
@@ -81,6 +89,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         self.record_global_position = "Position" in self.record_items
         self.record_accln_rating = "Acceleration Rating" in self.record_items
         self.record_traffic_signal = "Traffic Signal" in self.record_items
+        self.record_communication = "Communication" in self.record_items
 
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
@@ -102,6 +111,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         heading = self.env.agents["agent"].optimal_heading()
         if self.record_accln_rating:
             rating = self.env.accln_rating
+        if self.record_communication:
+            comm = self.env.world.comm_channel[0]
         for i in range(action.size(0)):
             if self.record_traffic_signal:
                 self.record["Traffic Signal"].append(ts[i].item())
@@ -121,7 +132,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 self.record["Env Length"].append(self.env.length)
             if self.record_accln_rating:
                 self.record["Acceleration Rating"].append(rating[i, 0].item())
-
+            if self.record_communication:
+                self.record["Communication"].append(comm[i].numpy())
             self.timesteps[i] += 1
 
     def _new_rollout_hook(self):

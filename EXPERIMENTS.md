@@ -62,7 +62,5 @@ mpirun -np 40 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 
 ## Learning to Communicate via Turn Signals
 
-* Most likely will have to settle for the toy env
-
 
 ## Driving on Real World Maps
