@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import math
 import os
 import random
 import sys
@@ -13,64 +14,113 @@ import pandas as pd
 import numpy as np
 import torch
 from sdriving.scripts.rollout import RolloutSimulator
+from sdriving.tsim import angle_normalize
 
 
 env2record = {
     "MultiAgentRoadIntersectionBicycleKinematicsEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Steering Angle",
+            "Position",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Steering Angle",
+            "Position",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentRoadIntersectionFixedTrackEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID"]
+        + ["Episode", "Agent ID", "Min Distance to Car"]
     ),
     "MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID"]
+        + ["Episode", "Agent ID", "Min Distance to Car"]
     ),
     "MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Communication (Recv)", "Communication (Send)"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Communication (Recv)",
+            "Communication (Send)",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentIntersectionSplineAccelerationDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Position"]
+        + ["Episode", "Agent ID", "Position", "Min Distance to Car"]
     ),
     "MultiAgentNuscenesIntersectionDrivingEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID"]
+        + ["Episode", "Agent ID", "Min Distance to Car"]
     ),
     "MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID"]
+        + ["Episode", "Agent ID", "Min Distance to Car"]
     ),
     "MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Communication (Recv)", "Communication (Send)"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Communication (Recv)",
+            "Communication (Send)",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Steering Angle",
+            "Position",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Steering Angle", "Position"]
+        + [
+            "Episode",
+            "Agent ID",
+            "Steering Angle",
+            "Position",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentHighwayBicycleKinematicsModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position", "Acceleration Rating", "Heading"]
+        + [
+            "Steering Angle",
+            "Position",
+            "Acceleration Rating",
+            "Heading",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentHighwayBicycleKinematicsDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Steering Angle", "Position", "Acceleration Rating", "Heading"]
+        + [
+            "Steering Angle",
+            "Position",
+            "Acceleration Rating",
+            "Heading",
+            "Min Distance to Car",
+        ]
     ),
     "MultiAgentHighwaySplineAccelerationDiscreteModel": (
         ["Velocity", "Acceleration", "Time Step", "Episode", "Agent ID"]
-        + ["Position", "Acceleration Rating", "Heading"]
+        + ["Position", "Acceleration Rating", "Heading", "Min Distance to Car"]
     ),
 }
 
@@ -89,8 +139,15 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         self.record_global_position = "Position" in self.record_items
         self.record_accln_rating = "Acceleration Rating" in self.record_items
         self.record_traffic_signal = "Traffic Signal" in self.record_items
-        self.record_recv_communication = "Communication (Recv)" in self.record_items
-        self.record_send_communication = "Communication (Send)" in self.record_items
+        self.record_recv_communication = (
+            "Communication (Recv)" in self.record_items
+        )
+        self.record_send_communication = (
+            "Communication (Send)" in self.record_items
+        )
+        self.record_min_distance_to_car = (
+            "Min Distance to Car" in self.record_items
+        )
 
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
@@ -99,7 +156,37 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record["Env Width"] = []
             self.record["Env Length"] = []
 
-    def _action_observation_hook(self, action, observation, aids, *args, **kwargs):
+    def _distance_to_nearest_car(
+        self, positions: torch.Tensor, theta: torch.Tensor  # N x 2  # N x 2
+    ):
+        # The nearest car needs to be within a conical section in the front
+        points = positions.unsqueeze(1).repeat(1, positions.size(0), 1)
+        vec_ = positions - points
+        vec = vec_ / (torch.norm(vec_, dim=2, keepdim=True) + 1e-7)
+        phi = torch.atan2(vec[..., 1:], vec[..., :1])
+        theta = torch.where(theta >= 0, theta, theta + 2 * math.pi).unsqueeze(
+            1
+        )
+        diff = phi - theta
+        angle = angle_normalize(diff.view(-1, 1)).view(points.shape[:2])
+
+        distances = vec_.pow(2).sum(dim=2).sqrt()
+
+        visible = (
+            (angle.abs() > math.pi / 6) + (distances <= 0.5)
+        ) * 1e12 + distances
+
+        _, idxs = visible.min(1)
+
+        values = []
+        for i in range(positions.shape[0]):
+            idx = idxs[i]
+            values.append(visible[i : (i + 1), idx])
+        return torch.cat(values)
+
+    def _action_observation_hook(
+        self, action, observation, aids, *args, **kwargs
+    ):
         if len(args) == 1 and args[0] == 0:
             return
         state = self.env.world.get_all_vehicle_state()
@@ -116,6 +203,10 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             comm = self.env.world.comm_channel[0]
         if self.record_send_communication:
             comm_data = self.env.world.get_broadcast_data_all_agents()
+        if self.record_min_distance_to_car:
+            distances = self._distance_to_nearest_car(
+                state[:, :2], state[:, 3:]
+            )
         for i in range(action.size(0)):
             if self.record_traffic_signal:
                 self.record["Traffic Signal"].append(ts[i].item())
@@ -138,7 +229,11 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             if self.record_send_communication:
                 self.record["Communication (Send)"].append(comm[i].numpy())
             if self.record_recv_communication:
-                self.record["Communication (Recv)"].append(comm_data[i].numpy())
+                self.record["Communication (Recv)"].append(
+                    comm_data[i].numpy()
+                )
+            if self.record_min_distance_to_car:
+                self.record["Min Distance to Car"].append(distances[i].item())
             self.timesteps[i] += 1
 
     def _new_rollout_hook(self):

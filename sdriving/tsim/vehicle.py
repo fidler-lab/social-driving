@@ -231,7 +231,6 @@ class _BatchedVehicle(torch.nn.Module):
             self.orientation,
             self.orientation + 2 * math.pi,
         )
-        print(theta, phi, vec)
         return angle_normalize(phi - theta)
 
     @torch.jit.export
@@ -327,7 +326,13 @@ def render_vehicle(
         lr = obj.max_lidar_range
 
         # Draw the vehicle and the heading
-        ax.fill(box[:, 0], box[:, 1], facecolor=color[b], edgecolor="black", alpha=0.5)
+        ax.fill(
+            box[:, 0],
+            box[:, 1],
+            facecolor=color[b],
+            edgecolor="black",
+            alpha=0.5,
+        )
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
             [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
