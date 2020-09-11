@@ -34,7 +34,7 @@ env2record = {
     ),
     "MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Communication"]
+        + ["Episode", "Agent ID", "Communication (Recv)", "Communication (Send)"]
     ),
     "MultiAgentIntersectionSplineAccelerationDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
@@ -50,7 +50,7 @@ env2record = {
     ),
     "MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
-        + ["Episode", "Agent ID", "Communication"]
+        + ["Episode", "Agent ID", "Communication (Recv)", "Communication (Send)"]
     ),
     "MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment": (
         ["Traffic Signal", "Velocity", "Acceleration", "Time Step", "Heading"]
@@ -89,7 +89,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         self.record_global_position = "Position" in self.record_items
         self.record_accln_rating = "Acceleration Rating" in self.record_items
         self.record_traffic_signal = "Traffic Signal" in self.record_items
-        self.record_communication = "Communication" in self.record_items
+        self.record_recv_communication = "Communication (Recv)" in self.record_items
+        self.record_send_communication = "Communication (Send)" in self.record_items
 
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
@@ -111,8 +112,10 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         heading = self.env.agents["agent"].optimal_heading()
         if self.record_accln_rating:
             rating = self.env.accln_rating
-        if self.record_communication:
+        if self.record_recv_communication:
             comm = self.env.world.comm_channel[0]
+        if self.record_send_communication:
+            comm_data = self.env.world.get_broadcast_data_all_agents()
         for i in range(action.size(0)):
             if self.record_traffic_signal:
                 self.record["Traffic Signal"].append(ts[i].item())
@@ -132,8 +135,10 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 self.record["Env Length"].append(self.env.length)
             if self.record_accln_rating:
                 self.record["Acceleration Rating"].append(rating[i, 0].item())
-            if self.record_communication:
-                self.record["Communication"].append(comm[i].numpy())
+            if self.record_send_communication:
+                self.record["Communication (Send)"].append(comm[i].numpy())
+            if self.record_recv_communication:
+                self.record["Communication (Recv)"].append(comm_data[i].numpy())
             self.timesteps[i] += 1
 
     def _new_rollout_hook(self):
