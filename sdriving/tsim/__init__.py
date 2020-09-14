@@ -6,3 +6,4 @@ from sdriving.tsim.utils import *
 from sdriving.tsim.vehicle import *
 from sdriving.tsim.world import *
 from sdriving.tsim.parametric_curves import *
+from sdriving.tsim.objects import *

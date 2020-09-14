@@ -20,6 +20,7 @@ from sdriving.tsim.utils import (
     remove_batch_element,
 )
 from sdriving.tsim.vehicle import render_vehicle
+from sdriving.tsim.objects import render_object
 
 matplotlib.use("Agg")
 
@@ -385,6 +386,9 @@ class World:
         self.ax = None
         self.cam = None
 
+    def add_object(self, obj):
+        self.objects[obj.name] = obj
+
     def _render_background(self, ax):
         self.road_network.render(ax)
         self._render_traffic_signal(ax)
@@ -461,6 +465,6 @@ class World:
         for v in self.vehicles.values():
             self._render_vehicle(v, self.ax)
         for obj in self.objects.values():
-            obj.render(self.ax)
+            render_object(obj, self.ax)
 
         self.cam.snap()

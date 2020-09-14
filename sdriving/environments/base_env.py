@@ -154,6 +154,7 @@ class BaseMultiAgentDrivingEnvironment:
             if self.collision_vector.all() or self.horizon <= self.nsteps:
                 break
             self.nsteps += 1
+            self.world.update_world_state(1)
 
         if hasattr(self, "remove"):
             idxs = torch.where(self.completion_vector)[0]
@@ -162,8 +163,6 @@ class BaseMultiAgentDrivingEnvironment:
                 self.remove(agent_names_copy[i])
 
         self.cached_actions = action
-
-        self.world.update_world_state(self.timesteps)
 
         timeout = self.horizon <= self.nsteps
 
