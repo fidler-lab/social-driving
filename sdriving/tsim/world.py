@@ -195,6 +195,10 @@ class World:
         e1, e2 = self.get_road_edges()
         p1.append(e1)
         p2.append(e2)
+        for obj in self.objects.values():
+            edges = obj.get_edges()
+            p1.append(edges[0])
+            p2.append(edges[1])
         for n, v in self.vehicles.items():
             e1, e2 = v.get_edges()
             p1.append(e1.view(-1, 2))
