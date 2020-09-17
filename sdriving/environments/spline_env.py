@@ -98,9 +98,15 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         a_ids = self.get_agent_ids_list()
 
         # Distance from destination
-        distances = torch.cat(
-            [self.agents[v].distance_from_destination() for v in a_ids]
-        )
+        ## Assume that the cars are not going to turn
+        vehicle = self.agents["agent"]
+        _distances = (vehicle.destination - vehicle.position).abs()
+        distances = []
+        for i in range(_distances.size(0)):
+            srd = self.srd[i]
+            c = (srd + 1) % 2
+            distances.append(_distances[i:(i + 1), c:(c + 1)])
+        distances = torch.cat(distances)
 
         # Goal Reach Bonus
         reached_goal = distances <= self.width / 3

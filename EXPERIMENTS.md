@@ -25,16 +25,23 @@ mpirun -np 40 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 * Now we continue the training with 4 agents. For a little bit faster convergence we will finetune the model trained in the last experiment.
 
 ```bash
-mpirun -np 40 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/962864 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 6400 -e 150 --pi-lr 1e-3 --vf-lr 1e-3 --seed 19375 --entropy-coeff 0.001 --target-kl 0.2 -ti 20 -wid 962864 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/994752 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 45 --pi-lr 1e-3 --vf-lr 1e-3 --seed 5688 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 994752 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
 ```
 
 * Again increase the agent count by 4 and in order to make it a bit more challenging we will break the symmetry in the road pockets by changing `balanced_cars` to `False`.
-   
+
+```bash
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/997782 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 18443 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 997782 --resume --model-checkpoint /checkpoint/avikpal/994752/ckpt/checkpoints/ckpt_latest.pth --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 8, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": false}"
+```
+
 * Finally train with 12 agents. We don't train any furthur simply because the environment becomes too cluttered (when the agents reach their goals) making learning very difficult.
+
+```bash
+```
 
 ### Analyzing the Effect of Increased Perception Noise
 
-* For the 4 agent model with 0 perception noise we use the model trained in the [previous section](#analysing-the-effect-of-increased-number-of-agents-while-training).
+* For the 4 agent model with 0 perception noise we use the model trained in the [previous section](#analysing-the-effect-of-more-agents-while-training).
 
 * Training an agent with 25% perception noise.
 
