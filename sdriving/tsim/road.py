@@ -7,12 +7,13 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+
 from sdriving.tsim.utils import (
     angle_normalize,
     get_2d_rotation_matrix,
+    is_perpendicular,
     transform_2d_coordinates,
     transform_2d_coordinates_rotation_matrix,
-    is_perpendicular,
 )
 
 

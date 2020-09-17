@@ -1,11 +1,11 @@
-from typing import Optional, Union
 import random
+from typing import Optional, Union
 
+import horovod.torch as hvd
 import numpy as np
 import scipy.signal
 import torch
 import torch.nn as nn
-import horovod.torch as hvd
 
 
 def find_free_port():

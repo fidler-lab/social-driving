@@ -4,25 +4,26 @@ import warnings
 from typing import Optional
 
 import gym
+import horovod.torch as hvd
 import numpy as np
 import torch
 import wandb
 from torch import nn
-from sdriving.agents.buffer import OneStepPPOBuffer, CentralizedPPOBuffer
+from torch.optim import SGD, Adam
+
+from sdriving.agents.buffer import CentralizedPPOBuffer, OneStepPPOBuffer
 from sdriving.agents.model import (
-    PPOWaypointGaussianActor,
-    PPOWaypointCategoricalActor,
     PPOLidarActorCritic,
+    PPOWaypointCategoricalActor,
+    PPOWaypointGaussianActor,
 )
 from sdriving.agents.utils import (
     count_vars,
-    trainable_parameters,
-    hvd_scalar_statistics,
     hvd_average_grad,
+    hvd_scalar_statistics,
+    trainable_parameters,
 )
 from sdriving.logging import EpochLogger, convert_json
-from torch.optim import SGD, Adam
-import horovod.torch as hvd
 
 
 class PPO_Alternating_Optimization_Centralized_Critic:

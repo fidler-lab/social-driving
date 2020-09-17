@@ -9,8 +9,9 @@ import time
 import gym
 import numpy as np
 import torch
-from sdriving.environments import REGISTRY as ENV_REGISTRY
+
 from sdriving.agents.ppo_one_step.ppo import PPO_OneStep
+from sdriving.environments import REGISTRY as ENV_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,

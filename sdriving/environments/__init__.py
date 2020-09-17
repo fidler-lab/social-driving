@@ -3,34 +3,34 @@ import sys
 
 # Environments using a single model for end-to-end prediction
 from sdriving.environments.base_env import BaseMultiAgentDrivingEnvironment
-from sdriving.environments.intersection import (
-    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
-    MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment,
-)
 from sdriving.environments.fixed_track import (
-    MultiAgentRoadIntersectionFixedTrackEnvironment,
-    MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment,
     MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment,
+    MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment,
+    MultiAgentRoadIntersectionFixedTrackEnvironment,
 )
-from sdriving.environments.spline_env import (
-    MultiAgentOneShotSplinePredictionEnvironment,
+from sdriving.environments.highway import (
+    MultiAgentHighwayBicycleKinematicsDiscreteModel,
+    MultiAgentHighwayBicycleKinematicsModel,
+    MultiAgentHighwayPedestriansFixedTrackDiscreteModel,
+    MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel,
+    MultiAgentHighwaySplineAccelerationDiscreteModel,
+)
+from sdriving.environments.intersection import (
+    MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment,
+    MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
+)
+from sdriving.environments.nuscenes import (
+    MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment,
+    MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment,
+    MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment,
+    MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
+    MultiAgentNuscenesIntersectionDrivingEnvironment,
 )
 from sdriving.environments.spline_dual_objective_env import (
     MultiAgentIntersectionSplineAccelerationDiscreteEnvironment,
 )
-from sdriving.environments.nuscenes import (
-    MultiAgentNuscenesIntersectionDrivingEnvironment,
-    MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment,
-    MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment,
-    MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment,
-    MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment,
-)
-from sdriving.environments.highway import (
-    MultiAgentHighwayBicycleKinematicsModel,
-    MultiAgentHighwayBicycleKinematicsDiscreteModel,
-    MultiAgentHighwaySplineAccelerationDiscreteModel,
-    MultiAgentHighwayPedestriansFixedTrackDiscreteModel,
-    MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel
+from sdriving.environments.spline_env import (
+    MultiAgentOneShotSplinePredictionEnvironment,
 )
 
 REGISTRY = {}

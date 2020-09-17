@@ -5,18 +5,18 @@ from itertools import product
 
 import numpy as np
 import torch
-
 from gym.spaces import Box, Discrete, Tuple
+
 from sdriving.environments.intersection import (
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
 from sdriving.tsim import (
+    BatchedVehicle,
+    FixedTrackAccelerationModel,
+    World,
+    angle_normalize,
     generate_intersection_world_4signals,
     generate_intersection_world_12signals,
-    FixedTrackAccelerationModel,
-    angle_normalize,
-    BatchedVehicle,
-    World,
     intervehicle_collision_check,
 )
 

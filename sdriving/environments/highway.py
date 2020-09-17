@@ -5,20 +5,20 @@ from itertools import product
 
 import numpy as np
 import torch
-
 from gym.spaces import Box, Discrete, Tuple
+
 from sdriving.environments.base_env import BaseMultiAgentDrivingEnvironment
 from sdriving.tsim import (
-    generate_intersection_world_4signals,
-    BicycleKinematicsModel,
-    angle_normalize,
     BatchedVehicle,
+    BicycleKinematicsModel,
+    Pedestrians,
+    Road,
+    RoadNetwork,
     SplineModel,
     World,
+    angle_normalize,
+    generate_intersection_world_4signals,
     intervehicle_collision_check,
-    RoadNetwork,
-    Road,
-    Pedestrians
 )
 
 
@@ -306,7 +306,9 @@ class MultiAgentHighwayPedestriansFixedTrackDiscreteModel(
     def configure_action_space(self):
         self.max_accln = 3.0
         self.max_steering = 0.1
-        actions = torch.arange(-self.max_accln, self.max_accln + 0.05, 0.25).unsqueeze(1)
+        actions = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, 0.25
+        ).unsqueeze(1)
         self.action_list = torch.cat(
             [torch.zeros(actions.size(0), 1), actions], dim=-1
         )
@@ -398,7 +400,7 @@ class MultiAgentHighwayPedestriansFixedTrackDiscreteModel(
             torch.cat(_pos),
             torch.ones(len(_pos), 1) * 0.8,
             torch.ones(len(_pos), 1) * math.pi / 2,
-            torch.rand(len(_pos), 1) + 1.0
+            torch.rand(len(_pos), 1) + 1.0,
         )
         self.world.add_object(pedestrians)
 
@@ -614,6 +616,6 @@ class MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel(
             torch.cat(_pos),
             torch.ones(len(_pos), 1) * 0.8,
             torch.ones(len(_pos), 1) * math.pi / 2,
-            torch.rand(len(_pos), 1) + 1.0
+            torch.rand(len(_pos), 1) + 1.0,
         )
         self.world.add_object(pedestrians)

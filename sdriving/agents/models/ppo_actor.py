@@ -4,10 +4,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from gym.spaces import Box, Discrete
-from sdriving.agents.utils import mlp
 from torch import nn
 from torch.distributions.categorical import Categorical
 from torch.distributions.normal import Normal
+
+from sdriving.agents.utils import mlp
 
 
 def init_weights(m):

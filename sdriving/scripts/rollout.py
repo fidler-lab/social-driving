@@ -11,6 +11,7 @@ from typing import Optional, Union
 import gym
 import numpy as np
 import torch
+
 from sdriving.environments import REGISTRY as ENV_REGISTRY
 from sdriving.scripts.ckpt_parser import checkpoint_parser
 

@@ -6,9 +6,10 @@ import torch
 import torch.nn.functional as F
 from gym.spaces import Box, Discrete
 from gym.spaces import Tuple as GSTuple
+from torch import nn
+
 from sdriving.agents.models.ppo_actor import *
 from sdriving.agents.models.ppo_critic import *
-from torch import nn
 
 
 class PPOActorCritic(nn.Module):

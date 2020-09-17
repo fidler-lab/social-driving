@@ -1,11 +1,9 @@
 import gym
 import torch
-from sdriving.agents.model import (
-    PPOLidarActorCritic,
-    PPOWaypointActorCritic,
-    PPOWaypointCategoricalActor,
-    PPOWaypointGaussianActor,
-)
+
+from sdriving.agents.model import (PPOLidarActorCritic, PPOWaypointActorCritic,
+                                   PPOWaypointCategoricalActor,
+                                   PPOWaypointGaussianActor)
 
 
 def checkpoint_parser(path: str) -> tuple:

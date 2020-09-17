@@ -1,10 +1,11 @@
 from typing import List, Tuple, Union
 
-import torch
 import numpy as np
+import torch
 from nuscenes.map_expansion.map_api import NuScenesMap
+from shapely.geometry import LineString, Polygon
+
 from sdriving.tsim import transform_2d_coordinates
-from shapely.geometry import Polygon, LineString
 
 
 def get_coordinates_of_polygon(poly: Polygon) -> List[Tuple[float]]:

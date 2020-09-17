@@ -1,24 +1,24 @@
-import random
 import logging as lg
 import math
 import os
-from itertools import product
+import random
 from collections import OrderedDict, deque
 from copy import copy
+from itertools import product
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
 
+from sdriving.nuscenes.utils import lies_in_drivable_area
 from sdriving.tsim import (
     TrafficSignal,
     World,
-    check_intersection_lines,
-    remove_batch_element,
-    generate_lidar_data,
     angle_normalize,
+    check_intersection_lines,
+    generate_lidar_data,
+    remove_batch_element,
 )
-from sdriving.nuscenes.utils import lies_in_drivable_area
 
 
 class NuscenesWorld(World):

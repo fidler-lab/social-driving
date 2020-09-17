@@ -3,6 +3,7 @@ from itertools import combinations
 from typing import List, Tuple
 
 import torch
+
 from sdriving.tsim.road import Road, RoadNetwork
 from sdriving.tsim.traffic_signal import TrafficSignal
 from sdriving.tsim.utils import transform_2d_coordinates

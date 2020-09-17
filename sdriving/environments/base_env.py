@@ -2,8 +2,8 @@ from collections import OrderedDict
 from copy import copy
 from typing import Union
 
-import torch
 import numpy as np
+import torch
 
 from sdriving.tsim.world import World
 

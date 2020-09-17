@@ -1,28 +1,28 @@
+import json
+import math
+import os
+import sys
+from collections import deque
+from glob import glob
+
+import cv2
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import math
-import sys
-import os
-from pyquaternion import Quaternion
-from nuscenes.map_expansion.map_api import NuScenesMap
 import numpy as np
-from fire import Fire
-from nuscenes.map_expansion.arcline_path_utils import discretize_lane
-from collections import deque
-import json
-from sklearn.neighbors import KDTree
-from glob import glob
-import cv2
-import torch
 
 # use the master branch of nuscenes-devkit instead of pip installed version
 import nuscenes
-from nuscenes.map_expansion.map_api import NuScenesMap
+import torch
+from fire import Fire
 from nuscenes import NuScenes
+from nuscenes.map_expansion.arcline_path_utils import discretize_lane
+from nuscenes.map_expansion.map_api import NuScenesMap
+from pyquaternion import Quaternion
+from sklearn.neighbors import KDTree
 
 from sdriving.nuscenes.utils import (
-    nuscenes_map_to_line_representation,
     get_drivable_area_matrix,
+    nuscenes_map_to_line_representation,
 )
 from sdriving.tsim import angle_normalize
 

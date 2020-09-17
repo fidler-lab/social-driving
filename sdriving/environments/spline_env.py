@@ -5,16 +5,13 @@ from itertools import product
 
 import numpy as np
 import torch
-
 from gym.spaces import Box, Discrete, Tuple
+
+from sdriving.agents.model import PPOLidarActorCritic
 from sdriving.environments.intersection import (
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
-from sdriving.tsim import (
-    SplineModel,
-    get_2d_rotation_matrix,
-)
-from sdriving.agents.model import PPOLidarActorCritic
+from sdriving.tsim import SplineModel, get_2d_rotation_matrix
 
 
 class MultiAgentOneShotSplinePredictionEnvironment(
@@ -105,7 +102,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         for i in range(_distances.size(0)):
             srd = self.srd[i]
             c = srd % 2
-            distances.append(_distances[i:(i + 1), c:(c + 1)])
+            distances.append(_distances[i : (i + 1), c : (c + 1)])
         distances = torch.cat(distances)
 
         # Goal Reach Bonus

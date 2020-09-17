@@ -1,13 +1,14 @@
 from typing import List, Union
 
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
 from sdriving.tsim.utils import (
     angle_normalize,
+    get_2d_rotation_matrix,
     transform_2d_coordinates,
     transform_2d_coordinates_rotation_matrix,
-    get_2d_rotation_matrix
 )
 
 
@@ -31,14 +32,14 @@ class _Pedestrians(torch.nn.Module):
         self.dt = dt
 
         self.nbatch = self.position.size(0)
-        
+
         self.speed = velocity
         self.velocity = velocity * torch.cat(
             [
                 torch.cos(orientation),
                 torch.sin(orientation),
             ],
-            dim=-1
+            dim=-1,
         )
 
         mul_factor = (
@@ -63,7 +64,7 @@ class _Pedestrians(torch.nn.Module):
             if torch.is_tensor(t):
                 setattr(self, k, t.to(device))
         self.device = device
-    
+
     @torch.jit.export
     def _get_coordinates(self):
         self.cached_coordinates = True
@@ -91,14 +92,14 @@ class _Pedestrians(torch.nn.Module):
         pt1 = coordinates
         pt2 = torch.cat([coordinates[:, 1:, :], coordinates[:, 0:1, :]], dim=1)
         return pt1.reshape(-1, 2), pt2.reshape(-1, 2)
-    
+
     @torch.jit.export
     def step(self, tstep: int):
         t = tstep * self.dt
         dxdy = self.velocity * t
         self.position = self.position + dxdy
         self.cached_coordinates = False
-    
+
 
 def Pedestrians(*args, **kwargs):
     return torch.jit.script(_Pedestrians(*args, **kwargs))
@@ -115,8 +116,7 @@ def render_object(
         pos = obj.position[b, :].detach().cpu().numpy()
         h = obj.orientation[b, :].detach().cpu().numpy()
         dim = obj.dimensions[b, 0].item()
-        box = obj.get_coordinates()[b, :, :].detach().cpu().numpy()\
-
+        box = obj.get_coordinates()[b, :, :].detach().cpu().numpy()
         # Draw the vehicle and the heading
         ax.fill(
             box[:, 0],
