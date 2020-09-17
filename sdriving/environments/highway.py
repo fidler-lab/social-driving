@@ -525,3 +525,95 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
     def reset(self):
         self.got_spline_state = False
         return super().reset()
+
+
+class MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel(
+    MultiAgentHighwaySplineAccelerationDiscreteModel
+):
+    def generate_world_without_agents(self):
+        network = RoadNetwork()
+        length = 140.0
+        width = 25.0
+        network.add_road(
+            Road(
+                f"highway",
+                torch.zeros(1, 2),
+                length,
+                width,
+                torch.zeros(1, 1),
+                can_cross=[False] * 4,
+                has_endpoints=[True, False, True, False],
+            )
+        )
+        return (
+            World(
+                network,
+                xlims=(-length / 2 - 10, length / 2 + 10),
+                ylims=(-length / 2 - 10, length / 2 + 10),
+            ),
+            {"length": length, "width": width},
+        )
+
+    def add_vehicles_to_world(self):
+        self.max_velocity = 10.0
+
+        vehicle = None
+        dims = torch.as_tensor([[4.48, 2.2]])
+        d1 = torch.as_tensor([[-self.length * 0.45, self.width * 0.375]])
+        d2 = torch.as_tensor([[-self.length * 0.3, -self.width * 0.375]])
+        epos = torch.as_tensor([[self.length * 0.3, 0.0]])
+        orient = dorient = torch.zeros(1, 1)
+        for _ in range(self.actual_nagents):
+            successful_placement = False
+            while not successful_placement:
+                spos = torch.rand(1, 2) * (d1 - d2) + d2
+                if vehicle is None:
+                    vehicle = BatchedVehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1),
+                        name="agent",
+                    )
+                    break
+                else:
+                    successful_placement = vehicle.add_vehicle(
+                        position=spos,
+                        orientation=orient,
+                        destination=epos,
+                        dest_orientation=dorient,
+                        dimensions=dims,
+                        initial_speed=torch.zeros(1, 1),
+                    )
+
+        vehicle.add_bool_buffer(self.bool_buffer)
+
+        self.accln_rating = (torch.rand(self.nagents, 1) + 1) * 0.5
+        self.vel_rating = self.accln_rating
+
+        self.world.add_vehicle(vehicle, False)
+        self.store_dynamics(vehicle)
+        self.agents[vehicle.name] = vehicle
+
+        self.original_distances = vehicle.distance_from_destination()
+
+        _pos = []
+        # dims = torch.ones(10, 2) * 0.8
+        # orientation = torch.ones(10, 1) * math.pi / 2
+        for i in range(10):
+            if torch.rand(1) < 0.1:
+                continue
+            pos = torch.zeros(1, 2)
+            # CrossWalk is from -10.0 to 10.0
+            pos[0, 0] = (torch.rand(1) * 2.0 - 1.0) * 10.0
+            pos[0, 1] = -torch.rand(1) * self.width / 2
+            _pos.append(pos)
+        pedestrians = Pedestrians(
+            torch.cat(_pos),
+            torch.ones(len(_pos), 1) * 0.8,
+            torch.ones(len(_pos), 1) * math.pi / 2,
+            torch.rand(len(_pos), 1) + 1.0
+        )
+        self.world.add_object(pedestrians)

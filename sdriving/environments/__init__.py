@@ -29,7 +29,8 @@ from sdriving.environments.highway import (
     MultiAgentHighwayBicycleKinematicsModel,
     MultiAgentHighwayBicycleKinematicsDiscreteModel,
     MultiAgentHighwaySplineAccelerationDiscreteModel,
-    MultiAgentHighwayPedestriansFixedTrackDiscreteModel
+    MultiAgentHighwayPedestriansFixedTrackDiscreteModel,
+    MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel
 )
 
 REGISTRY = {}

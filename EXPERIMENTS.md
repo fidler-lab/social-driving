@@ -73,6 +73,10 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 
 ## Emergence of Fast Lane in a Highway
 
+```bash
+mpirun -np 20 python -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/933722 --env MultiAgentHighwaySplineAccelerationDiscreteModel --eid ckpt -se1 160 -se2 8000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed 18442 --entropy-coeff 0.001 --target-kl 0.3 -ti 20 -wid 933722 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [32, 32]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 10, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}" -wid 933722
+```
+
 ## Learning to Slow Down at Crosswalk
 
 ```bash
