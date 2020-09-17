@@ -138,7 +138,6 @@ class PPO_OneStep:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True,
             )
             wandb.watch_called = False
 

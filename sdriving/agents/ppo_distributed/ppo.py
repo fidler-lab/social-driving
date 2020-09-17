@@ -146,7 +146,6 @@ class PPO_Distributed_Centralized_Critic:
                 id=eid,
                 project="Social Driving",
                 resume=load_path is not None,
-                allow_val_change=True,
             )
             wandb.watch_called = False
 
