@@ -225,6 +225,10 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 )
             if self.record_min_distance_to_car:
                 self.record["Minimum Distance to Car"].append(distances[i].item())
+            if self.record_distance_to_crosswalk:
+                self.record["Distance to Crosswalk"].append(dcrosswalk[i].item())
+            if self.record_pedestrian_distance:
+                self.record["Distance to Nearest Pedestrian"].append(dpedestrian[i].item())
             self.timesteps[i] += 1
 
     def _new_rollout_hook(self):
