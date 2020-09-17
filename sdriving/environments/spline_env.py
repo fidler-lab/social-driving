@@ -104,7 +104,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         distances = []
         for i in range(_distances.size(0)):
             srd = self.srd[i]
-            c = (srd + 1) % 2
+            c = srd % 2
             distances.append(_distances[i:(i + 1), c:(c + 1)])
         distances = torch.cat(distances)
 
