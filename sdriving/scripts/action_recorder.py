@@ -25,6 +25,7 @@ DEFAULT_RECORD_LIST = [
     "Episode",
     "Agent ID",
     "Minimum Distance to Car",
+    "Relative Velocity",
     "Position",
 ]
 
@@ -107,7 +108,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record["Env Length"] = []
     
     def _distance_to_crosswalk(self, positions: torch.Tensor):
-        return positions[:, 0]
+        return -positions[:, 0]
 
     def _distance_to_pedestrians(
         self,
@@ -141,7 +142,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         return torch.cat(values)
 
     def _distance_to_nearest_car(
-        self, positions: torch.Tensor, theta: torch.Tensor  # N x 2  # N x 2
+        self, positions: torch.Tensor, theta: torch.Tensor, vel: torch.Tensor
     ):
         # The nearest car needs to be within a conical section in the front
         points = positions.unsqueeze(1).repeat(1, positions.size(0), 1)
@@ -163,10 +164,12 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         _, idxs = visible.min(1)
 
         values = []
+        rel_vels = []
         for i in range(positions.shape[0]):
             idx = idxs[i]
+            rel_vels.append(vel[i : (i + 1), 0] - vel[idx : (idx + 1), 0])
             values.append(visible[i : (i + 1), idx])
-        return torch.cat(values)
+        return torch.cat(values), torch.cat(rel_vels)
 
     def _action_observation_hook(
         self, action, observation, aids, *args, **kwargs
@@ -188,8 +191,8 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         if self.record_send_communication:
             comm_data = self.env.world.get_broadcast_data_all_agents()
         if self.record_min_distance_to_car:
-            distances = self._distance_to_nearest_car(
-                state[:, :2], state[:, 3:]
+            distances, rel_vels = self._distance_to_nearest_car(
+                state[:, :2], state[:, 3:], state[:, 2:3]
             )
         if self.record_distance_to_crosswalk:
             dcrosswalk = self._distance_to_crosswalk(state[:, :2])
@@ -225,6 +228,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 )
             if self.record_min_distance_to_car:
                 self.record["Minimum Distance to Car"].append(distances[i].item())
+                self.record["Relative Velocity"].append(rel_vels[i].item())
             if self.record_distance_to_crosswalk:
                 self.record["Distance to Crosswalk"].append(dcrosswalk[i].item())
             if self.record_pedestrian_distance:
