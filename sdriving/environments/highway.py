@@ -31,10 +31,10 @@ class MultiAgentHighwayBicycleKinematicsModel(
         horizon: int = 200,
         timesteps: int = 25,
         history_len: int = 5,
-        nagents: int = 12,
+        nagents: int = 1,
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
-        lateral_noise_variance: float = 0.0,
+        lateral_noise_variance: float = 0.8,
     ):
         self.npoints = npoints
         self.history_len = history_len
@@ -136,18 +136,18 @@ class MultiAgentHighwayBicycleKinematicsModel(
             return (obs, lidar), self.agent_names
 
     def vehicle_collision_check(self, vehicle):
-        if self.lateral_noise_variance == 0.0:
-            return vehicle.collision_check()
+        # if self.lateral_noise_variance == 0.0:
+        #     return vehicle.collision_check()
         # Hopefully this doesn't get messed up by some inplace operation
-        position_dup = vehicle.position.clone()
-        position_noise = (
-            torch.rand_like(position_dup[:, 1]) * self.lateral_noise_variance
-        )
-        vehicle.position[:, 1] += position_noise
-        vehicle.cached_coordinates = False
+        # position_dup = vehicle.position.clone()
+        # position_noise = (
+        #     torch.rand_like(position_dup[:, 1]) * self.lateral_noise_variance
+        # )
+        # vehicle.position[:, 1] += position_noise
+        # vehicle.cached_coordinates = False
         collision = vehicle.collision_check()
-        vehicle.position = position_dup
-        vehicle.cached_coordinates = False
+        # vehicle.position = position_dup
+        # vehicle.cached_coordinates = False
         return collision
 
     def get_reward(self, new_collisions: torch.Tensor, action: torch.Tensor):
@@ -517,6 +517,11 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
             [x.unsqueeze(1) for x in [pos, mid_point, last_pt, farthest_pt]],
             dim=1,
         )
+
+        if self.lateral_noise_variance != 0.0:
+            noise = torch.randn(action.shape[0], 2, 2) * self.lateral_noise_variance
+            noise.clamp_(-5.0, 5.0)
+            action[:, 1:3, :] += noise
 
         self.dynamics = SplineModel(
             action, v_lim=self.vel_rating[:, 0] * self.max_velocity
