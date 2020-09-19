@@ -31,7 +31,7 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 * Again increase the agent count by 4 and in order to make it a bit more challenging we will break the symmetry in the road pockets by changing `balanced_cars` to `False`.
 
 ```bash
-mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/997782 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 18443 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 997782 --resume --model-checkpoint /checkpoint/avikpal/994752/ckpt/checkpoints/ckpt_latest.pth --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 8, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": false}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/997782 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 500 --pi-lr 1e-3 --vf-lr 1e-3 --seed 18443 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011488 --resume --model-checkpoint /checkpoint/avikpal/994752/ckpt/checkpoints/ckpt_latest.pth --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 8, \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": false}"
 ```
 
 * Finally train with 12 agents. We don't train any furthur simply because the environment becomes too cluttered (when the agents reach their goals) making learning very difficult.
@@ -71,6 +71,18 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 
 ### Analysing the Effect of Increased Number of Agents while training
 
+#### Predicting only lateral deviation from a spline
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1011485/ --env MultiAgentIntersectionSplineAccelerationDiscreteEnvironment --eid ckpt -wid 1011485 -se1 1200 -se2 32000 -e 250 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed 18021 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [64, 64]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": true}"
+```
+
+#### Predicting k waypoint deviations
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1011485/ --env MultiAgentIntersectionSplineAccelerationDiscreteEnvironment --eid ckpt -wid 1011485 -se1 1200 -se2 32000 -e 250 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed 18021 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [64, 64]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": true}"
+```
+
 ## Emergence of Fast Lane in a Highway
 
 ```bash
@@ -85,10 +97,44 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 
 ## Learning Right of Way
 
+[TODO] Instructions
+
 ## Emergence of Minimum Safe Distance
 
 This experiment doesn't require training any new model. It emerges in any of the environments using ~ 8 agents. We simple evaluate using any of the trained models from [1](#emergence-of-fast-lane-in-a-highway), [2](#learning-right-of-way), or [3](#learning-to-communicate-via-turn-signals).
 
 ## Learning to Communicate via Turn Signals
 
+[TODO] Instructions
+
 ## Driving on Nuscenes
+
+### Single Intersection
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011491 --env MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 928314 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011491 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/envboston-seaport_410.13_1626.3.pth\", \"horizon\": 300, \"nagents\": 12,  \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011495 --env MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 271233 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011495 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/envboston-seaport_410.13_1626.3.pth\", \"horizon\": 300, \"nagents\": 12,  \"lidar_noise\": 0.5, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
+
+### Single Intersection with Communication
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011503 --env MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 826123 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011503 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/envboston-seaport_410.13_1626.3.pth\", \"horizon\": 300, \"nagents\": 12,  \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011499 --env MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 91242 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011499 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/envboston-seaport_410.13_1626.3.pth\", \"horizon\": 300, \"nagents\": 12,  \"lidar_noise\": 0.5, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011501 --env MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 468122 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011501 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/envboston-seaport_410.13_1626.3.pth\", \"horizon\": 300, \"nagents\": 12,  \"lidar_noise\": 0.75, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
+
+### All Intersections
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011496 --env MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 348122 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011496 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/*.pth\", \"horizon\": 300, \"nagents\": 8,  \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
+```
