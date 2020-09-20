@@ -42,8 +42,8 @@ class OneStepPPOBuffer:
         assert (
             self.ptr < self.max_size
         )  # buffer has to have room so you can store
-        self.state_buf[:, self.ptr, :] = obs
-        self.act_buf[:, self.ptr, :] = act
+        self.state_buf[:, self.ptr] = obs
+        self.act_buf[:, self.ptr] = act
         self.rew_buf[:, self.ptr] = rew
         self.logp_buf[:, self.ptr] = logp
         self.ptr = self.ptr + 1

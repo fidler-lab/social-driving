@@ -178,7 +178,6 @@ class PPOGaussianActor(PPOActor):
         return logp.view(-1)
 
 
-# Not Updated
 class PPOWaypointGaussianActor(PPOGaussianActor):
     def __init__(
         self,
