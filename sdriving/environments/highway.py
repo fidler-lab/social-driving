@@ -519,7 +519,10 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
         )
 
         if self.lateral_noise_variance != 0.0:
-            noise = torch.randn(action.shape[0], 2, 2) * self.lateral_noise_variance
+            noise = (
+                torch.randn(action.shape[0], 2, 2)
+                * self.lateral_noise_variance
+            )
             noise.clamp_(-5.0, 5.0)
             action[:, 1:3, :] += noise
 

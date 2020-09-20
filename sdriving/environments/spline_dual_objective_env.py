@@ -90,3 +90,33 @@ class MultiAgentIntersectionSplineAccelerationDiscreteEnvironment(
         )
 
         return self.get_state()
+
+
+class MultiAgentIntersectionSplineAccelerationDiscreteV2Environment(
+    MultiAgentIntersectionSplineAccelerationDiscreteEnvironment
+):
+    def configure_action_space(self):
+        self.max_accln = 1.5
+        self.action_list = torch.arange(
+            -self.max_accln, self.max_accln + 0.05, step=0.25
+        ).unsqueeze(1)
+
+        self.nwaypoints_action = 1 if self.lateral_deviation else 3
+        self.waypoint_actions_list = torch.as_tensor(
+            list(
+                product(
+                    *[[0.0, 0.33, 0.66], [math.pi / 2, 3 * math.pi / 2]]
+                    * self.nwaypoints_action
+                )
+            )
+        )
+
+    def get_action_space(self):
+        self.normalization_factor = torch.as_tensor([self.max_accln])
+        return (
+            Discrete(self.waypoint_actions_list.size(0)),
+            Discrete(self.action_list.size(0)),
+        )
+
+    def discrete_to_continuous_actions_v2(self, action: torch.Tensor):
+        return self.waypoint_actions_list[action]
