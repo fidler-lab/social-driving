@@ -57,8 +57,8 @@ class OneStepPPOBuffer:
         )
 
         return dict(
-            obs=self.state_buf[:, :ptr_copy, :],
-            act=self.act_buf[:, :ptr_copy, :],
+            obs=self.state_buf[:, :ptr_copy],
+            act=self.act_buf[:, :ptr_copy],
             rew=rew,
             logp=self.logp_buf[:, :ptr_copy],
         )
