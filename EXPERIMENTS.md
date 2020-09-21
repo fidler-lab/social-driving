@@ -70,18 +70,33 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 
 ## Bi-Level Optimization for Lane Emergence
 
-### Analysing the Effect of Increased Number of Agents while training
 
-#### Predicting only lateral deviation from a spline
+### Predicting only lateral deviation from a spline
 
 ```bash
 mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1011490/ --env MultiAgentIntersectionSplineAccelerationDiscreteEnvironment --eid ckpt -wid 1011490 -se1 1200 -se2 32000 -e 250 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed 18021 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [64, 64]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": true}"
 ```
 
-#### Predicting k waypoint deviations
+### Predicting k waypoint deviations
 
 ```bash
-mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1011485/ --env MultiAgentIntersectionSplineAccelerationDiscreteEnvironment --eid ckpt -wid 1011485 -se1 1200 -se2 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed 18021 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [64, 64]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1016216/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1016216 -se1 1200 -se2 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1016341/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1016341 -se1 1200 -se2 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.25, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1016342/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1016342 -se1 1200 -se2 32000 -e 150 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.50, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1016344/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1016344 -se1 1200 -se2 32000 -e 150 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.75, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+```
+
+```bash
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1016346/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1016346 -se1 1200 -se2 32000 -e 150 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 1.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
 ```
 
 ## Emergence of Fast Lane in a Highway

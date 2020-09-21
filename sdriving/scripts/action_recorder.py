@@ -44,6 +44,7 @@ EXTRAS = dict(
         "Traffic Signal", "Communication (Recv)", "Communication (Send)"
     ],
     MultiAgentIntersectionSplineAccelerationDiscreteEnvironment=["Traffic Signal"],
+    MultiAgentIntersectionSplineAccelerationDiscreteV2Environment=["Traffic Signal"],
     MultiAgentNuscenesIntersectionDrivingEnvironment=["Traffic Signal"],
     MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment=["Traffic Signal"],
     MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment=[
