@@ -86,7 +86,7 @@ class Logger:
     """
 
     def __init__(
-        self, output_dir=None, output_fname="progress.txt", exp_name=None
+        self, output_dir=None, output_fname="progress.tsv", exp_name=None
     ):
         """
         Initialize a Logger.
@@ -118,7 +118,7 @@ class Logger:
             else:
                 os.makedirs(self.output_dir, exist_ok=True)
             self.output_file = open(
-                osp.join(self.output_dir, output_fname), "w"
+                osp.join(self.output_dir, output_fname), "a"
             )
             atexit.register(self.output_file.close)
             print(

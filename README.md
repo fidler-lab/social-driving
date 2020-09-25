@@ -29,7 +29,7 @@ $ conda create --name sdriving python=3.7
 $ conda activate sdriving
 ```
 
-Follow the instructions given [here](https://pytorch.org/get-started/locally/) to install pytorch.
+Follow the instructions given [here](https://pytorch.org/get-started/locally/) to install pytorch. Install pytorch version `1.5.2` if you want to use JIT compilation which speeds up the code by roughly 1.5-2x.
 
 Install the [Nuscenes DevKit](https://github.com/nutonomy/nuscenes-devkit/) for access to realistic simulation environments. Use the master branch instead of the pip version. Additionally download the map expansion pack.
 
