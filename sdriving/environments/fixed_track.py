@@ -183,12 +183,10 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment(
             [
                 Box(
                     low=np.array(
-                        [0.0, -1.0, -math.pi, 0.0, 0.0, 0.0, 0.0]
-                        * self.history_len
+                        [0.0, -1.0, -math.pi, 0.0, 0.0] * self.history_len
                     ),
                     high=np.array(
-                        [1.0, 1.0, math.pi, np.inf, 1.0, 1.0, 1.0]
-                        * self.history_len
+                        [1.0, 1.0, math.pi, np.inf, 1.0] * self.history_len
                     ),
                 ),
                 Box(0.0, np.inf, shape=(self.npoints * self.history_len,)),
