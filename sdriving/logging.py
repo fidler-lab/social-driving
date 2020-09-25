@@ -117,9 +117,9 @@ class Logger:
                 )
             else:
                 os.makedirs(self.output_dir, exist_ok=True)
-            self.output_file = open(
-                osp.join(self.output_dir, output_fname), "a"
-            )
+            file_name = osp.join(self.output_dir, output_fname)
+            self.first_row = not osp.exists(file_name)
+            self.output_file = open(file_name, "a")
             atexit.register(self.output_file.close)
             print(
                 colorize(
@@ -131,7 +131,7 @@ class Logger:
         else:
             self.output_dir = None
             self.output_file = None
-        self.first_row = True
+            self.first_row = True
         self.log_headers = []
         self.log_current_row = {}
         self.exp_name = exp_name
