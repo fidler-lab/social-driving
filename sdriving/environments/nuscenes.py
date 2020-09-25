@@ -253,7 +253,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         # Keep the environment fixed for now
         self.world = random.choice(self.worlds)
         self.world.reset()
-        self.world.initialize_communication_channel(self.actual_nagents, 3)
+        self.world.initialize_communication_channel(self.actual_nagents, 1)
         self.add_vehicles_to_world()
 
         self.queue1 = deque(maxlen=self.history_len)
@@ -298,7 +298,7 @@ class MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment(
         )
         comm_values = [0.0, 1.0]
         self.action_list = torch.as_tensor(
-            list(product(accln_values, comm_values, comm_values, comm_values))
+            list(product(accln_values, comm_values))
         ).float()
 
     def get_action_space(self):

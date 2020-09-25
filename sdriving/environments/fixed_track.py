@@ -149,7 +149,7 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment(
         )
         comm_values = [0.0, 1.0]
         self.action_list = torch.as_tensor(
-            list(product(accln_values, comm_values, comm_values, comm_values))
+            list(product(accln_values, comm_values))
         ).float()
         if not self.turns:
             self.action_list = torch.cat(
@@ -175,7 +175,7 @@ class MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment(
         world, params = super().generate_world_without_agents()
         if hasattr(self, "actual_nagents"):
             # this is needed for the first call to this function
-            world.initialize_communication_channel(self.actual_nagents, 3)
+            world.initialize_communication_channel(self.actual_nagents, 1)
         return world, params
 
     def get_observation_space(self):

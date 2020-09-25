@@ -406,11 +406,19 @@ class World:
             )
 
     def _render_vehicle(self, v, ax):
-        if hasattr(self, "comm_channel") and self.comm_channel[0].size(1) == 3:
-            colors = [
-                tuple(c.detach().cpu().numpy().tolist())
-                for c in self.comm_channel[0]
-            ]
+        if hasattr(self, "comm_channel"):
+            if self.comm_channel[0].size(1) == 3:
+                colors = [
+                    tuple(c.detach().cpu().numpy().tolist())
+                    for c in self.comm_channel[0]
+                ]
+            elif self.comm_channel[0].size(1) == 1:
+                colors = [
+                    [*c.detach().cpu().numpy().tolist(), 0, 0]
+                    for c in self.comm_channel[0]
+                ]
+            else:
+                colors = ["blue"] * v.position.size(0)
         else:
             colors = ["blue"] * v.position.size(0)
         render_vehicle(v, ax, color=colors)
