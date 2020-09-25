@@ -86,7 +86,7 @@ class Logger:
     """
 
     def __init__(
-        self, output_dir=None, output_fname="progress.tsv", exp_name=None
+        self, output_dir=None, output_fname="progress.csv", exp_name=None
     ):
         """
         Initialize a Logger.
@@ -185,8 +185,8 @@ class Logger:
             print("-" * n_slashes, flush=True)
             if self.output_file is not None:
                 if self.first_row:
-                    self.output_file.write("\t".join(self.log_headers) + "\n")
-                self.output_file.write("\t".join(map(str, vals)) + "\n")
+                    self.output_file.write(",".join(self.log_headers) + "\n")
+                self.output_file.write(",".join(map(str, vals)) + "\n")
                 self.output_file.flush()
         self.log_current_row.clear()
         self.first_row = False
