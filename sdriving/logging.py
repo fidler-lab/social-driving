@@ -150,13 +150,7 @@ class Logger:
         make sure to call ``dump_tabular`` to write them out to file and
         stdout (otherwise they will not get saved anywhere).
         """
-        if self.first_row:
-            self.log_headers.append(key)
-        else:
-            assert key in self.log_headers, AssertionError(
-                f"Trying to introduce a new key {key} that you"
-                f" didn't include in the first iteration"
-            )
+        self.log_headers.append(key)
         assert key not in self.log_current_row, AssertionError(
             f"You already set {key} this iteration."
             f" Maybe you forgot to call dump_tabular()"
