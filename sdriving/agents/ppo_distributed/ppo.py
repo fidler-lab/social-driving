@@ -186,12 +186,12 @@ class PPO_Distributed_Centralized_Critic:
         self.epochs = epochs
         self.save_freq = save_freq
 
-    def compute_loss(self, data: dict, idx: int, batch_size: int):
+    def compute_loss(self, data: dict):
         device = self.device
         clip_ratio = self.clip_ratio
 
         obs, lidar, act, adv, logp_old, vest, ret, mask = [
-            data[k][(idx * batch_size):((idx + 1) * batch_size), ...]
+            data[k]
             for k in [
                 "obs",
                 "lidar",
@@ -248,14 +248,13 @@ class PPO_Distributed_Centralized_Critic:
         data = self.buf.get()  # Gets a type Buffer Return
         local_steps_per_epoch = self.local_steps_per_epoch
         train_iters = self.train_iters
-        bsize = data["obs"].size(0) // local_steps_per_epoch
 
         early_stop = False
         for i in range(train_iters):
             self.pi_optimizer.zero_grad()
             self.vf_optimizer.zero_grad()
 
-            loss, info = self.compute_loss(data, i, bsize)
+            loss, info = self.compute_loss(data)
 
             kl = hvd.allreduce(info["kl"], op=hvd.Average)
             loss.backward()
