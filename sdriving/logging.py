@@ -132,6 +132,7 @@ class Logger:
             self.output_dir = None
             self.output_file = None
             self.first_row = True
+        self.first_log = True
         self.log_headers = []
         self.log_current_row = {}
         self.exp_name = exp_name
@@ -150,7 +151,8 @@ class Logger:
         make sure to call ``dump_tabular`` to write them out to file and
         stdout (otherwise they will not get saved anywhere).
         """
-        self.log_headers.append(key)
+        if self.first_log:
+            self.log_headers.append(key)
         assert key not in self.log_current_row, AssertionError(
             f"You already set {key} this iteration."
             f" Maybe you forgot to call dump_tabular()"
@@ -184,6 +186,7 @@ class Logger:
                 self.output_file.flush()
         self.log_current_row.clear()
         self.first_row = False
+        self.first_log = False
 
 
 class EpochLogger(Logger):
