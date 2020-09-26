@@ -178,3 +178,17 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
 ```bash
 mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/1011496 --env MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment --eid ckpt -se 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 348122 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 1011496 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"map_path\": \"data/*.pth\", \"horizon\": 300, \"nagents\": 8,  \"lidar_noise\": 0.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100}"
 ```
+
+
+## Experiment ID --> Details
+
+1057307                                 bilevel_opt_000_12
+1057306                                  bilevel_opt_025_8
+1057303                                  bilevel_opt_050_8
+1057220                                  bilevel_opt_075_8
+1058429                             fixed_track_comm_4_000
+1058430                             fixed_track_comm_4_025
+1058434                             fixed_track_comm_4_050
+1058421                             fixed_track_comm_4_075
+1058432                             nuscenes_ppo_000_8_all
+1058431                             nuscenes_ppo_000_8_all

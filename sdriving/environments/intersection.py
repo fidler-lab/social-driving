@@ -33,6 +33,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         balance_cars: bool = True,
         mode: int = 1,
         lidar_noise: float = 0.0,
+        vision_range: float = 30.0,
     ):
         self.npoints = npoints
         self.history_len = history_len
@@ -47,6 +48,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
         self.lidar_noise = lidar_noise
         self.mode = mode
         self.balance_cars = balance_cars
+        self.vision_range = vision_range
 
         bool_buffer = torch.ones(self.nagents * 4, self.nagents * 4)
         for i in range(0, self.nagents * 4, 4):
@@ -247,6 +249,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                         dimensions=dims,
                         initial_speed=torch.zeros(1, 1),
                         name="agent",
+                        vision_range=self.vision_range
                     )
                     break
                 else:
