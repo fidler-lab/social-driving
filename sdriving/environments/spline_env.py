@@ -22,6 +22,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
         acceleration_agent: str,
         *args,
         lateral_deviation: bool = False,
+        vision_range: float = 50.0,
         **kwargs
     ):
         """
@@ -31,6 +32,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
                               Also, the action space is assumed to be
                               discrete.
         """
+        kwargs.update(dict(vision_range=vision_range))
         super().__init__(*args, **kwargs)
 
         self.lateral_deviation = lateral_deviation

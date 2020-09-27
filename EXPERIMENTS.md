@@ -182,13 +182,19 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
 
 ## Experiment ID --> Details
 
-1057307                                 bilevel_opt_000_12
-1057306                                  bilevel_opt_025_8
-1057303                                  bilevel_opt_050_8
-1057220                                  bilevel_opt_075_8
-1058429                             fixed_track_comm_4_000
-1058430                             fixed_track_comm_4_025
-1058434                             fixed_track_comm_4_050
-1058421                             fixed_track_comm_4_075
-1058432                             nuscenes_ppo_000_8_all
-1058431                             nuscenes_ppo_000_8_all
+             JOBID                                               NAME     USER ST       TIME  NODES          NODELIST(REASON) MIN_MEMORY CPUS
+           1058421                             fixed_track_comm_4_075  avikpal  R   20:24:24      1                    gpu092        40G   20
+           1058434                             fixed_track_comm_4_050  avikpal  R   20:23:07      1                    gpu124        40G   20
+           1058432                             nuscenes_ppo_000_8_all  avikpal  R   20:24:19      4      gpu[065,069,092,097]        40G   20
+           1057220                                  bilevel_opt_075_8  avikpal  R   20:24:23      1                    gpu084        40G   16
+           1057307                                 bilevel_opt_000_12  avikpal  R   20:24:23      1                    gpu097        40G   16
+           1058429                             fixed_track_comm_4_000  avikpal  R   20:24:23      1                    gpu098        40G   20
+           1058431                             nuscenes_ppo_000_8_all  avikpal  R   20:24:23      3          gpu[072,092,097]        40G   20
+           1059456                                  fixed_track_4_000  avikpal  R    4:58:31      1                    gpu029        43G   20
+           1059458                                  fixed_track_4_050  avikpal  R    4:58:31      1                    gpu027        43G   20
+           1059443                             nuscenes_ppo_000_8_all  avikpal  R    1:15:27      2              gpu[061,107]       100G   40
+           1058430                             fixed_track_comm_4_025  avikpal  R    1:38:40      2              gpu[082,105]        40G   20
+           1057303                                  bilevel_opt_050_8  avikpal  R    1:42:49      2              gpu[074-075]        40G   16
+           1059459                                  fixed_track_4_075  avikpal  R      57:43      3          gpu[064,093,102]        43G   20
+           1059457                                  fixed_track_4_025  avikpal  R      58:42      2              gpu[067,110]        43G   20
+           1057306                                  bilevel_opt_025_8  avikpal  R      36:17      1                    gpu111        40G   16
