@@ -32,7 +32,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
                               Also, the action space is assumed to be
                               discrete.
         """
-        kwargs.update(dict(vision_range=vision_range))
+        kwargs = kwargs.update(dict(vision_range=vision_range))
         super().__init__(*args, **kwargs)
 
         self.lateral_deviation = lateral_deviation
