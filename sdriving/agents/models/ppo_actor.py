@@ -204,7 +204,7 @@ class PPOWaypointGaussianActor(PPOGaussianActor):
         if std:
             return (
                 self.mu_layer(out),
-                torch.exp(torch.clamp(self.log_std, -2.0, 20.0)),
+                torch.exp(torch.clamp(self.log_std, -20.0, 2.0)),
             )
             return mu, std
         else:

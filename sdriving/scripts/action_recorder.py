@@ -183,7 +183,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             if not isinstance(observation, (tuple, list))
             else observation[0]
         )
-        ts = observation[:, -4 if not "Communication" in self.env_name else -7]
+        ts = observation[:, -4 if not "Communication" in self.env_name else -5]
         heading = self.env.agents["agent"].optimal_heading()
         if self.record_accln_rating:
             rating = self.env.accln_rating

@@ -182,19 +182,25 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
 
 ## Experiment ID --> Details
 
+           1061055                             fixed_track_comm_4_000  avikpal  R   11:03:40      1                    gpu116        40G   20
+
+
+
              JOBID                                               NAME     USER ST       TIME  NODES          NODELIST(REASON) MIN_MEMORY CPUS
-           1058421                             fixed_track_comm_4_075  avikpal  R   20:24:24      1                    gpu092        40G   20
-           1058434                             fixed_track_comm_4_050  avikpal  R   20:23:07      1                    gpu124        40G   20
-           1058432                             nuscenes_ppo_000_8_all  avikpal  R   20:24:19      4      gpu[065,069,092,097]        40G   20
-           1057220                                  bilevel_opt_075_8  avikpal  R   20:24:23      1                    gpu084        40G   16
-           1057307                                 bilevel_opt_000_12  avikpal  R   20:24:23      1                    gpu097        40G   16
-           1058429                             fixed_track_comm_4_000  avikpal  R   20:24:23      1                    gpu098        40G   20
-           1058431                             nuscenes_ppo_000_8_all  avikpal  R   20:24:23      3          gpu[072,092,097]        40G   20
-           1059456                                  fixed_track_4_000  avikpal  R    4:58:31      1                    gpu029        43G   20
-           1059458                                  fixed_track_4_050  avikpal  R    4:58:31      1                    gpu027        43G   20
-           1059443                             nuscenes_ppo_000_8_all  avikpal  R    1:15:27      2              gpu[061,107]       100G   40
-           1058430                             fixed_track_comm_4_025  avikpal  R    1:38:40      2              gpu[082,105]        40G   20
-           1057303                                  bilevel_opt_050_8  avikpal  R    1:42:49      2              gpu[074-075]        40G   16
-           1059459                                  fixed_track_4_075  avikpal  R      57:43      3          gpu[064,093,102]        43G   20
-           1059457                                  fixed_track_4_025  avikpal  R      58:42      2              gpu[067,110]        43G   20
-           1057306                                  bilevel_opt_025_8  avikpal  R      36:17      1                    gpu111        40G   16
+           1061058                             fixed_track_comm_4_075  avikpal  R   18:18:39      1                    gpu127        40G   20
+           1061033                                  fixed_track_4_000  avikpal  R   17:10:21      1                    gpu094        43G   20
+           1061056                             fixed_track_comm_4_025  avikpal  R   17:00:56      1                    gpu098        40G   20
+           1061035                                  fixed_track_4_050  avikpal  R   11:03:40      1                    gpu080        43G   20
+           1059443                             nuscenes_ppo_000_8_all  avikpal  R    8:42:43      2              gpu[093,109]       100G   40
+           1061034                                  fixed_track_4_025  avikpal  R    8:08:24      1                    gpu160        43G   20
+           1061059                             fixed_track_comm_4_100  avikpal  R    8:09:30      1                    gpu086        40G   20
+           1061037                                  fixed_track_4_100  avikpal  R    8:15:30      1                    gpu136        43G   20
+           1061144                             nuscenes_ppo_000_8_all  avikpal  R    7:19:46      2              gpu[087,120]       100G   40
+           1061036                                  fixed_track_4_075  avikpal  R    4:57:47      1                    gpu130        43G   20
+           1061057                             fixed_track_comm_4_050  avikpal  R    3:01:10      1                    gpu069        40G   20
+           1063520                             fixed_track_comm_8_000  avikpal  R    2:33:08      1                    gpu119        40G   20
+           1063798                                  fixed_track_4_000  avikpal  R    1:53:07      1                    gpu055        43G   20
+           1063799                                  fixed_track_4_025  avikpal  R    1:53:07      1                    gpu084        43G   20
+           1063800                                  fixed_track_4_050  avikpal  R    1:53:07      2              gpu[119-120]        43G   20
+           1063801                                  fixed_track_4_075  avikpal  R    1:53:07      2              gpu[061-062]        43G   20
+           1063802                                  fixed_track_4_100  avikpal  R    1:53:07      1                    gpu066        43G   20
