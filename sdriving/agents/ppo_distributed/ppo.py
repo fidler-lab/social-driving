@@ -380,7 +380,7 @@ class PPO_Distributed_Centralized_Critic:
             )
             (next_o, _a_ids), r, d, info = self.env.step(actions)
 
-            ep_ret += r.mean()
+            ep_ret += r.sum()
             ep_len += 1
 
             done = d.all()
@@ -417,7 +417,7 @@ class PPO_Distributed_Centralized_Critic:
 
                 if terminal:
                     self.logger.store(
-                        EpisodeReturn=ep_ret, EpisodeLength=ep_len
+                        EpisodeReturn=ep_ret / self.env.actual_nagents, EpisodeLength=ep_len
                     )
                 (o, a_ids), ep_ret, ep_len = env.reset(), 0, 0
                 prev_done = torch.zeros(

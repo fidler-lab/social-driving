@@ -377,7 +377,7 @@ class MultiAgentHighwayPedestriansFixedTrackDiscreteModel(
         vehicle.add_bool_buffer(self.bool_buffer)
 
         self.accln_rating = (torch.rand(self.nagents, 1) + 1) * 0.5
-        self.vel_rating = self.accln_rating
+        self.vel_rating = torch.ones_like(self.accln_rating)
 
         self.world.add_vehicle(vehicle, False)
         self.store_dynamics(vehicle)

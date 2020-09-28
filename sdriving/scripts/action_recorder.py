@@ -63,7 +63,7 @@ EXTRAS = dict(
         "Distance to Crosswalk", "Distance to Nearest Pedestrian"
     ],
     MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel=[
-        "Distance to Crosswalk", "Distance to Nearest Pedestrian"
+        "Distance to Crosswalk", "Distance to Nearest Pedestrian", "Acceleration Rating"
     ],
 )
 
@@ -104,9 +104,12 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         self.record = {r: [] for r in self.record_items}
         self.episode_number = 0
 
-        if self.record_global_position:
+        if self.record_global_position and hasattr(self.env, "width"):
             self.record["Env Width"] = []
             self.record["Env Length"] = []
+            self.record_dims = True
+        else:
+            self.record_dims = False
     
     def _distance_to_crosswalk(self, positions: torch.Tensor):
         return -positions[:, 0]
@@ -217,8 +220,9 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                 self.record["Position"].append(
                     state[i, :2].cpu().numpy().tolist()
                 )
-                self.record["Env Width"].append(self.env.width)
-                self.record["Env Length"].append(self.env.length)
+                if self.record_dims:
+                    self.record["Env Width"].append(self.env.width)
+                    self.record["Env Length"].append(self.env.length)
             if self.record_accln_rating:
                 self.record["Acceleration Rating"].append(rating[i, 0].item())
             if self.record_send_communication:

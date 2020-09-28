@@ -19,7 +19,7 @@ from sdriving.tsim.utils import (
 def generate_bool_buffer(n: int, device: torch.device):
     bool_buffer = torch.ones(n * 4, n * 4, dtype=torch.bool, device=device)
     for i in range(0, n * 4, 4):
-        bool_buffer[i : (i + 4), i : (i + 4)] = False
+        bool_buffer[i : (i + 4), i : (i + 4)] = 0
     return bool_buffer
 
 

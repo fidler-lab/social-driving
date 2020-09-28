@@ -69,16 +69,18 @@ class RolloutSimulator:
         self, nepisodes: int, verbose: bool = False, render: bool = True
     ):
         total_ret = 0
+        total_crash = 0
         for ep in range(nepisodes):
 
             if self.two_stage_rollout:
                 ep_ret, ep_len = self._two_stage_rollout(verbose, render)
             else:
-                ep_ret, ep_len = self._one_stage_rollout(verbose, render)
+                ep_ret, ep_len, crashed = self._one_stage_rollout(verbose, render)
 
+            total_crash += crashed
             total_ret += ep_ret
 
-            print(f"Episode: {ep} | Length: {ep_len} | Return: {ep_ret}")
+            print(f"Episode: {ep} | Length: {ep_len} | Return: {ep_ret:0.2f} | Crashed: {crashed.item()}")
 
             if render:
                 path = self.save_dir / f"{self.env_name}_{ep}.mp4"
@@ -87,7 +89,7 @@ class RolloutSimulator:
 
         print(
             f"Mean Return over {nepisodes} episodes:"
-            f" {total_ret / nepisodes}"
+            f" {total_ret / nepisodes} | Total Crashes: {total_crash}"
         )
 
         self._post_completion_hook()
@@ -149,8 +151,9 @@ class RolloutSimulator:
             if verbose:
                 print(f"Reward: {r.mean()}")
 
+        crashed = (ep_ret < 0).sum()
         ep_ret = ep_ret.mean()
-        return ep_ret, ep_len
+        return ep_ret, ep_len, crashed
 
     @torch.no_grad()
     def _action_two_stage_rollout(self, stage: int, obs):
