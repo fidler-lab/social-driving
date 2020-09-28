@@ -17,6 +17,43 @@ from sdriving.agents.utils import (
     hvd_scalar_statistics_with_min_max,
 )
 
+import pandas as pd
+import math
+import seaborn as sns
+import matplotlib.pyplot as plt
+from fire import Fire
+
+
+def plot_experiment_logs(fname: str, paths, tags=None):
+    if tags is None:
+        tags = paths
+    dfs = [pd.read_csv(path) for path in paths]
+    for tag, df in zip(tags, dfs):
+        for col in df.columns:
+            df[col] = [float(x[7:-1]) for x in df[col]]
+        df["Tag"] = [tag] * df.shape[0]
+        df["Epoch"] = list(range(df.shape[0]))
+    df = pd.concat(dfs)
+
+    ncol = 3
+    nrow = math.ceil((len(df.columns) - 1) / ncol)
+    fig, axs = plt.subplots(nrow, ncol, figsize=(20, 15))
+    i = 0
+    for col in df.columns:
+        if col == "Epoch" or col == "Tag":
+            continue
+        sns.lineplot(
+            x="Epoch",
+            y=col,
+            data=df,
+            ax=axs[i // ncol][i % ncol],
+            hue="Tag",
+        )
+        i += 1
+
+    plt.tight_layout()
+    plt.savefig(fname)
+
 
 def convert_json(obj):
     """ Convert obj to a version which can be serialized with JSON. """
@@ -277,3 +314,9 @@ class EpochLogger(Logger):
                 super().log_tabular("Max" + key, stats[3])
                 super().log_tabular("Min" + key, stats[2])
         self.epoch_dict[key] = []
+
+
+if __name__ == "__main__":
+    Fire({
+        "plot_experiment_logs": plot_experiment_logs
+    })
