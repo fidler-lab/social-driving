@@ -305,6 +305,7 @@ class PPO_Distributed_Centralized_Critic:
             "model": "centralized_critic",
         }
         ckpt.update(ckpt_extra)
+        torch.save(ckpt, os.path.join(self.ckpt_dir, f"epoch_{epoch}_{time.time()}.pth"))
         torch.save(ckpt, self.softlink)
         wandb.save(self.softlink)
 
