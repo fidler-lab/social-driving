@@ -88,8 +88,8 @@ class NuscenesWorld(World):
                 list(product([k], list(v.keys()), range(5)))
             )
             sampling_paths.extend(list(product([k], list(v.keys()))))
-        self.sampling_paths = sampling_paths
-        self.sampling_indices = sampling_indices
+        self.sampling_paths = [list(p) for p in sampling_paths]
+        self.sampling_indices = [list(p) for p in sampling_indices]
 
         self.sampling_paths_list = copy(self.sampling_paths)
         self.sampling_indices_list = copy(self.sampling_indices)
