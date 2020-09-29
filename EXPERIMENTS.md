@@ -183,13 +183,13 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
 ## Experiment ID --> Details
 
            1061055                             fixed_track_comm_4_000  avikpal  R   11:03:40      1                    gpu116        40G   20
+           1061056                             fixed_track_comm_4_025  avikpal  R   17:00:56      1                    gpu098        40G   20
 
 
 
              JOBID                                               NAME     USER ST       TIME  NODES          NODELIST(REASON) MIN_MEMORY CPUS
            1061058                             fixed_track_comm_4_075  avikpal  R   18:18:39      1                    gpu127        40G   20
            1061033                                  fixed_track_4_000  avikpal  R   17:10:21      1                    gpu094        43G   20
-           1061056                             fixed_track_comm_4_025  avikpal  R   17:00:56      1                    gpu098        40G   20
            1061035                                  fixed_track_4_050  avikpal  R   11:03:40      1                    gpu080        43G   20
            1059443                             nuscenes_ppo_000_8_all  avikpal  R    8:42:43      2              gpu[093,109]       100G   40
            1061034                                  fixed_track_4_025  avikpal  R    8:08:24      1                    gpu160        43G   20

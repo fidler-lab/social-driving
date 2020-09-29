@@ -82,12 +82,16 @@ class NuscenesWorld(World):
         # (spos, epos, orient, eorient, cps)
         self.splines = data["splines"]
         sampling_indices = []
+        sampling_paths = []
         for k, v in self.splines.items():
             sampling_indices.extend(
                 list(product([k], list(v.keys()), range(5)))
             )
+            sampling_paths.extend(list(product([k], list(v.keys()))))
+        self.sampling_paths = sampling_paths
         self.sampling_indices = sampling_indices
 
+        self.sampling_paths_list = copy(self.sampling_paths)
         self.sampling_indices_list = copy(self.sampling_indices)
 
         val = [
@@ -108,13 +112,20 @@ class NuscenesWorld(World):
 
     def reset(self):
         self.sampling_indices_list = copy(self.sampling_indices)
+        self.sampling_paths_list = copy(self.sampling_paths)
         super().reset()
 
-    def sample_new_vehicle_position(self):
-        # Returns a tuple containing (spos, epos, orient, eorient, cps)
-        idx = self.sampling_indices_list.pop(
-            random.randrange(len(self.sampling_indices_list))
-        )
+    def sample_new_vehicle_position(self, unique_path: bool = False):
+        # Returns a tuple containing (idx, (spos, epos, orient, eorient, cps))
+        if unique_path:
+            idx = self.sampling_paths_list.pop(
+                random.randrange(len(self.sampling_paths_list))
+            )
+            idx.append(random.randint(0, 4))
+        else:
+            idx = self.sampling_indices_list.pop(
+                random.randrange(len(self.sampling_indices_list))
+            )
         return idx, self.splines[idx[0]][idx[1]][idx[2]]
 
     # Scatter plots are super slow to save
