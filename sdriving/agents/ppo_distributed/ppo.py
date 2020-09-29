@@ -301,6 +301,7 @@ class PPO_Distributed_Centralized_Critic:
             "pi_optimizer": self.pi_optimizer.state_dict(),
             "vf_optimizer": self.vf_optimizer.state_dict(),
             "ac_kwargs": self.ac_params,
+            "entropy_coeff": self.entropy_coeff,
             "model": "centralized_critic",
         }
         ckpt.update(ckpt_extra)
@@ -314,6 +315,8 @@ class PPO_Distributed_Centralized_Critic:
             trainable_parameters(self.ac.pi), lr=self.pi_lr, eps=1e-8
         )
         self.pi_optimizer.load_state_dict(ckpt["pi_optimizer"])
+        if "entropy_coeff" in ckpt:
+            self.entropy_coeff = ckpt["entropy_coeff"]
         if ckpt["nagents"] == self.nagents:
             self.ac.v.load_state_dict(ckpt["critic"])
             self.vf_optimizer = Adam(
