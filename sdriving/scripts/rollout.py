@@ -73,7 +73,7 @@ class RolloutSimulator:
         for ep in range(nepisodes):
 
             if self.two_stage_rollout:
-                ep_ret, ep_len = self._two_stage_rollout(verbose, render)
+                ep_ret, ep_len, crashed = self._two_stage_rollout(verbose, render)
             else:
                 ep_ret, ep_len, crashed = self._one_stage_rollout(verbose, render)
 
@@ -209,9 +209,10 @@ class RolloutSimulator:
 
             if verbose:
                 print(f"Reward: {r.mean()}")
-
+        
+        crashed = (ep_ret < 0).sum()
         ep_ret = ep_ret.mean()
-        return ep_ret, ep_len
+        return ep_ret, ep_len, crashed
 
 
 if __name__ == "__main__":
