@@ -235,7 +235,7 @@ class MultiAgentHighwayBicycleKinematicsModel(
         self.vel_rating = self.accln_rating
 
         # Just for coloring the vehicles
-        self.world.initialize_communication_channel(1)
+        self.world.initialize_communication_channel(self.actual_nagents, 1)
         self.world.broadcast_data(self.accln_rating, vehicle.position)
 
         self.world.add_vehicle(vehicle, False)
@@ -384,7 +384,7 @@ class MultiAgentHighwayPedestriansFixedTrackDiscreteModel(
         self.vel_rating = torch.ones_like(self.accln_rating)
 
         # Just for coloring the vehicles
-        self.world.initialize_communication_channel(1)
+        self.world.initialize_communication_channel(self.actual_nagents, 1)
         self.world.broadcast_data(self.accln_rating, vehicle.position)
 
         self.world.add_vehicle(vehicle, False)
@@ -612,7 +612,7 @@ class MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel(
         self.vel_rating = self.accln_rating
 
         # Just for coloring the vehicles
-        self.world.initialize_communication_channel(1)
+        self.world.initialize_communication_channel(self.actual_nagents, 1)
         self.world.broadcast_data(self.accln_rating, vehicle.position)
 
         self.world.add_vehicle(vehicle, False)
