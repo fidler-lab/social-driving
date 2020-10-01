@@ -51,25 +51,25 @@ mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avi
 * Training an agent with 25% perception noise.
 
 ```bash
-mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986404 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 17927 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 986404 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.25, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986404 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 17927 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 986404 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.25, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
 ```
   
 * Training an agent with 50% perception noise.
 
 ```bash
-mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986405 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 11407 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 986405 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.50, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986405 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 11407 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 986405 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.50, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
 ```
   
 * Training an agent with 75% perception noise.
 
 ```bash
-mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986406 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 31085 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 986406 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.75, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986406 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 75 --pi-lr 1e-3 --vf-lr 1e-3 --seed 31085 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 986406 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 0.75, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
 ```
   
 * Training an agent with 100% perception noise (aka. a blind agent receiving no lidar feedback).
 
 ```bash
-mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986409 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 50 --pi-lr 1e-3 --vf-lr 1e-3 --seed 15657 --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 -wid 986409 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 1.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
+mpirun -np 20 python -m sdriving.agents.ppo_distributed.train -s /checkpoint/avikpal/986409 --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 32000 -e 50 --pi-lr 1e-3 --vf-lr 1e-3 --seed 15657 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 986409 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"lidar_noise\": 1.0, \"history_len\": 5, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"learn_right_of_way\": false, \"default_color\": true, \"balance_cars\": true}"
 ```
 
 ## Bi-Level Optimization for Lane Emergence
@@ -88,7 +88,7 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoin
 ```
 
 ```bash
-mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1047643/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1047643 -se1 1200 -se2 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --resume --model-checkpoint /checkpoint/avikpal/1036652/ckpt/checkpoints/ckpt_latest.pth --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 4, \"mode\": 2, \"lidar_noise\": 0.25, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
+mpirun -np 20 python -W ignore -m sdriving.agents.ppo_altopt.train -s /checkpoint/avikpal/1047643/ --env MultiAgentIntersectionSplineAccelerationDiscreteV2Environment --eid ckpt -wid 1047643 -se1 1200 -se2 32000 -e 1000 --pi-lr 1e-3 --vf-lr 1e-3 --spline-lr 1e-3 --seed $RANDOM --resume --model-checkpoint /checkpoint/avikpal/1036652/ckpt/checkpoints/ckpt_latest.pth --entropy-coeff 0.0001 --target-kl 0.2 -ti 20 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --actor-kwargs "{\"hidden_sizes\": [256, 256]}" --env-kwargs "{\"horizon\": 250, \"nagents\": 8, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true,  \"timesteps\": 10, \"npoints\": 360, \"lateral_deviation\": false}"
 ```
 
 ```bash
@@ -184,23 +184,21 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
 
            1061055                             fixed_track_comm_4_000  avikpal  R   11:03:40      1                    gpu116        40G   20
            1061056                             fixed_track_comm_4_025  avikpal  R   17:00:56      1                    gpu098        40G   20
-
-
+           1061057                             fixed_track_comm_4_050  avikpal  R    3:01:10      1                    gpu069        40G   20
+           1061058                             fixed_track_comm_4_075  avikpal  R   18:18:39      1                    gpu127        40G   20
+           1086962                                  fixed_track_4_000  avikpal  R    1:53:07      1                    gpu055        43G   20   0.4256 00.8
+           1086963                                  fixed_track_4_025  avikpal  R    1:53:07      1                    gpu084        43G   20   0.4115 00.8
+           1086964                                  fixed_track_4_050  avikpal  R    1:53:07      2              gpu[119-120]        43G   20   0.4020 00.8
+           1086965                                  fixed_track_4_075  avikpal  R    1:53:07      2              gpu[061-062]        43G   20   0.3939 02.4
+           1086970                                  fixed_track_4_100  avikpal  R    1:53:07      2              gpu[061-062]        43G   20   0.1621 15.5
+           1058432                              nuscenes_intersection
+           1063520                             fixed_track_comm_8_000  avikpal  R    2:33:08      1                    gpu119        40G   20   0.4458 00.4
+           1075577                             fixed_track_comm_8_025  avikpal  R    2:33:08      1                    gpu119        40G   20   0.4353 00.9
+           1084864                             fixed_track_comm_8_050
+           1084865                             fixed_track_comm_8_075
 
              JOBID                                               NAME     USER ST       TIME  NODES          NODELIST(REASON) MIN_MEMORY CPUS
-           1061058                             fixed_track_comm_4_075  avikpal  R   18:18:39      1                    gpu127        40G   20
-           1061033                                  fixed_track_4_000  avikpal  R   17:10:21      1                    gpu094        43G   20
-           1061035                                  fixed_track_4_050  avikpal  R   11:03:40      1                    gpu080        43G   20
            1059443                             nuscenes_ppo_000_8_all  avikpal  R    8:42:43      2              gpu[093,109]       100G   40
-           1061034                                  fixed_track_4_025  avikpal  R    8:08:24      1                    gpu160        43G   20
            1061059                             fixed_track_comm_4_100  avikpal  R    8:09:30      1                    gpu086        40G   20
-           1061037                                  fixed_track_4_100  avikpal  R    8:15:30      1                    gpu136        43G   20
            1061144                             nuscenes_ppo_000_8_all  avikpal  R    7:19:46      2              gpu[087,120]       100G   40
-           1061036                                  fixed_track_4_075  avikpal  R    4:57:47      1                    gpu130        43G   20
-           1061057                             fixed_track_comm_4_050  avikpal  R    3:01:10      1                    gpu069        40G   20
-           1063520                             fixed_track_comm_8_000  avikpal  R    2:33:08      1                    gpu119        40G   20
-           1063798                                  fixed_track_4_000  avikpal  R    1:53:07      1                    gpu055        43G   20
-           1063799                                  fixed_track_4_025  avikpal  R    1:53:07      1                    gpu084        43G   20
-           1063800                                  fixed_track_4_050  avikpal  R    1:53:07      2              gpu[119-120]        43G   20
-           1063801                                  fixed_track_4_075  avikpal  R    1:53:07      2              gpu[061-062]        43G   20
            1063802                                  fixed_track_4_100  avikpal  R    1:53:07      1                    gpu066        43G   20
