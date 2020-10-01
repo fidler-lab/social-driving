@@ -577,38 +577,34 @@ class MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel(
         )
 
     def add_vehicles_to_world(self):
-        self.max_velocity = 10.0
+        dims = torch.as_tensor([[4.48, 2.2]]).repeat(self.nagents, 1)
 
-        vehicle = None
-        dims = torch.as_tensor([[4.48, 2.2]])
-        d1 = torch.as_tensor([[-self.length * 0.45, self.width * 0.375]])
-        d2 = torch.as_tensor([[-self.length * 0.3, -self.width * 0.375]])
-        epos = torch.as_tensor([[self.length * 0.3, 0.0]])
-        orient = dorient = torch.zeros(1, 1)
-        for _ in range(self.actual_nagents):
-            successful_placement = False
-            while not successful_placement:
-                spos = torch.rand(1, 2) * (d1 - d2) + d2
-                if vehicle is None:
-                    vehicle = BatchedVehicle(
-                        position=spos,
-                        orientation=orient,
-                        destination=epos,
-                        dest_orientation=dorient,
-                        dimensions=dims,
-                        initial_speed=torch.zeros(1, 1),
-                        name="agent",
-                    )
-                    break
-                else:
-                    successful_placement = vehicle.add_vehicle(
-                        position=spos,
-                        orientation=orient,
-                        destination=epos,
-                        dest_orientation=dorient,
-                        dimensions=dims,
-                        initial_speed=torch.zeros(1, 1),
-                    )
+        self.max_accln = 3.0
+        self.max_velocity = 16.0
+
+        diffs = torch.cumsum(
+            torch.as_tensor([0.0] + [10.0] * (self.nagents - 1)).unsqueeze(1),
+            dim=0,
+        )
+        diffs = torch.cat([diffs, torch.zeros(self.nagents, 1)], dim=-1)
+        spos = torch.as_tensor([[-self.length / 2 + 30.0, 0.0]]) + diffs
+
+        epos = torch.as_tensor([[self.length / 2 - 50.0, 0.0]]).repeat(
+            self.nagents, 1
+        )
+
+        orient = torch.zeros(self.nagents, 1)
+        dorient = torch.zeros(self.nagents, 1)
+
+        vehicle = BatchedVehicle(
+            position=spos,
+            orientation=orient,
+            destination=epos,
+            dest_orientation=dorient,
+            dimensions=dims,
+            initial_speed=torch.zeros(self.nagents, 1),
+            name="agent",
+        )
 
         vehicle.add_bool_buffer(self.bool_buffer)
 
