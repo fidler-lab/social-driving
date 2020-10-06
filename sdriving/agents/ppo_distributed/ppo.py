@@ -252,7 +252,9 @@ class PPO_Distributed_Centralized_Critic:
         sampler = torch.utils.data.BatchSampler(
             torch.utils.data.SubsetRandomSampler(
                 torch.arange(0, data["obs"].size(1))
-            )
+            ),
+            batch_size=batch_size,
+            drop_last=False,
         )
 
         early_stop = False
