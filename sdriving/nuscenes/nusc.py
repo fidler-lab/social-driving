@@ -503,7 +503,7 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
         pt1, pt2 = nuscenes_map_to_line_representation(nusc_map, patch, False)
         dataset["edges"] = (pt1, pt2)
 
-        drivable_area, xs, ys = get_drivable_area_matrix(data, patch, res=150)
+        drivable_area, xs, ys = get_drivable_area_matrix(data, patch, res=500)
         dataset["plotting_utils"] = (
             drivable_area.numpy().flatten(),
             xs.numpy().flatten(),
@@ -693,11 +693,14 @@ def viz_env(glob_path="./*.json"):
             )
         )
         ax.set_aspect("equal")
+        ax.grid(False)
+        ax.set_xticklabels([])
+        ax.set_yticklabels([])
         plt.tight_layout()
 
         outname = f"env{data['map_name']}_{data['center'][0]}_{data['center'][1]}.jpg"
         print("saving", outname)
-        plt.savefig(outname)
+        plt.savefig(outname, bbox_inches="tight")
         plt.close(fig)
 
 

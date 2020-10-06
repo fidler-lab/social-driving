@@ -202,3 +202,20 @@ mpirun -np 20 python -W ignore -m sdriving.agents.ppo_distributed.train -s /chec
            1061059                             fixed_track_comm_4_100  avikpal  R    8:09:30      1                    gpu086        40G   20
            1061144                             nuscenes_ppo_000_8_all  avikpal  R    7:19:46      2              gpu[087,120]       100G   40
            1063802                                  fixed_track_4_100  avikpal  R    1:53:07      1                    gpu066        43G   20
+
+
+879
+265
+181
+257
+176
+102
+123
+107
+
+l -> 17
+
+
+
+
+1128

@@ -13,9 +13,6 @@ Design multi-agent environments and simple reward functions such that social dri
     - [Generating Rollouts](#generating-rollouts)
   - [Environments Module](#environments-module)
     - [Available Environments](#available-environments)
-    - [Environment Configuration](#environment-configuration)
-    - [Writing New Environments](#writing-new-environments)
-  - [TSIM (Traffic Simulator) Module](#tsim-traffic-simulator-module)
   - [Nuscenes](#nuscenes)
     - [Interactive Map Generation](#interactive-map-generation)
   - [Additional Suggestions for Debugging and Performance](#additional-suggestions-for-debugging-and-performance)
@@ -54,9 +51,9 @@ Three variants of PPO are currently implemented:
 
 | Method                             | Python Module   | Information                                       | Action Space                     | Observation Space | Compatible Environments |
 |------------------------------------|-----------------|---------------------------------------------------|----------------------------------|-------------------|-------------------------|
-| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1 - 3, 7 - 13           |
-| PPO OneStep                        | ppo_one_step    | Optimized Implementation for Single Step RL       | Box / Discrete                   | Box               | 5                       |
-| PPO Alternating Optimization       | ppo_altopt      | PPO with Bi-Level Optimization                    | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 6, 14                   |
+| PPO Distributed Centralized Critic | ppo_distributed | Centralized Training with Decentralized Execution | Box / Discrete                   | Tuple             | 1.1 - 1.7, 2.1 - 2.6           |
+| PPO OneStep                        | ppo_one_step    | Optimized Implementation for Single Step RL       | Box / Discrete                   | Box               | 3.1                       |
+| PPO Alternating Optimization       | ppo_altopt      | PPO with Bi-Level Optimization                    | (Box / Discrete, Box / Discrete) | (Box, Tuple)      | 3.2 - 3.5                   |
 
 
 To get the configurable parameters for the trainers use the following command:
@@ -71,7 +68,7 @@ Example usage:
 $ mpirun --np 16 python -m sdriving.agents.ppo_distributed.train.py -s /checkpoint/ --env MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment --eid ckpt -se 16000 -e 10000 --pi-lr 1e-3 --vf-lr 1e-3 --seed 4567 --entropy-coeff 0.01 --target-kl 0.2 -ti 20 -wid 908515 --ac-kwargs "{\"hidden_sizes\": [256, 256], \"history_len\": 5, \"permutation_invariant\": true}" --env-kwargs "{\"horizon\": 250, \"nagents\": 12, \"mode\": 2, \"lidar_noise\": 0.0, \"history_len\": 5, \"balance_cars\": true, \"timesteps\": 10, \"npoints\": 100, \"turns\": false, \"default_color\": true, \"balance_cars\": false}"
 ```
 
-**NOTE**: Even though it might be possible to run the training scripts without `mpirun` / `horovodrun`, I haven't tested them exhaustively. So just use `mpirun --np 1` if you need a single task.
+**NOTE**: Even though it might be possible to run the training scripts without `mpirun` / `horovodrun`, I haven't tested them exhaustively. So just use `horovodrun --np 1` if you need a single task.
 
 ### Trainer Description
 
@@ -99,32 +96,29 @@ To test proper functioning of an environment a good check is to generate a rollo
 
 ### Available Environments
 
-1. `MultiAgentRoadIntersectionBicycleKinematicsEnvironment`
-2. `MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment`
-3. `MultiAgentRoadIntersectionFixedTrackEnvironment`
-4. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
-5. `MultiAgentOneShotSplinePredicitonEnvironment`
-6. `MultiAgentIntersectionSplineAccelerationDiscreteEnvironment`
-7. `MultiAgentNuscenesIntersectionDrivingEnvironment`
-8. `MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment`
-9. `MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment`
-10. `MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment`
-11. `MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment`
-12. `MultiAgentHighwayBicycleKinematicsModel`
-13. `MultiAgentHighwayBicycleKinematicsDiscreteModel`
-14. `MultiAgentHighwaySplineAccelerationDiscreteModel`
+1. Fixed Track Model
+   1. `MultiAgentRoadIntersectionFixedTrackEnvironment`
+   2. `MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment`
+   3. `MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment`
+   4. `MultiAgentNuscenesIntersectionDrivingEnvironment`
+   5. `MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment`
+   6. `MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment`
+   7. `MultiAgentHighwayPedestriansFixedTrackDiscreteModel`
 
-### Environment Configuration
+2. Bicycle Kinematic Model
+   1. `MultiAgentRoadIntersectionBicycleKinematicsEnvironment`
+   2. `MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment`
+   3. `MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment`
+   4. `MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment`
+   5. `MultiAgentHighwayBicycleKinematicsModel`
+   6. `MultiAgentHighwayBicycleKinematicsDiscreteModel`
 
-[TODO]
-
-### Writing New Environments
-
-[TODO]
-
-## TSIM (Traffic Simulator) Module
-
-[TODO]
+3. Spline Model
+   1. `MultiAgentOneShotSplinePredicitonEnvironment`
+   2. `MultiAgentIntersectionSplineAccelerationDiscreteEnvironment`
+   3. `MultiAgentIntersectionSplineAccelerationDiscreteV2Environment`
+   4. `MultiAgentHighwaySplineAccelerationDiscreteModel`
+   5. `MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel`
 
 ## Nuscenes
 
@@ -149,8 +143,6 @@ We provide a GUI application to convert a patch of the nuscenes map into a driva
 ```
 $ python -m sdriving.nuscenes.nusc env_create --map-folder </path/to/nuscenes/maps>
 ```
-
-[TODO]: Instructions to use the application
 
 ## Additional Suggestions for Debugging and Performance
 
