@@ -133,7 +133,6 @@ dmypy.json
 
 # Project Specific
 deps/
-scripts/
 rollouts/
 results/
 wandb/

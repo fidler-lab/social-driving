@@ -37,7 +37,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         nagents: int = 4,
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
-        sample_one_per_path: bool = False
+        sample_one_per_path: bool = False,
     ):
         self.npoints = npoints
         self.history_len = history_len
@@ -210,7 +210,9 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
                 (
                     idx,
                     (spos, epos, orient, dorient, cps),
-                ) = self.world.sample_new_vehicle_position(self.sample_one_per_path)
+                ) = self.world.sample_new_vehicle_position(
+                    self.sample_one_per_path
+                )
                 if vehicle is None:
                     vehicle = BatchedVehicle(
                         position=spos,
