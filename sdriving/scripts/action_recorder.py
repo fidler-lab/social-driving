@@ -33,37 +33,54 @@ ENV2RECORD = dict()
 
 EXTRAS = dict(
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment=[
-        "Traffic Signal", "Steering Angle"
+        "Traffic Signal",
+        "Steering Angle",
     ],
     MultiAgentRoadIntersectionBicycleKinematicsDiscreteEnvironment=[
-        "Traffic Signal", "Steering Angle"
+        "Traffic Signal",
+        "Steering Angle",
     ],
     MultiAgentRoadIntersectionFixedTrackEnvironment=["Traffic Signal"],
     MultiAgentRoadIntersectionFixedTrackDiscreteEnvironment=["Traffic Signal"],
     MultiAgentRoadIntersectionFixedTrackDiscreteCommunicationEnvironment=[
-        "Traffic Signal", "Communication (Recv)", "Communication (Send)"
+        "Traffic Signal",
+        "Communication (Recv)",
+        "Communication (Send)",
     ],
-    MultiAgentIntersectionSplineAccelerationDiscreteEnvironment=["Traffic Signal"],
-    MultiAgentIntersectionSplineAccelerationDiscreteV2Environment=["Traffic Signal"],
+    MultiAgentIntersectionSplineAccelerationDiscreteEnvironment=[
+        "Traffic Signal"
+    ],
+    MultiAgentIntersectionSplineAccelerationDiscreteV2Environment=[
+        "Traffic Signal"
+    ],
     MultiAgentNuscenesIntersectionDrivingEnvironment=["Traffic Signal"],
-    MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment=["Traffic Signal"],
+    MultiAgentNuscenesIntersectionDrivingDiscreteEnvironment=[
+        "Traffic Signal"
+    ],
     MultiAgentNuscenesIntersectionDrivingCommunicationDiscreteEnvironment=[
-        "Traffic Signal", "Communication (Recv)", "Communication (Send)"
+        "Traffic Signal",
+        "Communication (Recv)",
+        "Communication (Send)",
     ],
     MultiAgentNuscenesIntersectionBicycleKinematicsEnvironment=[
-        "Traffic Signal", "Steering Angle"
+        "Traffic Signal",
+        "Steering Angle",
     ],
     MultiAgentNuscenesIntersectionBicycleKinematicsDiscreteEnvironment=[
-        "Traffic Signal", "Steering Angle"
+        "Traffic Signal",
+        "Steering Angle",
     ],
     MultiAgentHighwayBicycleKinematicsModel=["Acceleration Rating"],
     MultiAgentHighwayBicycleKinematicsDiscreteModel=["Acceleration Rating"],
     MultiAgentHighwaySplineAccelerationDiscreteModel=["Acceleration Rating"],
     MultiAgentHighwayPedestriansFixedTrackDiscreteModel=[
-        "Distance to Crosswalk", "Distance to Nearest Pedestrian"
+        "Distance to Crosswalk",
+        "Distance to Nearest Pedestrian",
     ],
     MultiAgentHighwayPedestriansSplineAccelerationDiscreteModel=[
-        "Distance to Crosswalk", "Distance to Nearest Pedestrian", "Acceleration Rating"
+        "Distance to Crosswalk",
+        "Distance to Nearest Pedestrian",
+        "Acceleration Rating",
     ],
 )
 
@@ -110,24 +127,24 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             self.record_dims = True
         else:
             self.record_dims = False
-    
+
     def _distance_to_crosswalk(self, positions: torch.Tensor):
         return -positions[:, 0]
 
     def _distance_to_pedestrians(
         self,
-        positions: torch.Tensor,   # N x 2
-        theta: torch.Tensor,       # N x 1
-        pedestrians: torch.Tensor  # P x 2
+        positions: torch.Tensor,  # N x 2
+        theta: torch.Tensor,  # N x 1
+        pedestrians: torch.Tensor,  # P x 2
     ):
-        positions = positions.unsqueeze(1)      # N x 1 x 2
+        positions = positions.unsqueeze(1)  # N x 1 x 2
         pedestrians = pedestrians.unsqueeze(0)  # 1 x P x 2
-        vec_ = pedestrians - positions          # N x P x 2
+        vec_ = pedestrians - positions  # N x P x 2
         vec = vec_ / (torch.norm(vec_, dim=2, keepdim=True) + 1e-7)
         phi = torch.atan2(vec[..., 1:], vec[..., :1])  # N x P x 1
         theta = torch.where(theta >= 0, theta, theta + 2 * math.pi).unsqueeze(
             1
-        )                   # N x 1 x 1
+        )  # N x 1 x 1
         diff = phi - theta  # N x P x 1
         angle = angle_normalize(diff.view(-1, 1)).view(vec_.shape[:2])  # N x P
 
@@ -142,7 +159,7 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
         values = []
         for i in range(positions.shape[0]):
             idx = idxs[i]
-            values.append(visible[i:(i + 1), idx])
+            values.append(visible[i : (i + 1), idx])
         return torch.cat(values)
 
     def _distance_to_nearest_car(
@@ -202,7 +219,9 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
             dcrosswalk = self._distance_to_crosswalk(state[:, :2])
         if self.record_pedestrian_distance:
             dpedestrian = self._distance_to_pedestrians(
-                state[:, :2], state[:, 3:], self.env.world.objects["pedestrian"].position
+                state[:, :2],
+                state[:, 3:],
+                self.env.world.objects["pedestrian"].position,
             )
 
         for i in range(action.size(0)):
@@ -232,12 +251,18 @@ class RolloutSimulatorActionRecorder(RolloutSimulator):
                     comm_data[i].numpy()
                 )
             if self.record_min_distance_to_car:
-                self.record["Minimum Distance to Car"].append(distances[i].item())
+                self.record["Minimum Distance to Car"].append(
+                    distances[i].item()
+                )
                 self.record["Relative Velocity"].append(rel_vels[i].item())
             if self.record_distance_to_crosswalk:
-                self.record["Distance to Crosswalk"].append(dcrosswalk[i].item())
+                self.record["Distance to Crosswalk"].append(
+                    dcrosswalk[i].item()
+                )
             if self.record_pedestrian_distance:
-                self.record["Distance to Nearest Pedestrian"].append(dpedestrian[i].item())
+                self.record["Distance to Nearest Pedestrian"].append(
+                    dpedestrian[i].item()
+                )
             self.timesteps[i] += 1
 
     def _new_rollout_hook(self):
