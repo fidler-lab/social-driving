@@ -317,6 +317,4 @@ class EpochLogger(Logger):
 
 
 if __name__ == "__main__":
-    Fire({
-        "plot_experiment_logs": plot_experiment_logs
-    })
+    Fire({"plot_experiment_logs": plot_experiment_logs})

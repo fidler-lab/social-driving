@@ -264,7 +264,9 @@ class MultiAgentHighwayBicycleKinematicsModel(
         return super().reset()
 
     def discrete_to_continuous_actions(self, actions: torch.Tensor):
-        self.world.broadcast_data(self.accln_rating, self.agents["agent"].position)
+        self.world.broadcast_data(
+            self.accln_rating, self.agents["agent"].position
+        )
         actions[:, 1:] = (
             actions[:, 1:]
             * self.max_accln
@@ -296,7 +298,9 @@ class MultiAgentHighwayBicycleKinematicsDiscreteModel(
         return Discrete(self.action_list.size(0))
 
     def discrete_to_continuous_actions(self, actions: torch.Tensor):
-        self.world.broadcast_data(self.accln_rating, self.agents["agent"].position)
+        self.world.broadcast_data(
+            self.accln_rating, self.agents["agent"].position
+        )
         actions = self.action_list[actions]
         actions[:, 1:] = (
             actions[:, 1:]
@@ -320,7 +324,9 @@ class MultiAgentHighwayPedestriansFixedTrackDiscreteModel(
         )
 
     def discrete_to_continuous_actions(self, actions: torch.Tensor):
-        self.world.broadcast_data(self.accln_rating, self.agents["agent"].position)
+        self.world.broadcast_data(
+            self.accln_rating, self.agents["agent"].position
+        )
         return self.action_list[actions]
 
     def generate_world_without_agents(self):
@@ -446,7 +452,9 @@ class MultiAgentHighwaySplineAccelerationDiscreteModel(
         )
 
     def discrete_to_continuous_actions(self, action: torch.Tensor):
-        self.world.broadcast_data(self.accln_rating, self.agents["agent"].position)
+        self.world.broadcast_data(
+            self.accln_rating, self.agents["agent"].position
+        )
         action = self.action_list[action]
         return action * self.max_accln * self.accln_rating.to(action.device)
 

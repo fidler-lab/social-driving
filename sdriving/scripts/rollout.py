@@ -55,7 +55,9 @@ class RolloutSimulator:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(exist_ok=True)
 
-    def _action_observation_hook(self, action, observation, aids, *args, **kwargs):
+    def _action_observation_hook(
+        self, action, observation, aids, *args, **kwargs
+    ):
         pass
 
     def _new_rollout_hook(self):
@@ -73,14 +75,20 @@ class RolloutSimulator:
         for ep in range(nepisodes):
 
             if self.two_stage_rollout:
-                ep_ret, ep_len, crashed = self._two_stage_rollout(verbose, render)
+                ep_ret, ep_len, crashed = self._two_stage_rollout(
+                    verbose, render
+                )
             else:
-                ep_ret, ep_len, crashed = self._one_stage_rollout(verbose, render)
+                ep_ret, ep_len, crashed = self._one_stage_rollout(
+                    verbose, render
+                )
 
             total_crash += crashed
             total_ret += ep_ret
 
-            print(f"Episode: {ep} | Length: {ep_len} | Return: {ep_ret:0.2f} | Crashed: {crashed.item()}")
+            print(
+                f"Episode: {ep} | Length: {ep_len} | Return: {ep_ret:0.2f} | Crashed: {crashed.item()}"
+            )
 
             if render:
                 path = self.save_dir / f"{self.env_name}_{ep}.mp4"
@@ -116,7 +124,10 @@ class RolloutSimulator:
     @torch.no_grad()
     def _one_stage_rollout(self, verbose: bool, render: bool):
         (o, aids), done = self.env.reset(), False
-        ep_ret, ep_len = torch.zeros(self.env.nagents, 1, device=self.env.device), 0
+        ep_ret, ep_len = (
+            torch.zeros(self.env.nagents, 1, device=self.env.device),
+            0,
+        )
         self._new_rollout_hook()
 
         if hasattr(self.env, "accln_rating"):
@@ -174,7 +185,10 @@ class RolloutSimulator:
     @torch.no_grad()
     def _two_stage_rollout(self, verbose: bool, render: bool):
         (o, aids), done = self.env.reset(), False
-        ep_ret, ep_len = torch.zeros(self.env.nagents, 1, device=self.env.device), 0
+        ep_ret, ep_len = (
+            torch.zeros(self.env.nagents, 1, device=self.env.device),
+            0,
+        )
         self._new_rollout_hook()
 
         a = self._action_two_stage_rollout(0, o)
@@ -209,7 +223,7 @@ class RolloutSimulator:
 
             if verbose:
                 print(f"Reward: {r.mean()}")
-        
+
         crashed = (ep_ret < 0).sum()
         ep_ret = ep_ret.mean()
         return ep_ret, ep_len, crashed

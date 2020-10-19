@@ -313,7 +313,10 @@ class PPO_Distributed_Centralized_Critic:
             "model": "centralized_critic",
         }
         ckpt.update(ckpt_extra)
-        torch.save(ckpt, os.path.join(self.ckpt_dir, f"epoch_{epoch}_{time.time()}.pth"))
+        torch.save(
+            ckpt,
+            os.path.join(self.ckpt_dir, f"epoch_{epoch}_{time.time()}.pth"),
+        )
         torch.save(ckpt, self.softlink)
         wandb.save(self.softlink)
 
@@ -429,7 +432,8 @@ class PPO_Distributed_Centralized_Critic:
 
                 if terminal:
                     self.logger.store(
-                        EpisodeReturn=ep_ret / self.env.actual_nagents, EpisodeLength=ep_len
+                        EpisodeReturn=ep_ret / self.env.actual_nagents,
+                        EpisodeLength=ep_len,
                     )
                 (o, a_ids), ep_ret, ep_len = env.reset(), 0, 0
                 prev_done = torch.zeros(

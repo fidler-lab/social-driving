@@ -249,7 +249,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                         dimensions=dims,
                         initial_speed=torch.zeros(1, 1),
                         name="agent",
-                        vision_range=self.vision_range
+                        vision_range=self.vision_range,
                     )
                     break
                 else:
