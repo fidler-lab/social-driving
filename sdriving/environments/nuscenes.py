@@ -83,8 +83,8 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         idx = random.choices(
             range(len(self.worlds)),
             k=1,
-            weights=(1.0 - torch.softmax(self.running_rewards, -1)).numpy()
-        )
+            weights=torch.softmax(-self.running_rewards, -1).numpy()
+        )[0]
         self.chosen_world = idx
         return self.worlds[idx]
     
@@ -94,7 +94,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.running_rewards[self.chosen_world] = avg_meter.avg
 
     def sync(self):
-        self.running_rewards = hvd.all_reduce(
+        self.running_rewards = hvd.allreduce(
             self.running_rewards, op=hvd.Average
         )
         for i, avg_meter in enumerate(self.average_meters):

@@ -436,7 +436,7 @@ class PPO_Distributed_Centralized_Critic:
                     ep_ret = ep_ret / self.env.actual_nagents
                     self.env.register_reward(ep_ret.cpu())
                     self.logger.store(
-                        EpisodeReturn=ep_ret / self.env.actual_nagents,
+                        EpisodeReturn=ep_ret,
                         EpisodeLength=ep_len,
                     )
                 (o, a_ids), ep_ret, ep_len = env.reset(), 0, 0
