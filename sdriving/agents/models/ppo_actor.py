@@ -138,7 +138,6 @@ class PPOLidarCategoricalActor(PPOCategoricalActor):
         )  # (N x B) x L
 
 
-# TODO: Update to batched format
 class PPOGaussianActor(PPOActor):
     def sample(self, pi):
         return self.act_scale(torch.tanh(pi.rsample()))

@@ -9,6 +9,8 @@ import numpy as np
 import torch
 from gym.spaces import Box, Discrete, Tuple
 
+import horovod.torch as hvd
+
 from sdriving.environments.intersection import (
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
@@ -20,6 +22,7 @@ from sdriving.tsim import (
     angle_normalize,
     intervehicle_collision_check,
     remove_batch_element,
+    RunningAverageMeter
 )
 
 
@@ -38,18 +41,28 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         device: torch.device = torch.device("cpu"),
         lidar_noise: float = 0.0,
         sample_one_per_path: bool = False,
+        vision_range: float = 50.0,
+        curriculum_rewards: bool = False,
     ):
+        self.curriculum_rewards = curriculum_rewards
         self.npoints = npoints
         self.history_len = history_len
         self.time_green = time_green
         self.device = device
         self.worlds = []
+        self.running_rewards = []
         self.sample_one_per_path = sample_one_per_path
 
         for path in glob(map_path):
             self.worlds.append(NuscenesWorld(path, True))
+            self.running_rewards.append(0.0)
 
-        world = random.choice(self.worlds)
+        self.average_meters = [
+            RunningAverageMeter() for i in range(len(self.running_rewards))
+        ]
+        self.running_rewards = torch.as_tensor(self.running_rewards)
+
+        world = self._choose_world()
         super(
             MultiAgentRoadIntersectionBicycleKinematicsEnvironment, self
         ).__init__(world, nagents, horizon, timesteps, device)
@@ -64,6 +77,28 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.bool_buffer = bool_buffer.bool()
 
         self.buffered_ones = torch.ones(self.nagents, 1, device=self.device)
+        self.vision_range = vision_range
+
+    def _choose_world(self):
+        idx = random.choices(
+            range(self.worlds),
+            k=1,
+            weights=(1.0 - torch.softmax(self.running_rewards)).numpy()
+        )
+        self.chosen_world = idx
+        return self.worlds[idx]
+    
+    def register_reward(self, reward):
+        avg_meter = self.average_meters[self.chosen_world]
+        avg_meter.update(reward.cpu())
+        self.running_rewards[self.chosen_world] = avg_meter.avg
+
+    def sync(self):
+        self.running_rewards = hvd.all_reduce(
+            self.running_rewards, op=hvd.Average
+        )
+        for i, avg_meter in enumerate(self.average_meters):
+            avg_meter.avg = self.running_rewards[i]
 
     def remove(self, aname: str):  # Requires agent name not ID
         idx = self.agent_names.index(aname)
@@ -255,7 +290,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
     def reset(self):
         # Keep the environment fixed for now
-        self.world = random.choice(self.worlds)
+        self.world = self._choose_world()
         self.world.reset()
         self.world.initialize_communication_channel(self.actual_nagents, 1)
         self.add_vehicles_to_world()

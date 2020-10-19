@@ -268,17 +268,19 @@ class PPO_Distributed_Centralized_Critic:
             loss.backward()
             hvd_average_grad(self.ac, self.device)
             self.vf_optimizer.step()
-            # if kl > 1.5 * self.target_kl and not early_stop:
-            #     self.logger.log(
-            #         f"Early stopping at step {i} due to reaching max kl.",
-            #         color="red",
-            #     )
-            #     early_stop = True
-            #     self.logger.store(StopIter=i)
+            if kl > 1.5 * self.target_kl and not early_stop:
+                self.logger.log(
+                    f"Early stopping at step {i} due to reaching max kl.",
+                    color="red",
+                )
+                early_stop = True
+                self.logger.store(StopIter=i)
             if not early_stop:
                 self.pi_optimizer.step()
         if not early_stop:
             self.logger.store(StopIter=i)
+
+        self.env.sync()
 
         # Log changes from update
         ent, pi_l_old, v_l_old, v_est = (
@@ -431,6 +433,8 @@ class PPO_Distributed_Centralized_Critic:
                 self.buf.finish_path(v)
 
                 if terminal:
+                    ep_ret = ep_ret / self.env.actual_nagents
+                    self.env.register_reward(ep_ret.cpu())
                     self.logger.store(
                         EpisodeReturn=ep_ret / self.env.actual_nagents,
                         EpisodeLength=ep_len,

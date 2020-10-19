@@ -3,6 +3,8 @@ import math
 import numpy as np
 import torch
 
+import horovod.torch as hvd
+
 TWO_PI = 2 * math.pi
 
 
@@ -248,3 +250,26 @@ def is_perpendicular(
 @torch.jit.script
 def remove_batch_element(t: torch.Tensor, idx: int):
     return torch.cat([t[:idx, ...], t[idx + 1 :, ...]])
+
+
+class RunningAverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self, momentum=0.99):
+        self.momentum = momentum
+        self.reset()
+
+    def reset(self):
+        self.val = None
+        self.avg = torch.zeros(1)
+
+    def update(self, val):
+        val = val.cpu()
+        if self.val is None:
+            self.avg = val
+        else:
+            self.avg = self.avg * self.momentum + val * (1 - self.momentum)
+        self.val = val
+    
+    def sync(self):
+        self.avg = hvd.allreduce(self.avg, op=hvd.Average)

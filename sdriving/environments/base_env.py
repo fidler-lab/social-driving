@@ -50,6 +50,14 @@ class BaseMultiAgentDrivingEnvironment:
 
         self.device = device
 
+    def register_reward(self, reward):
+        # Needed to implement curriculum strategies
+        pass
+
+    def sync(self):
+        # Sync properties across different processes
+        pass
+
     def to(self, device: torch.device):
         self.transfer_dict(self.__dict__, device)
         self.device = device
