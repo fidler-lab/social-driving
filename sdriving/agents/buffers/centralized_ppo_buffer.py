@@ -116,10 +116,11 @@ class CentralizedPPOBuffer:
             adv = self.adv_buf[b]
             # This is supposed to be computed across all processes but it
             # becomes a big bottleneck
-            adv_mean, adv_std = (
-                adv.mean(),
-                adv.std(),
-            )  # hvd_scalar_statistics(self.adv_buf[b])
+            # adv_mean, adv_std = (
+            #     adv.mean(),
+            #     adv.std(),
+            # )
+            adv_mean, adv_std = hvd_scalar_statistics(self.adv_buf[b])
             self.adv_buf[b] = (adv - adv_mean) / (adv_std + 1e-7)
         # The entire buffer will most likely not be filled
         return dict(

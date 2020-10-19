@@ -138,7 +138,7 @@ class NuscenesWorld(World):
             self.plotting_utils[1],
             self.plotting_utils[2],
             c=self.plotting_utils[3],
-            alpha=0.005,
+            alpha=0.1,
         )
         self._render_traffic_signal(ax)
 

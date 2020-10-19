@@ -230,7 +230,7 @@ class PPO_Distributed_Centralized_Critic:
 
         # TODO: Search for a good set of coeffs
         loss = loss_pi - ent * self.entropy_coeff + value_loss
-        self.entropy_coeff -= self.entropy_coeff_decay
+        # self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().detach().cpu()
@@ -268,13 +268,13 @@ class PPO_Distributed_Centralized_Critic:
             loss.backward()
             hvd_average_grad(self.ac, self.device)
             self.vf_optimizer.step()
-            if kl > 1.5 * self.target_kl and not early_stop:
-                self.logger.log(
-                    f"Early stopping at step {i} due to reaching max kl.",
-                    color="red",
-                )
-                early_stop = True
-                self.logger.store(StopIter=i)
+            # if kl > 1.5 * self.target_kl and not early_stop:
+            #     self.logger.log(
+            #         f"Early stopping at step {i} due to reaching max kl.",
+            #         color="red",
+            #     )
+            #     early_stop = True
+            #     self.logger.store(StopIter=i)
             if not early_stop:
                 self.pi_optimizer.step()
         if not early_stop:
