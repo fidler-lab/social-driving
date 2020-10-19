@@ -81,7 +81,7 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
 
     def _choose_world(self):
         idx = random.choices(
-            range(self.worlds),
+            range(len(self.worlds)),
             k=1,
             weights=(1.0 - torch.softmax(self.running_rewards)).numpy()
         )
