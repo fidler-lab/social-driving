@@ -130,15 +130,15 @@ class NuscenesWorld(World):
 
     # Scatter plots are super slow to save
     def _render_background(self, ax):
-        # for p1, p2 in zip(self.pt1, self.pt2):
-        #     p1 = p1.detach().cpu().numpy()
-        #     p2 = p2.detach().cpu().numpy()
-        #     ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="r")
+        for p1, p2 in zip(self.pt1, self.pt2):
+            p1 = p1.detach().cpu().numpy()
+            p2 = p2.detach().cpu().numpy()
+            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="r")
         ax.scatter(
             self.plotting_utils[1],
             self.plotting_utils[2],
             c=self.plotting_utils[3],
-            alpha=0.1,
+            alpha=0.05,
         )
         self._render_traffic_signal(ax)
 
@@ -160,18 +160,7 @@ class NuscenesWorld(World):
                 vehicle.position, self.center, self.bx, self.dx, self.road_img
             )
 
-    def add_traffic_signal(
-        self,
-        r1name: str,
-        r2name: str,
-        val: torch.Tensor,
-        start_signal: int,
-        times: torch.Tensor,
-        colors: List[str],
-        add_reverse: bool = False,
-        location=None,
-        location_rev=None,
-    ):
+    def add_traffic_signal(self, *args, **kwargs):
         # NOTE: This function should not be called. Traffic Signals should
         #       be placed in the preprocessed `pth` files. Else use our
         #       interactive map generator to do the same.

@@ -429,6 +429,7 @@ class World:
         path=None,
         lims=None,
         render_lidar=False,
+        **kwargs
     ):
         if path is not None:
             ani = self.cam.animate(blit=True, interval=80)
@@ -445,8 +446,8 @@ class World:
             return
 
         if self.fig is None:
-            self.fig = plt.figure(figsize=self.figsize)
-            self.ax = self.fig.add_subplot(1, 1, 1)
+            self.fig = kwargs.get("fig", plt.figure(figsize=self.figsize))
+            self.ax = kwargs.get("ax", self.fig.add_subplot(1, 1, 1))
             self.cam = Camera(self.fig)
             if hasattr(self, "xlims"):
                 plt.xlim(self.xlims)

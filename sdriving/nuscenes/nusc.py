@@ -4,6 +4,7 @@ import os
 import sys
 from collections import deque
 from glob import glob
+from typing import Optional
 
 import cv2
 import matplotlib as mpl
@@ -11,19 +12,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # use the master branch of nuscenes-devkit instead of pip installed version
-import nuscenes
 import torch
 from fire import Fire
-from nuscenes import NuScenes
 from nuscenes.map_expansion.arcline_path_utils import discretize_lane
 from nuscenes.map_expansion.map_api import NuScenesMap
-from pyquaternion import Quaternion
 from sklearn.neighbors import KDTree
 
 from sdriving.nuscenes.utils import (
     get_drivable_area_matrix,
     nuscenes_map_to_line_representation,
 )
+from sdriving.nuscenes.world import NuscenesWorld
 from sdriving.tsim import angle_normalize
 
 
@@ -509,7 +508,7 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
             xs.numpy().flatten(),
             ys.numpy().flatten(),
             [
-                (0.2, 0.1, 0) if row else (0, 1, 0)
+                (0.5, 0.5, 0.5) if row else (1, 1, 1)
                 for row in drivable_area.numpy().flatten()
             ],
         )
@@ -602,6 +601,51 @@ def preprocess_maps(dataroot, glob_path="./*.json"):
         outname = f"env{data['map_name']}_{data['center'][0]}_{data['center'][1]}.pth"
         print("saving", outname)
         torch.save(dataset, outname)
+
+
+def viz_nuscenes_world(
+    glob_path="./*.pth",
+    as_pdf: bool = True,
+    montage: bool = False,
+    save_path: Optional[str] = "all_maps.pdf"
+):
+    # FIXME: Montage doesn't work as of now
+    fs = glob(glob_path)
+    if montage:
+        nrow = int(np.ceil(np.sqrt(len(fs))))
+        ncol = int(np.ceil(len(fs) / nrow))
+        fig, axs = plt.subplots(nrow, ncol, figsize=(10, 10))
+        i = 0
+        j = 0
+    for fi, f in enumerate(fs):
+        data = torch.load(f)
+        world = NuscenesWorld(f)
+        if montage:
+            world.render(fig=fig, ax=axs[i, j] if not ncol == nrow == 1 else axs)
+            j += 1
+            if j % ncol == 0:
+                j = 0
+                i += 1
+        else:
+            world.render()
+        world.ax.set_aspect("equal")
+        world.ax.grid(False)
+        world.ax.set_xticklabels([])
+        world.ax.set_yticklabels([])
+        plt.tight_layout()
+
+        if not montage:
+            if as_pdf:
+                world.fig.set_rasterized(True)
+                outname = f"env{data['map_name']}_{data['center'][0][0]}_{data['center'][0][1]}.pdf"
+            else:
+                outname = f"env{data['map_name']}_{data['center'][0][0]}_{data['center'][0][1]}.png"
+            print("saving", outname)
+            plt.savefig(outname, bbox_inches="tight")
+            plt.close(world.fig)
+    if montage:
+        fig.set_rasterized(True)
+        fig.savefig(save_path, bbox_inches="tight")
 
 
 def viz_env(glob_path="./*.json"):
@@ -710,6 +754,7 @@ if __name__ == "__main__":
             "env_create": env_create,
             "find_center": find_center,
             "viz_env": viz_env,
+            "viz_nuscenes_world": viz_nuscenes_world,
             "preprocess_maps": preprocess_maps,
             "fix_json_maps": fix_json_maps,
         }

@@ -1,8 +1,7 @@
 # Social Driving
 Design multi-agent environments and simple reward functions such that social driving behavior emerges
 
-Detailed Documentation: [Documentation](https://avikpal.gitbook.io/social-driving/)
-Project Page: [Project Page](https://github.com/fidler-lab/social-driving)
+[Documentation](https://avikpal.gitbook.io/social-driving/) | [Project Page](https://github.com/fidler-lab/social-driving)
 
 ## Citation
 
