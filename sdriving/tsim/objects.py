@@ -1,13 +1,11 @@
 from typing import List, Union
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
 from sdriving.tsim.utils import (
     angle_normalize,
     get_2d_rotation_matrix,
-    transform_2d_coordinates,
     transform_2d_coordinates_rotation_matrix,
 )
 

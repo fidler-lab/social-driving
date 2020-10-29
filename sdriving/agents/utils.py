@@ -1,5 +1,4 @@
 import random
-from typing import Optional, Union
 
 import horovod.torch as hvd
 import numpy as np

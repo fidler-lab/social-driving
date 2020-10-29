@@ -1,11 +1,8 @@
 import math
-import random
-from collections import deque
-from itertools import product
 
 import numpy as np
 import torch
-from gym.spaces import Box, Discrete, Tuple
+from gym.spaces import Box
 
 from sdriving.agents.model import PPOLidarActorCritic
 from sdriving.environments.intersection import (
@@ -69,7 +66,7 @@ class MultiAgentOneShotSplinePredictionEnvironment(
             return super().get_state()
 
         self.got_spline_state = True
-        a_ids = self.get_agent_ids_list()
+        self.get_agent_ids_list()
         # The points we receive from the world are in the global
         # frame. To make learning easier we need to transform them
         # to the local car frame.

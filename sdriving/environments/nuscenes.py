@@ -19,10 +19,8 @@ from sdriving.tsim import (
     BatchedVehicle,
     BicycleKinematicsModel,
     SplineModel,
-    angle_normalize,
-    intervehicle_collision_check,
     remove_batch_element,
-    RunningAverageMeter
+    RunningAverageMeter,
 )
 
 
@@ -83,11 +81,11 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         idx = random.choices(
             range(len(self.worlds)),
             k=1,
-            weights=torch.softmax(-self.running_rewards, -1).numpy()
+            weights=torch.softmax(-self.running_rewards, -1).numpy(),
         )[0]
         self.chosen_world = idx
         return self.worlds[idx]
-    
+
     def register_reward(self, reward):
         avg_meter = self.average_meters[self.chosen_world]
         avg_meter.update(reward.cpu())

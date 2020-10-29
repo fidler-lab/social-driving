@@ -1,11 +1,10 @@
 import math
 from itertools import combinations
-from typing import List, Tuple
+from typing import List
 
 import torch
 
 from sdriving.tsim.road import Road, RoadNetwork
-from sdriving.tsim.traffic_signal import TrafficSignal
 from sdriving.tsim.utils import transform_2d_coordinates
 from sdriving.tsim.world import World
 
@@ -20,8 +19,7 @@ def generate_nway_intersection_block(
     orientation: torch.Tensor = torch.zeros(1),
     has_endpoints: List[bool] = [True] * 4,
 ) -> RoadNetwork:
-    road_centers = []
-    road_orientations = []
+    pass
 
     base_angle = 2 * math.pi / n
     dist = (length + road_width / math.tan(base_angle / 2)) / 2

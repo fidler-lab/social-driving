@@ -1,6 +1,5 @@
 import math
 import random
-from collections import deque
 from itertools import product
 
 import numpy as np
@@ -11,13 +10,8 @@ from sdriving.environments.intersection import (
     MultiAgentRoadIntersectionBicycleKinematicsEnvironment,
 )
 from sdriving.tsim import (
-    BatchedVehicle,
     FixedTrackAccelerationModel,
-    World,
-    angle_normalize,
-    generate_intersection_world_4signals,
     generate_intersection_world_12signals,
-    intervehicle_collision_check,
 )
 
 
