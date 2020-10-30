@@ -113,7 +113,7 @@ def nuscenes_map_to_line_representation(
     pt1, pt2 = torch.cat(pt1), torch.cat(pt2)
     if realign:
         pt1, pt2 = realign_map_edges(pt1, pt2, 0.0)
-
+    
     centers = (pt1 + pt2) / 2
     centers1 = centers.unsqueeze(1)
     centers2 = centers.unsqueeze(0)
@@ -126,11 +126,11 @@ def nuscenes_map_to_line_representation(
     for i, c in enumerate(very_close):
         if c:
             to_remove.append(i)
-
+    
     for i, rem in enumerate(to_remove):
         rem = rem - i
-        pt1 = torch.cat([pt1[:rem], pt1[rem + 1 :]])
-        pt2 = torch.cat([pt2[:rem], pt2[rem + 1 :]])
+        pt1 = torch.cat([pt1[:rem], pt1[rem+1:]])
+        pt2 = torch.cat([pt2[:rem], pt2[rem+1:]])
 
     return pt1, pt2
 

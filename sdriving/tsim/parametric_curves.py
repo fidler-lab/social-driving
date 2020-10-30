@@ -1,9 +1,10 @@
+import math
 from typing import List
 
 import torch
 from torch import nn
 
-from sdriving.tsim.utils import remove_batch_element
+from sdriving.tsim.utils import angle_normalize, remove_batch_element
 
 EPS = 1e-7
 

@@ -270,6 +270,6 @@ class RunningAverageMeter(object):
         else:
             self.avg = self.avg * self.momentum + val * (1 - self.momentum)
         self.val = val
-
+    
     def sync(self):
         self.avg = hvd.allreduce(self.avg, op=hvd.Average)

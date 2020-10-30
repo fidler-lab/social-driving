@@ -2,10 +2,12 @@ import logging as lg
 import math
 import os
 from collections import OrderedDict, deque
-from typing import List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import matplotlib
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from celluloid import Camera
 
@@ -13,6 +15,7 @@ from sdriving.tsim.objects import render_object
 from sdriving.tsim.road import RoadNetwork
 from sdriving.tsim.traffic_signal import TrafficSignal
 from sdriving.tsim.utils import (
+    angle_normalize,
     check_intersection_lines,
     generate_lidar_data,
     remove_batch_element,
@@ -324,7 +327,7 @@ class World:
         if wait or not self.trajectory:
             return
 
-        vehicle.position
+        pos = vehicle.position
         tar = torch.cat(
             [
                 self.trajectory_points[vname][
@@ -421,7 +424,12 @@ class World:
         render_vehicle(v, ax, color=colors)
 
     def render(
-        self, pts=None, path=None, lims=None, render_lidar=False, **kwargs
+        self,
+        pts=None,
+        path=None,
+        lims=None,
+        render_lidar=False,
+        **kwargs
     ):
         if path is not None:
             ani = self.cam.animate(blit=True, interval=80)

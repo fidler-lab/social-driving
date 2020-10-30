@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 from typing import Optional
 
 import gym
@@ -7,7 +8,8 @@ import horovod.torch as hvd
 import numpy as np
 import torch
 import wandb
-from torch.optim import Adam
+from torch import nn
+from torch.optim import SGD, Adam
 
 from sdriving.agents.buffer import OneStepPPOBuffer
 from sdriving.agents.model import (
@@ -17,6 +19,7 @@ from sdriving.agents.model import (
 from sdriving.agents.utils import (
     count_vars,
     hvd_average_grad,
+    hvd_scalar_statistics,
     trainable_parameters,
 )
 from sdriving.logging import EpochLogger, convert_json
@@ -167,7 +170,7 @@ class PPO_OneStep:
         self.save_freq = save_freq
 
     def compute_loss(self, data):
-        self.device
+        device = self.device
         clip_ratio = self.clip_ratio
 
         (
@@ -201,8 +204,8 @@ class PPO_OneStep:
 
     def update(self):
         data = self.buf.get()
-        self.local_steps_per_epoch
-        self.train_iters
+        local_steps_per_epoch = self.local_steps_per_epoch
+        train_iters = self.train_iters
 
         for i in range(train_pi_iters):
             self.pi_optimizer.zero_grad()

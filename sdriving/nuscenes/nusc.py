@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import sys
 from collections import deque
 from glob import glob
@@ -268,7 +269,7 @@ def find_center(
             plt.plot(pose_list[:, 0], pose_list[:, 1])
     ax = plt.gca()
     ax.set_aspect("equal")
-    fig.canvas.mpl_connect("button_press_event", onclick)
+    cid = fig.canvas.mpl_connect("button_press_event", onclick)
     plt.show()
 
 
@@ -606,7 +607,7 @@ def viz_nuscenes_world(
     glob_path="./*.pth",
     as_pdf: bool = True,
     montage: bool = False,
-    save_path: Optional[str] = "all_maps.pdf",
+    save_path: Optional[str] = "all_maps.pdf"
 ):
     # FIXME: Montage doesn't work as of now
     fs = glob(glob_path)
@@ -620,9 +621,7 @@ def viz_nuscenes_world(
         data = torch.load(f)
         world = NuscenesWorld(f)
         if montage:
-            world.render(
-                fig=fig, ax=axs[i, j] if not ncol == nrow == 1 else axs
-            )
+            world.render(fig=fig, ax=axs[i, j] if not ncol == nrow == 1 else axs)
             j += 1
             if j % ncol == 0:
                 j = 0

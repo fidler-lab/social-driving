@@ -3,6 +3,7 @@ import torch
 
 from sdriving.agents.model import (
     PPOLidarActorCritic,
+    PPOWaypointActorCritic,
     PPOWaypointCategoricalActor,
     PPOWaypointGaussianActor,
 )

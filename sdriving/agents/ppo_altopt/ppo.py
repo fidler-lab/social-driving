@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 from typing import Optional
 
 import gym
@@ -7,7 +8,8 @@ import horovod.torch as hvd
 import numpy as np
 import torch
 import wandb
-from torch.optim import Adam
+from torch import nn
+from torch.optim import SGD, Adam
 
 from sdriving.agents.buffer import CentralizedPPOBuffer, OneStepPPOBuffer
 from sdriving.agents.model import (
@@ -18,6 +20,7 @@ from sdriving.agents.model import (
 from sdriving.agents.utils import (
     count_vars,
     hvd_average_grad,
+    hvd_scalar_statistics,
     trainable_parameters,
 )
 from sdriving.logging import EpochLogger, convert_json
@@ -220,7 +223,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         self.epochs = epochs
 
     def compute_spline_loss(self, data):
-        self.device
+        device = self.device
         clip_ratio = self.clip_ratio
 
         (
@@ -253,7 +256,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         return loss, info
 
     def compute_controller_loss(self, data):
-        self.device
+        device = self.device
         clip_ratio = self.clip_ratio
 
         obs, lidar, act, adv, logp_old, vest, ret, mask = [

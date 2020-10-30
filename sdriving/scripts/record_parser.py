@@ -82,6 +82,7 @@ def read_dataframe(
             prev_ep = -1
             not_reached = False
             l = 0
+            lst = []
             for _, row in da.iterrows():
                 if row["Episode"] > prev_ep:
                     prev_ep = row["Episode"]
