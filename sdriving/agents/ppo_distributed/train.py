@@ -1,15 +1,9 @@
 import argparse
 import json
-import logging
 import os
-import random
-import sys
-import time
 
 import gym
 import horovod.torch as hvd
-import numpy as np
-import torch
 
 from sdriving.agents.ppo_distributed.ppo import (
     PPO_Distributed_Centralized_Critic,

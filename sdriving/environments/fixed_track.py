@@ -1,6 +1,5 @@
 import math
 import random
-from collections import deque
 from itertools import product
 
 import numpy as np

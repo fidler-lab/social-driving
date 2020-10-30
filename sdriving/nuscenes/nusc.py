@@ -1,6 +1,5 @@
 import json
 import math
-import os
 import sys
 from collections import deque
 from glob import glob
@@ -269,7 +268,7 @@ def find_center(
             plt.plot(pose_list[:, 0], pose_list[:, 1])
     ax = plt.gca()
     ax.set_aspect("equal")
-    cid = fig.canvas.mpl_connect("button_press_event", onclick)
+    fig.canvas.mpl_connect("button_press_event", onclick)
     plt.show()
 
 

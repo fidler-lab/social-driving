@@ -2,13 +2,8 @@ import argparse
 import json
 import logging
 import os
-import random
-import sys
-import time
 
 import gym
-import numpy as np
-import torch
 
 from sdriving.agents.ppo_one_step.ppo import PPO_OneStep
 from sdriving.environments import REGISTRY as ENV_REGISTRY

@@ -5,7 +5,6 @@ from collections import OrderedDict
 from itertools import combinations
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 import torch
 
 from sdriving.tsim.utils import (

@@ -2,12 +2,11 @@ import logging as lg
 import math
 import os
 from collections import OrderedDict, deque
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 
 import matplotlib
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
 from celluloid import Camera
 
@@ -327,7 +326,7 @@ class World:
         if wait or not self.trajectory:
             return
 
-        pos = vehicle.position
+        vehicle.position
         tar = torch.cat(
             [
                 self.trajectory_points[vname][
