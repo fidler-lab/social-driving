@@ -180,28 +180,43 @@ class World:
             [self.get_lidar_data(v, npoints) for v in self.vehicles]
         )
 
-    def get_lidar_data(self, vname: str, npoints: int):
+    def get_lidar_data(self, vname: str, npoints: int, **kwargs):
         return self.get_lidar_data_from_state(
             self.get_vehicle_state(vname),
             vname,
             npoints,
+            **kwargs
         )
 
     def get_lidar_data_from_state(
-        self, state: torch.Tensor, vname: str, npoints: int
+        self,
+        state: torch.Tensor,
+        vname: str,
+        npoints: int,
+        ignore_vehicles: bool = False,
+        ignore_road_edges: bool = False,
+        ignore_objects: bool = False
     ):
+        assert not (ignore_road_edges and ignore_vehicles), AssertionError(
+            "All objects cannot be ignored"
+        )
         p1, p2 = [], []
-        e1, e2 = self.get_road_edges()
-        p1.append(e1)
-        p2.append(e2)
-        for obj in self.objects.values():
-            edges = obj.get_edges()
-            p1.append(edges[0])
-            p2.append(edges[1])
-        for n, v in self.vehicles.items():
-            e1, e2 = v.get_edges()
-            p1.append(e1.view(-1, 2))
-            p2.append(e2.view(-1, 2))
+        if not ignore_road_edges:
+            e1, e2 = self.get_road_edges()
+            p1.append(e1)
+            p2.append(e2)
+        if not ignore_objects:
+            for obj in self.objects.values():
+                edges = obj.get_edges()
+                p1.append(edges[0])
+                p2.append(edges[1])
+        if not ignore_vehicles:
+            for n, v in self.vehicles.items():
+                if n == vname:
+                    continue
+                e1, e2 = v.get_edges()
+                p1.append(e1.view(-1, 2))
+                p2.append(e2.view(-1, 2))
         vehicle = self.vehicles[vname]
         return generate_lidar_data(
             state[:, :2],  # B x 2
