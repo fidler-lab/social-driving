@@ -175,17 +175,14 @@ class World:
     def get_vehicle_state(self, vname: str):
         return self.vehicles[vname].get_state()
 
-    def get_lidar_data_all_vehicles(self, npoints: int):
+    def get_lidar_data_all_vehicles(self, npoints: int, **kwargs):
         return torch.cat(
-            [self.get_lidar_data(v, npoints) for v in self.vehicles]
+            [self.get_lidar_data(v, npoints, **kwargs) for v in self.vehicles]
         )
 
     def get_lidar_data(self, vname: str, npoints: int, **kwargs):
         return self.get_lidar_data_from_state(
-            self.get_vehicle_state(vname),
-            vname,
-            npoints,
-            **kwargs
+            self.get_vehicle_state(vname), vname, npoints, **kwargs
         )
 
     def get_lidar_data_from_state(
@@ -195,7 +192,7 @@ class World:
         npoints: int,
         ignore_vehicles: bool = False,
         ignore_road_edges: bool = False,
-        ignore_objects: bool = False
+        ignore_objects: bool = False,
     ):
         assert not (ignore_road_edges and ignore_vehicles), AssertionError(
             "All objects cannot be ignored"
@@ -438,12 +435,7 @@ class World:
         render_vehicle(v, ax, color=colors)
 
     def render(
-        self,
-        pts=None,
-        path=None,
-        lims=None,
-        render_lidar=False,
-        **kwargs
+        self, pts=None, path=None, lims=None, render_lidar=False, **kwargs
     ):
         if path is not None:
             ani = self.cam.animate(blit=True, interval=80)
