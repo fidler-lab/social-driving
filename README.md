@@ -1,7 +1,11 @@
 # Social Driving
 Design multi-agent environments and simple reward functions such that social driving behavior emerges
 
-[Documentation](https://avikpal.gitbook.io/social-driving/) | [Project Page](https://github.com/fidler-lab/social-driving)
+[Documentation](https://avikpal.gitbook.io/social-driving/) | [Project Page](http://fidler-lab.github.io/social-driving)
+
+## Nuscenes Maps
+
+Preprocessed [nuScenes Maps](https://www.nuscenes.org/) are provided with the initial release of this software.
 
 ## Citation
 
