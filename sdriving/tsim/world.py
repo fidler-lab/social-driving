@@ -209,8 +209,6 @@ class World:
                 p2.append(edges[1])
         if not ignore_vehicles:
             for n, v in self.vehicles.items():
-                if n == vname:
-                    continue
                 e1, e2 = v.get_edges()
                 p1.append(e1.view(-1, 2))
                 p2.append(e2.view(-1, 2))
