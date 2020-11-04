@@ -10,7 +10,7 @@
         <!-- Font Awesome icons (free version)-->
         <script src="https://use.fontawesome.com/releases/v5.12.1/js/all.js" crossorigin="anonymous"></script>
         <!-- Google fonts-->
-        <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@500;700;800&display=swap" rel="stylesheet"> 
+        <link href="https://fonts.googleapis.com/css2?family=Dosis:wght@300;500;700&display=swap" rel="stylesheet"> 
         <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css" />
         <link href="https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic,700italic" rel="stylesheet" type="text/css" />
         <link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css" />
@@ -120,13 +120,116 @@
         <!--Overview-->
         <section class="page-section" id="overview">
             <div class="container">
-                <div class="row">
-                    <div class="col-lg-12">
+                <div class="row justify-content-around">
+                    <div class="col-lg-6">
                         <p class="large text-uppercase font-weight-bold">
                             Overview
                         </p>
                         <p class="large text-muted text-justify">
+                            Our main contributions in this paper are:
+                            <ul class="large text-muted text-justify">
+                                <li>
+                                    We define a multi-agent driving environment in which agents equipped with noisy LiDAR sensors are rewarded for reaching a given destination as quickly as possible without colliding with other agents and show that agents trained in this environment learn road rules thatmimic road rules common in human driving systems.
+                                </li>
+                                <li>
+                                    We analyze what choices in the definition of the MDP lead to the emergence of these roadrules and find that the most important factors are perception noise and the spatial density ofagents in the driving environment.
+                                </li>
+                                <li>
+                                    We release a suite of 2D driving environments with the intention of stimulating interest within the MARL community to solve fundamental self-driving problems
+                                </li>
+                            </ul>
                         </p>
+                    </div>
+
+                    <!--Carousel Wrapper-->
+                    <div class="col-lg-4">
+                        <div id="overview-maps" class="carousel slide carousel-fade z-depth-1-half" data-ride="carousel" data-interval="1000">
+                            <!--Indicators-->
+                            <ol class="carousel-indicators">
+                                <li data-target="#overview-maps" data-slide-to="0" class="active"></li>
+                                <li data-target="#overview-maps" data-slide-to="1"></li>
+                                <li data-target="#overview-maps" data-slide-to="2"></li>
+                            </ol>
+                            <!--/.Indicators-->
+                            <!--Slides-->
+                            <div class="carousel-inner" role="listbox">
+                                <div class="carousel-item active">
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1150.16_1128.93.png" alt="First slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1186.78_1399.04.png" alt="Second slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1289.15_1049.04.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1780.77_1206.08.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1944.54_802.43.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_410.13_1626.3.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_2528.5_790.21.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_544.18_619.81.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_957.0_1561.14.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                                <div class="carousel-item">
+                                    <!--Mask color-->
+                                    <div class="view">
+                                    <img class="d-block w-100" src="assets/static/envboston-seaport_781.55_1496.57.png" alt="Third slide">
+                                    <div class="mask rgba-black-light"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!--/.Slides-->
+                        </div>
+                        <br>
+                        <p class="large text-muted text-justify font-weight-light">
+                            Credits: Maps obtained from <a href="https://www.nuscenes.org/">nuScenes</a>
+                        </p>
+                        <!--/.Carousel Wrapper-->
                     </div>
                 </div>
             </div>
@@ -149,7 +252,7 @@
                         <p class="large text-muted text-justify">
                             In a 4-way intersection, agents learn to obey traffic signals to safely navigate to the opposite road in minimum time.
                         </p>
-                        <p class="large text-muted text-justify  font-weight-light">
+                        <p class="large text-muted text-justify font-weight-light">
                             Note that the agents merely observe a ternary value representing the traffic light’s state, not color. To make the visualizations, we visually inspect rollouts for each converged policy to find a permutation of the ternary states that align with human red/yellow/green traffic light conventions
                         </p>
                     </div>
@@ -321,7 +424,7 @@
             </div>
         </section>
 
-        <!--Fast Lanes-->
+        <!--Crosswalk-->
         <section class="page-section" id="ts">
             <div class="container">
                 <div class="row justify-content-around">
@@ -349,169 +452,32 @@
             </div>
         </section>
 
-        <!-- <div class="container">
 
-        <div class="container">
-            <h2 class="text-center">Emergent Social Driving Rules</h2>
-            <span class="border border-white">
-                <h4 class="text-left">1. Stopping at a Traffic Signal</h4>
-                <br>
-                <div class="row">
-                    <div class="col-md-3">
-                        <h6 class="text-center">Lidar Noise = 0%</h6>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-center">Lidar Noise = 25%</h6>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-center">Lidar Noise = 50%</h6>
-                    </div>
-                    <div class="col-md-3">
-                        <h6 class="text-center">Lidar Noise = 75%</h6>
+        <!--Communication-->
+        <section class="page-section bg-light" id="ts">
+            <div class="container">
+                <div class="row justify-content-around">
+                    <div class="col-lg-12">
+                        <p class="large text-uppercase font-weight-bold">
+                            Communication
+                        </p>
                     </div>
                 </div>
+            </div>
+        </section>
 
-                <div class="row">
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_000_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_025_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_050_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_075_1.mp4" allowfullscreen controls></video>
+        <!--Nuscenes Rollouts-->
+        <section class="page-section" id="ts">
+            <div class="container">
+                <div class="row justify-content-around">
+                    <div class="col-lg-12">
+                        <p class="large text-uppercase font-weight-bold">
+                            nuScenes Maps
+                        </p>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_000_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_025_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_050_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_075_2.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_000_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_025_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_050_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_075_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_000_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_025_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_050_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_075_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_000_12_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_025_12_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_050_12_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./traffic_signal_075_12_1.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </span>
-
-            <span class="border border-white">
-                <h4 class="text-left">2. Emergence of Lanes</h4>
-
-                <div class="row">
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./lane_emergence_000_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./lane_emergence_000_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./lane_emergence_000_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </span>
-
-            <span class="border border-white">
-                <h4 class="text-left">3. Fast Lanes on a Highway</h4>
-
-                <div class="row">
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./fast_lane_emergence_000_10_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./fast_lane_emergence_000_10_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./fast_lane_emergence_000_10_3.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </span>
-
-            <span class="border border-white">
-                <h4 class="text-left">4. Stopping at a Crosswalk</h4>
-
-                <div class="row">
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./pedestrian_000_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./pedestrian_000_4_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./pedestrian_000_4_3.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </span>
-
-            <span class="border border-white">
-                <h4 class="text-left">5. Communication</h4>
-            </span>
-
-            <span class="border border-white">
-                <h4 class="text-left">6. Rollouts on Nuscenes</h4>
-
-                <div class="row">
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./nuscenes_intersection_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./nuscenes_intersection_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-md-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./nuscenes_intersection_3.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </span>
-
-        </div> -->
+            </div>
+        </section>
 
         <!-- Footer-->
         <footer class="footer py-4">
