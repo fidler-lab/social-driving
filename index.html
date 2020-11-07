@@ -16,6 +16,8 @@
         <link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css" />
         <!-- Core theme CSS (includes Bootstrap)-->
         <link href="css/styles.css" rel="stylesheet" />
+        <!-- Interactive Charts -->
+        <script src="js/Chart.min.js"></script>  
     </head>
 
     <body>
@@ -230,6 +232,61 @@
                             Credits: Maps obtained from <a href="https://www.nuscenes.org/">nuScenes</a>
                         </p>
                         <!--/.Carousel Wrapper-->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section bg-light" id="ts">
+            <div class="container">
+                <div class="row justify-content-around">
+                    <div class="col-lg-12">
+                        <p class="large text-uppercase font-weight-bold">
+                            Configuring the Sensor Data
+                        </p>
+                    </div>
+                </div>
+                <br>
+                <br>
+                <div class="row justify-content-around">
+                    <div class="col-lg-5">
+                        <p class="large   font-weight-bold text-center">
+                            Maximum Lidar Range
+                        </p>
+                    </div>
+                    <div class="col-lg-5">
+                        <p class="large text-uppercase font-weight-bold text-center">
+                            Lidar Noise
+                        </p>
+                    </div>
+                </div>
+                <div class="row justify-content-around">
+                    <div class="col-lg-4">
+                        <img class="w-100" src="assets/explanation/lidar_range_variation.gif"></img>
+                    </div>
+                    <div class="col-lg-4">
+                        <img class="w-100" src="assets/explanation/lidar_noise_variation.gif"></img>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="page-section" id="nav-rules">
+            <div class="container">
+                <div class="row justify-content-around">
+                    <div class="col-lg-12 text-uppercase">
+                        <h2 class="text-center">Emergent Road Rules</h2>
+                        <br>
+                        <br>
+                        <nav>
+                            <div class="nav nav-pills justify-content-center" id="nav-tab" role="tablist">
+                            <a class="nav-item nav-link active" id="nav-ts-tab" data-toggle="tab" href="#nav-ts" role="tab" aria-controls="nav-ts" aria-selected="false">Traffic Signals</a>
+                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-lf" role="tab" aria-controls="nav-lf" aria-selected="true">Lane Emergence</a>
+                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-fl" role="tab" aria-controls="nav-fl" aria-selected="true">Fast Lanes</a>
+                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-ped" role="tab" aria-controls="nav-ped" aria-selected="true">Pedestrians</a>
+                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-comm" role="tab" aria-controls="nav-comm" aria-selected="true">Communication</a>
+                            </div>
+                        </nav>
                     </div>
                 </div>
             </div>
@@ -477,7 +534,7 @@
                     </div>
                 </div>
             </div>
-        </section>
+        </section> 
 
         <!-- Footer-->
         <footer class="footer py-4">
@@ -493,10 +550,5 @@
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"></script>
         <!-- Third party plugin JS-->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.4.1/jquery.easing.min.js"></script>
-        <!-- Contact form JS-->
-        <script src="assets/mail/jqBootstrapValidation.js"></script>
-        <script src="assets/mail/contact_me.js"></script>
-        <!-- Core theme JS-->
-        <script src="js/scripts.js"></script>
     </body>
 </html>
