@@ -296,7 +296,7 @@ class PPO_Alternating_Optimization_Centralized_Critic:
         ent = pi.entropy().mean()
 
         loss = loss_pi - ent * self.entropy_coeff + value_loss
-        self.entropy_coeff -= self.entropy_coeff_decay
+        # self.entropy_coeff -= self.entropy_coeff_decay
 
         # Logging Utilities
         approx_kl = (logp_old - logp).mean().detach().cpu()

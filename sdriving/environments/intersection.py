@@ -230,8 +230,7 @@ class MultiAgentRoadIntersectionBicycleKinematicsEnvironment(
                 erd = (
                     srd_new + np.random.choice([1, 2, 3])
                     if (
-                        self.nagents == 1
-                        or (hasattr(self, "turns") and self.turns)
+                        (hasattr(self, "turns") and self.turns)
                     )
                     else (srd_new + 2)
                 )

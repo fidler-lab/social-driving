@@ -127,16 +127,16 @@ class NuscenesWorld(World):
 
     # Scatter plots are super slow to save
     def _render_background(self, ax):
-        for p1, p2 in zip(self.pt1, self.pt2):
-            p1 = p1.detach().cpu().numpy()
-            p2 = p2.detach().cpu().numpy()
-            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="r")
-        # ax.scatter(
-        #     self.plotting_utils[1],
-        #     self.plotting_utils[2],
-        #     c=self.plotting_utils[3],
-        #     alpha=0.2,
-        # )
+        # for p1, p2 in zip(self.pt1, self.pt2):
+        #    p1 = p1.detach().cpu().numpy()
+        #    p2 = p2.detach().cpu().numpy()
+        #    ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color="r")
+        ax.scatter(
+            self.plotting_utils[1],
+            self.plotting_utils[2],
+            c=self.plotting_utils[3],
+            alpha=0.2,
+        )
         self._render_traffic_signal(ax)
 
     def shortest_path_trajectory(self, *args, **kwargs):
