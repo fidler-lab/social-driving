@@ -39,7 +39,10 @@ class RolloutPositionDumper(RolloutSimulator):
     def _new_rollout_hook(self):
         if len(self.cur_record) > 0:
             self.record.append(self.cur_record)
-        self.cur_record = []
+        if hasattr(self.env, "accln_rating"):
+            self.cur_record = [self.env.accln_rating]
+        else:
+            self.cur_record = []
         self.episode_number += 1
 
     def _post_completion_hook(self):

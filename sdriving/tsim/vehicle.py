@@ -336,12 +336,12 @@ def render_vehicle(
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
             [pos[1], pos[1] + 0.5 * dim * np.sin(h)],
-            "c",
+            "k",
         )
 
         # Draw the destination if available
         dest = obj.destination[b, :].detach().cpu().numpy()
-        ax.plot([dest[0]], [dest[1]], color="b", marker="x", markersize=5)
+        ax.plot([dest[0]], [dest[1]], color=color[b], marker="x", markersize=5)
 
         # Draw the lidar sensor range
         if draw_lidar_range:

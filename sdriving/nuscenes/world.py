@@ -136,8 +136,9 @@ class NuscenesWorld(World):
             self.plotting_utils[2],
             c=self.plotting_utils[3],
             alpha=0.2,
+            antialiased=True,
         )
-        self._render_traffic_signal(ax)
+        # self._render_traffic_signal(ax)
 
     def shortest_path_trajectory(self, *args, **kwargs):
         # This function is not needed and hence shouldn't be called
