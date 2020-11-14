@@ -331,7 +331,7 @@ def render_vehicle(
             box[:, 1],
             facecolor=color[b],
             edgecolor="black",
-            alpha=0.5,
+            alpha=1.0,
         )
         ax.plot(
             [pos[0], pos[0] + 0.5 * dim * np.cos(h)],
@@ -346,7 +346,7 @@ def render_vehicle(
         # Draw the lidar sensor range
         if draw_lidar_range:
             ax.add_artist(
-                plt.Circle(pos, lr, color="b", fill=False, linestyle="--")
+                plt.Circle(pos, lr, color=color[b], fill=False, linestyle="--", lw=0.5)
             )
 
 
