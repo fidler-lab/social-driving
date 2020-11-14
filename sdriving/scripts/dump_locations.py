@@ -29,6 +29,7 @@ class RolloutPositionDumper(RolloutSimulator):
             (
                 deepcopy(self.env.world.vehicles),
                 deepcopy(self.env.world.traffic_signals),
+                deepcopy(self.env.agent_names),
                 self.env.paths[self.env.chosen_world]
                 if hasattr(self.env, "paths")
                 else (self.env.width, self.env.length),
