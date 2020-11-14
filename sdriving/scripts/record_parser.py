@@ -30,6 +30,7 @@ def read_dataframe(
     time_to_intersection: bool = False,
     remove_no_signal: bool = False,
     fix_communication: bool = False,
+    nframe_size: int = 15.0,
 ):
     df = pd.read_csv(path, index_col=0)
 
@@ -50,6 +51,8 @@ def read_dataframe(
     ):
         if normalized_lane_position:
             norm_lanepos = np.zeros(df.shape[0])
+            rpockets = np.zeros(df.shape[0])
+            normalized_frame = [0] * df.shape[0]
         if distance_to_intersection:
             dist_to_int = np.zeros(df.shape[0])
         for aid in df["Agent ID"].unique():
@@ -65,6 +68,23 @@ def read_dataframe(
                     norm_lanepos[idx] = (
                         pos[(rpocket + 1) % 2] * mfactor * 2 / row["Env Width"]
                     )
+                    rpockets[idx] = rpocket
+                    if rpocket in [0, 2]:
+                        normalized_frame[idx] = [
+                            pos[rpocket % 2],
+                            pos[(rpocket + 1) % 2]
+                            * nframe_size
+                            * 2
+                            / row["Env Width"],
+                        ]
+                    else:
+                        normalized_frame[idx] = [
+                            pos[(rpocket + 1) % 2]
+                            * nframe_size
+                            * 2
+                            / row["Env Width"],
+                            pos[rpocket % 2],
+                        ]
                 if distance_to_intersection:
                     dist_to_int[idx] = (
                         np.abs(pos[rpocket % 2]) - np.abs(row["Env Width"]) / 2
@@ -73,6 +93,8 @@ def read_dataframe(
             df["Distance to Intersection"] = dist_to_int
         if normalized_lane_position:
             df["Normalized Lane Position"] = norm_lanepos
+            df["Road Pocket"] = rpocket
+            df["Normalized Frame Position"] = normalized_frame
 
     if time_to_intersection:
         _dfs = []

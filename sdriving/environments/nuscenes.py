@@ -54,8 +54,9 @@ class MultiAgentNuscenesIntersectionDrivingEnvironment(
         self.worlds = []
         self.running_rewards = []
         self.sample_one_per_path = sample_one_per_path
+        self.paths = list(glob(map_path))
 
-        for path in glob(map_path):
+        for path in self.paths:
             self.worlds.append(NuscenesWorld(path, True))
             self.running_rewards.append(0.0)
 
