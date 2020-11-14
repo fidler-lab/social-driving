@@ -1,6 +1,7 @@
 import argparse
 import json
 import math
+from copy import deepcopy
 
 import pandas as pd
 import torch
@@ -26,8 +27,8 @@ class RolloutPositionDumper(RolloutSimulator):
     ):
         self.cur_record.append(
             (
-                self.env.world.vehicles,
-                self.env.world.traffic_signals,
+                deepcopy(self.env.world.vehicles),
+                deepcopy(self.env.world.traffic_signals),
                 self.env.paths[self.env.chosen_world]
                 if hasattr(self.env, "paths")
                 else (self.env.width, self.env.length),
@@ -35,7 +36,8 @@ class RolloutPositionDumper(RolloutSimulator):
         )
 
     def _new_rollout_hook(self):
-        self.record.append(self.cur_record)
+        if len(self.cur_record) > 0:
+            self.record.append(self.cur_record)
         self.cur_record = []
         self.episode_number += 1
 
