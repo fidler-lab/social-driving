@@ -28,15 +28,15 @@ class RolloutPositionDumper(RolloutSimulator):
             (
                 self.env.world.vehicles,
                 self.env.world.traffic_signals,
-                self.env.paths[self.env.choosen_world]
+                self.env.paths[self.env.chosen_world]
                 if hasattr(self.env, "paths")
                 else (self.env.width, self.env.length),
             )
         )
 
     def _new_rollout_hook(self):
-        self.cur_record = []
         self.record.append(self.cur_record)
+        self.cur_record = []
         self.episode_number += 1
 
     def _post_completion_hook(self):
