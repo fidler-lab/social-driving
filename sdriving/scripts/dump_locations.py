@@ -43,6 +43,7 @@ class RolloutPositionDumper(RolloutSimulator):
         self.episode_number += 1
 
     def _post_completion_hook(self):
+        self.record.append(self.cur_record)
         torch.save(self.record, self.fname)
 
         print(f"Saved Record to {self.fname}")
