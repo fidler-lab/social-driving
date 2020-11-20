@@ -23,21 +23,16 @@
     <body>
 
         <!-- header -->
-        <!-- Masthead-->
-        <header class="masthead bg-dark">
+        <div class='jumbotron'>
             <div class="container">
-                <div class="row text-center">
-                    <div class="col-lg-12 masthead-subsubheading ">
-                        <h1>Emergent Road Rules in Multi-Agent Driving Environments</h1>
-                    </div>
-                </div>
-                <br/>
+                <h1 class="text-center">Emergent Road Rules in Multi-Agent Driving Environments</h1>
+                <br>
                 <div class="row text-center">
                     <div class="col-lg-3">
                         <a href="https://avik-pal.github.io" style="font-size: 18px">Avik Pal</a><sup> 1</sup>
                     </div>
                     <div class="col-lg-3">
-                        <a href="http://www.cs.toronto.edu/" style="font-size: 18px">Jonah Philion</a><sup> 2,3,4</sup>
+                        <a href="https://scholar.google.com/citations?user=VVIAoY0AAAAJ&hl=en" style="font-size: 18px">Jonah Philion</a><sup> 2,3,4</sup>
                     </div>
                     <div class="col-lg-3">
                         <a href="https://andrewliao11.github.io/" style="font-size: 18px">Andrew Liao</a><sup> 3,4</sup>
@@ -64,488 +59,443 @@
                 <br/>
                 <div class="row text-center">
                     <div class="col-sm-12">
-                        NeurIPS Workshop on Deep Reinforcement Learning 2020
+                        <b>NeurIPS Workshop on Deep Reinforcement Learning 2020</b>
                     </div>
                 </div>
                 <br>
-                <div class="row text-center">
+                <div class="col-md-12">
+                    <img class="img-fluid" src="assets/banner.gif"></img>
+                </div>
+                <!-- <div class="row text-center">
                     <div class="col-sm-12">
                         Under Review at ICLR 2021
                     </div>
-                </div>
+                </div> -->
             </div>
-        </header>
-
-        <!-- Abstract-->
-        <section class="page-section" id="abstract">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-12 mx-auto text-lg-left">
-                        <p class="large text-uppercase font-weight-bold">
-                            Abstract
-                        </p>
-                        <p class="large text-muted text-justify">
-                            In order for autonomous vehicles to share the road safely with human drivers, autonomous vehicles must abide by certain "road rules" that human drivers have agreed all road users must follow. "Road rules" include rules that drivers are required to follow by law -- such as the requirement that vehicles stop at red lights -- as well as more subtle social rules -- such as the implicit designation of "fast lanes" on the highway. In this paper, we provide empirical evidence that suggests that -- instead of hard-coding these road rules into self-driving algorithms -- a scalable alternative may be to design multi-agent environments such that agents within the environments "discover for themselves" that these road rules are mutually beneficial to follow. We analyze what components of our chosen multi-agent environment cause the emergence of such behavior and find that two crucial factors are noisy perception and the spatial density of agents. We provide qualitative and quantitative evidence of the emergence of seven social driving behaviors, ranging from stopping at a traffic signal to following lanes. Our results add empirical support for the social road rules that countries around the world have agreed on for safe driving.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Paper -->
-        <section class="page-section small-section bg-light" id="team">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-6">
-                        <div class="team-member">
-                            <img class="mx-auto rounded-circle" src="paper.png" alt="" />                            
-                        </div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="team-member">
-                            <p class="text-muted">
-                                <br><br>
-                                <b>Avik Pal, Jonah Philion, Andrew Liao, Sanja Fidler</b>
-                                <br>
-                                <i>Emergent Road Rules in Multi-Agent Driving Environments</i>
-                                <br><br>
-                                [Preprint - coming soon]&emsp;
-                                <a href="https://github.com/fidler-lab/social-driving">[Code]</a>&emsp;
-                                <a href="bibtex.bib">[Bibtex]</a>&emsp;
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
+        </div>
     
-        <!--Overview-->
-        <section class="page-section" id="overview">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-3">
-                        <img class="d-block w-100" src="assets/nuscenes/r7.gif" alt="First slide">
+        <div class="container">
+            <!-- <h2 class="text-center">Abstract</h2> -->
+            <p class="text-justify">
+                For autonomous vehicles to safely share the road with human drivers, autonomous vehicles must abide by specific "road rules" that human drivers have agreed to follow. "Road rules" include rules that drivers are required to follow by law – such as the requirement that vehicles stop at red lights – as well as more subtle social rules – such as the implicit designation of fast lanes on the highway. In this paper, we provide empirical evidence that suggests that – instead of hard-coding road rules into self-driving algorithms – a scalable alternative may be to design multi-agent environments in which road rules emerge as optimal solutions to the problem of maximizing traffic flow.  We analyze what ingredients in driving environments cause the emergence of these road rules and find that two crucial factors are noisy perception and agents’ spatial density.  We provide qualitative and quantitative evidence of the emergence of seven social driving behaviors, ranging from obeying traffic signals to following lanes, all of which emerge from training agents to drive quickly to destinations without colliding. Our results add empirical support for the social road rules that countries worldwide have agreed on for safe, efficient driving.
+            </p>
+
+            <hr>
+
+            <span class="border border-white">
+                <h2 class="text-center">Paper</h2>
+                <br>
+                <div class='row'>
+                    <div class='col'>
+                        <a href="" target='_blank'><img src='paper.png' class='img-fluid float-right' style='height:180px; border: solid; border-radius:30px; border-color:#000000;'></a>
                     </div>
-                    <div class="col-lg-3">
-                        <img class="d-block w-100" src="assets/nuscenes/r10.gif" alt="First slide">
-                    </div>
-                    <div class="col-lg-3">
-                        <img class="d-block w-100" src="assets/nuscenes/r5.gif" alt="First slide">
-                    </div>
-                    <div class="col-lg-3">
-                        <img class="d-block w-100" src="assets/nuscenes/r4.gif" alt="First slide">
+                    <div class='col'>
+                        <p class="card-text">Avik Pal, Jonah Philion, Andrew Liao, Sanja Fidler</p>
+                        <p class="card-text">Emergent Road Rules in Multi-Agent Driving Environments</p>
+                        <p class="card-text">NeurIPS DeepRL, 2020.</p>
+                        <p class="card-text">
+                            [Preprint - coming soon]&emsp;
+                            <a href="https://github.com/fidler-lab/social-driving">[Code]</a>&emsp;
+                            <a href="bibtex.bib">[Bibtex]</a>&emsp;
+                        </p>
                     </div>
                 </div>
+            </span>
+          
+            <hr/>
+
+            <span class="border border-white">
+                <h2 class="text-center">Overview</h2>
+                <br>
+                <p class="large text-justify">
+                    Our main contributions in this paper are:
+                    <ul class="large text-justify">
+                        <li>
+                            We define a multi-agent driving environment in which agents equipped with noisy LiDAR sensors are rewarded for reaching a given destination as quickly as possible without colliding with other agents and show that agents trained in this environment learn road rules thatmimic road rules common in human driving systems.
+                        </li>
+                        <li>
+                            We analyze what choices in the definition of the MDP lead to the emergence of these roadrules and find that the most important factors are perception noise and the spatial density ofagents in the driving environment.
+                        </li>
+                        <li>
+                            We release a suite of 2D driving environments with the intention of stimulating interest within the MARL community to solve fundamental self-driving problems
+                        </li>
+                    </ul>
+                </p>
+            </span>
+
+            <hr>
+
+            <br>
+
+            <h2 class="text-center">Emergent Social Driving Rules</h2>
+            <span class="border border-white">
+                <h4 class="text-left">1. Stopping at a Traffic Signal</h4>
+                <br>
+
+                <div class="row">
+                    <div class="col-md-12 text-justify">
+                        In a 4-way intersection, agents learn to obey traffic signals to safely navigate to the opposite road in minimum time.
+    
+                        Note that the agents merely observe a ternary value representing the traffic light’s state, not color. To make the visualizations, we visually inspect rollouts for each converged policy to find a permutation of the ternary states that align with human red/yellow/green traffic light conventions
+                    </div>
+                </div>
+                
+                <br><br>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 0%</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 25%</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 50%</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 75%</h6>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts000_1.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts025_1.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts050_1.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts075_1.gif"></img>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts000_2.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts025_2.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts050_2.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts075_2.gif"></img>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts000_3.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts025_3.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts050_3.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts075_3.gif"></img>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts000_4.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts025_4.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts050_4.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/ts075_4.gif"></img>
+                    </div>
+                </div>
+                
+                <br>
+                <h5 class="text-left">Transfer from Synthetic Map to a Real World Map</h5>
+                <br>
+
+                In this experiment we show that policies trained on the synthetic intersection above transfer to real-world intersections found in the nuScenes dataset.
+                <br><br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/r1_gen.gif"></img>
+                    </div>
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/r2_gen.gif"></img>
+                    </div>
+                </div>
+            </span>
+
+            <hr>
+
+            <span class="border border-white">
+                <h4 class="text-left">2. Emergence of Lanes</h4>
+                <br>
+
+                When the agents are trained in an environment contraining 4 agents they follow a consistent lane till the time they cross the intersection. This is a consequence of the starting configuration which prevents agents from colliding with other agents after having crossed the intersection.
 
                 <br><br>
 
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            Overview
-                        </p>
-                        <p class="large text-muted text-justify">
-                            Our main contributions in this paper are:
-                            <ul class="large text-muted text-justify">
-                                <li>
-                                    We define a multi-agent driving environment in which agents equipped with noisy LiDAR sensors are rewarded for reaching a given destination as quickly as possible without colliding with other agents and show that agents trained in this environment learn road rules thatmimic road rules common in human driving systems.
-                                </li>
-                                <li>
-                                    We analyze what choices in the definition of the MDP lead to the emergence of these roadrules and find that the most important factors are perception noise and the spatial density ofagents in the driving environment.
-                                </li>
-                                <li>
-                                    We release a suite of 2D driving environments with the intention of stimulating interest within the MARL community to solve fundamental self-driving problems
-                                </li>
-                            </ul>
-                        </p>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-center">Lidar Noise = 25%</h6>
                     </div>
+                    <div class="col-md-4">
+                        <h6 class="text-center">Lidar Noise = 50%</h6>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-center">Lidar Noise = 75%</h6>
+                    </div>
+                </div>
 
-                    <!-- <div class="col-lg-4">
-                        <div id="overview-maps" class="carousel slide carousel-fade z-depth-1-half" data-ride="carousel" data-interval="1000">
-                            <ol class="carousel-indicators">
-                                <li data-target="#overview-maps" data-slide-to="0" class="active"></li>
-                                <li data-target="#overview-maps" data-slide-to="1"></li>
-                                <li data-target="#overview-maps" data-slide-to="2"></li>
-                            </ol>
-                            <div class="carousel-inner" role="listbox">
-                                <div class="carousel-item active">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/nuscenes/r1.gif" alt="First slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1186.78_1399.04.png" alt="Second slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1289.15_1049.04.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1780.77_1206.08.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_1944.54_802.43.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_410.13_1626.3.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_2528.5_790.21.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_544.18_619.81.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_957.0_1561.14.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <div class="view">
-                                    <img class="d-block w-100" src="assets/static/envboston-seaport_781.55_1496.57.png" alt="Third slide">
-                                    <div class="mask rgba-black-light"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <br>
-                        <p class="large text-muted text-justify font-weight-light">
-                            Credits: Maps obtained from <a href="https://www.nuscenes.org/">nuScenes</a>
-                        </p> -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le4_025_1.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le4_050_1.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le4_075_1.gif"></img>
                     </div>
                 </div>
-            </div>
-        </section>
+                <br><br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-center">Lidar Noise = 0%</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-center">Lidar Noise = 100%</h6>
+                    </div>
+                </div>
 
-        <!-- <section class="page-section bg-light" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            Configuring the Sensor Data
-                        </p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/le4_2.gif"></img>
+                    </div>
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/le4_100_1.gif"></img>
                     </div>
                 </div>
-                <br>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-5">
-                        <p class="large   font-weight-bold text-center">
-                            Maximum Lidar Range
-                        </p>
-                    </div>
-                    <div class="col-lg-5">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise
-                        </p>
-                    </div>
-                </div>
-                <div class="row justify-content-around">
-                    <div class="col-lg-4">
-                        <img class="w-100" src="assets/explanation/lidar_range_variation.gif"></img>
-                    </div>
-                    <div class="col-lg-4">
-                        <img class="w-100" src="assets/explanation/lidar_noise_variation.gif"></img>
-                    </div>
-                </div>
-            </div>
-        </section> -->
 
-        <!-- <section class="page-section bg-light" id="nav-rules">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12 text-uppercase">
-                        <h2 class="text-center">Emergent Road Rules</h2>
-                        <br>
-                        <br>
-                        <nav>
-                            <div class="nav nav-pills justify-content-center" id="nav-tab" role="tablist">
-                            <a class="nav-item nav-link active" id="nav-ts-tab" data-toggle="tab" href="#nav-ts" role="tab" aria-controls="nav-ts" aria-selected="false">Traffic Signals</a>
-                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-lf" role="tab" aria-controls="nav-lf" aria-selected="true">Lane Emergence</a>
-                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-fl" role="tab" aria-controls="nav-fl" aria-selected="true">Fast Lanes</a>
-                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-ped" role="tab" aria-controls="nav-ped" aria-selected="true">Pedestrians</a>
-                            <a class="nav-item nav-link" id="nav-lf-tab" data-toggle="tab" href="#nav-comm" role="tab" aria-controls="nav-comm" aria-selected="true">Communication</a>
-                            </div>
-                        </nav>
+                <br>
+                When the number of agents during training are increased, the agents tend to follow the lanes consistently till they reach their destination. Additionally in case of 8 agents, we see the formation of multi-lane tracks. Qualitatively we can see that agents starting from the left side of the road tend to take the lane closer to the center and the ones starting on the right side take the extreme right lane. This additionally allows a smoother traffic flow.
+                <br>
+                <br>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6 class="text-center">Number of Training Agents = 4</h6>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-center">Number of Training Agents = 8</h6>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-center">Number of Training Agents = 8</h6>
                     </div>
                 </div>
-            </div>
-        </section> -->
 
-        <!--Traffic Signals-->
-        <section class="page-section bg-light" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_000_12_1.mp4" allowfullscreen controls></video>
+                <div class="row">
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le4_2.gif"></img>
                     </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_025_12_1.mp4" allowfullscreen controls></video>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le8_1.gif"></img>
                     </div>
-                    <div class="col-lg-5">
-                        <p class="large text-uppercase font-weight-bold">
-                            Obeying Traffic Signals
-                        </p>
-                        <p class="large text-muted text-justify">
-                            In a 4-way intersection, agents learn to obey traffic signals to safely navigate to the opposite road in minimum time.
-                        </p>
-                        <p class="large text-muted text-justify font-weight-light">
-                            Note that the agents merely observe a ternary value representing the traffic light’s state, not color. To make the visualizations, we visually inspect rollouts for each converged policy to find a permutation of the ternary states that align with human red/yellow/green traffic light conventions
-                        </p>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/le8_2.gif"></img>
                     </div>
                 </div>
-                <br>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 0%
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 25 %
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 50 %
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 75 %
-                        </p>
-                    </div>
-                </div>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_000_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_025_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_050_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_075_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_000_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_025_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_050_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/traffic_signal/traffic_signal_075_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!--Traffic Signals-->
-        <section class="page-section" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-5">
-                        <p class="large text-uppercase font-weight-bold">
-                            Lane Emergence
-                        </p>
-                        <p class="large text-muted text-justify">
-                            When the agents are trained in an environment contraining 4 agents they follow a consistent lane till the time they cross the intersection. This is a consequence of the starting configuration which prevents agents from colliding with other agents after having crossed the intersection.
-                        </p>
-                        <p class="large text-muted text-justify">
-                            When the number of agents during training are increased, the agents tend to follow the lanes consistently till they reach their destination. Additionally in case of 8 agents, we see the formation of multi-lane tracks. Qualitatively we can see that agents starting from the left side of the road tend to take the lane closer to the center and the ones starting on the right side take the extreme right lane. This additionally allows a smoother traffic flow. 
-                        </p>
-                    </div>
-                    <div class="col-lg-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_000_8_2.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
                 <br>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 0%
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 25 %
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 50 %
-                        </p>
-                    </div>
-                    <div class="col-lg-3">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Lidar Noise 75 %
-                        </p>
-                    </div>
-                </div>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_000_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_025_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_050_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_075_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-                <br>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-4">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Number of Agents 4
-                        </p>
-                    </div>
-                    <div class="col-lg-4">
-                        <p class="large text-uppercase font-weight-bold text-center">
-                            Number of Agents 8
-                        </p>
-                    </div>
-                </div>
-                <div class="row justify-content-around">
-                    <div class="col-lg-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_000_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-4 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/lane_emergence/lane_emergence_000_8_1.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!--Fast Lanes-->
-        <section class="page-section bg-light" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            Fast Lane on a Highway
-                        </p>
-                        <p class="large text-muted text-justify">
-                            We observe that depending on how fast the agents are they choose to travel along the left hand side or right hand side of the road. This is similar to fast lanes which are present on the highways. 
-                        </p>
+                Spatial Locations of the Agents when trained on 8 agent environment
+
+                <br><br>
+
+                <div class="col-md-6 offset-md-3 justify-content-center">
+                    <img class="img-fluid" src="assets/8agents_lanepos.gif"></img>
+                </div>
+            </span>
+
+            <hr>
+
+            <span class="border border-white">
+                <h4 class="text-left">3. Fast Lanes on a Highway</h4>
+
+                <br>
+                We observe that depending on how fast the agents are they choose to travel along the left hand side or right hand side of the road. This is similar to fast lanes which are present on the highways. (Darker shades denote faster cars)
+
+                <br>
+                <br>
+
+                <div class="col-md-12">
+                    <img class="img-fluid" src="assets/fastlanes.gif"></img>
+                </div>
+
+                <div class="col-md-12">
+                    <img class="img-fluid" src="assets/hway1.gif"></img>
+                </div>
+
+                <div class="col-md-12">
+                    <img class="img-fluid" src="assets/hway2.gif"></img>
+                </div>
+            </span>
+
+            <hr>
+
+            <span class="border border-white">
+                <h4 class="text-left">4. Stopping at a Crosswalk</h4>
+
+                <br>
+                The agents detect the pedestrians (small green boxes) walking along the crosswalk, and slow down once they approach the crosswalk.
+                <br>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <img class="img-fluid" src="assets/ped1.gif"></img>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <img class="img-fluid" src="assets/ped2.gif"></img>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <img class="img-fluid" src="assets/ped3.gif"></img>
+                    </div>
+                </div>
+            </span>
+
+            <hr>
+
+            <span class="border border-white">
+                <h4 class="text-left">5. Communication</h4>
+
+                <br>
+                We denote the signals sent by the agents with the colors of the agents. In the left video where there is no perception noise, the agents' signals are not correlated with their actions/heading. In the right hand side video, we do see that agents that turn right, tend to be colored black while the ones turning right are colored red.
+                <br><br>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-center">Lidar Noise = 0%</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-center">Lidar Noise = 100%</h6>
+                    </div>
+                </div>
+                <!-- <br> -->
+
+                <div class="row">
+                    <div class="col-md-6 embed-responsive embed-responsive-1by1">
+                        <video class="embed-responsive-item" src="./assets/nuscenes_comm_1.mp4" allowfullscreen controls></video>
+                    </div>
+                    <div class="col-md-6 embed-responsive embed-responsive-1by1">
+                        <video class="embed-responsive-item" src="./assets/nuscenes_comm_2.mp4" allowfullscreen controls></video>
+                    </div>
+                </div>
+            </span>
+
+            <hr>
+
+            <span class="border border-white">
+                <h4 class="text-left">6. Rollouts on nuScenes</h4>
+                <br>
+                In these experiments, we attempt to show that agents learn to maintain a minimum distance between themselves as a function of their relative velocity. Additionally we observe the emergence of right of way where the agent which arrives first at the intersection gets to leave it first.
+                <br>
+                <br>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r1.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r2.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r7.gif"></img>
+                    </div>
+                </div>
+
+                <!-- <br>
+                Rollouts from more nuScenes Intersections
+                <br><br> -->
+                <br>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r8.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r4.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r5.gif"></img>
                     </div>
                 </div>
                 <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/fast_lanes/fast_lane_emergence_000_10_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/fast_lanes/fast_lane_emergence_000_10_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/fast_lanes/fast_lane_emergence_000_10_3.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-        <!--Crosswalk-->
-        <section class="page-section" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            Stopping at a Crosswalk
-                        </p>
-                        <p class="large text-muted text-justify">
-                            The agents detect the pedestrians (small green boxes) walking along the crosswalk, and slow down once they approach the crosswalk.
-                        </p>
+                <div class="row">
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r9.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r10.gif"></img>
+                    </div>
+                    <div class="col-md-4">
+                        <img class="img-fluid" src="assets/r6.gif"></img>
                     </div>
                 </div>
-                <br>
-                <div class="row justify-content-around">
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/pedestrian/pedestrian_000_4_1.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/pedestrian/pedestrian_000_4_2.mp4" allowfullscreen controls></video>
-                    </div>
-                    <div class="col-lg-3 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="assets/pedestrian/pedestrian_000_4_3.mp4" allowfullscreen controls></video>
-                    </div>
-                </div>
-            </div>
-        </section>
 
-
-        <!--Communication-->
-        <section class="page-section bg-light" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            Communication
-                        </p>
-                    </div>
+                <!-- <div class="row">
                 </div>
-            </div>
-        </section>
 
-        <!--Nuscenes Rollouts-->
-        <section class="page-section" id="ts">
-            <div class="container">
-                <div class="row justify-content-around">
-                    <div class="col-lg-12">
-                        <p class="large text-uppercase font-weight-bold">
-                            nuScenes Maps
-                        </p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/r1_gen.gif"></img>
                     </div>
-                </div>
-            </div>
-        </section> 
+                    <div class="col-md-6">
+                        <img class="img-fluid" src="assets/r2_gen.gif"></img>
+                    </div>
+                </div> -->
+            </span>
+
+            <!-- <br><br>
+
+            <h2 class="text-center">Episode Return over Time</h2>
+
+            <br><br>
+
+            <h4 class="text-left">Obeying Traffic Signal</h4>
+
+            <br>
+
+            Episode Return over time for the Toy Intersection with 4 agents.
+
+            <br><br>
+
+            <div class="col-md-6">
+                <img class="img-fluid" src="assets/episode-return.png"></img>
+            </div> -->
+
+            <br><br>
+            <!-- <br><br> -->
+        </div>
 
         <!-- Footer-->
-        <footer class="footer py-4">
+        <!-- <footer class="footer py-4">
             <div class="container">
                 <div class="row align-items-center">
                     <div class="col-lg-12 text-center">Page Template used from <a href="https://nv-tlabs.github.io/gameGAN/">here</a></div>
                 </div>
             </div>
-        </footer>
+        </footer> -->
         
         <!-- Bootstrap core JS-->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
