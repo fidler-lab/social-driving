@@ -34,6 +34,7 @@ class RolloutPositionDumper(RolloutSimulator):
                 if hasattr(self.env, "paths")
                 else (self.env.width, self.env.length),
                 deepcopy(self.env.world.get_lidar_data_all_vehicles(100)),
+                deepcopy(action),
             )
         )
 
