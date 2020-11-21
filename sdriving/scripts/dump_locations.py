@@ -22,9 +22,16 @@ class RolloutPositionDumper(RolloutSimulator):
         self.record = []
         self.cur_record = []
 
+        if "Communication" in kwargs["env_name"]:
+            self.record_comm = True
+
     def _action_observation_hook(
         self, action, observation, aids, *args, **kwargs
     ):
+        if self.record_comm:
+            comm = self.env.world.comm_channel[0]
+            comm_data = self.env.world.get_broadcast_data_all_agents()
+
         self.cur_record.append(
             (
                 deepcopy(self.env.world.vehicles),
@@ -34,7 +41,8 @@ class RolloutPositionDumper(RolloutSimulator):
                 if hasattr(self.env, "paths")
                 else (self.env.width, self.env.length),
                 deepcopy(self.env.world.get_lidar_data_all_vehicles(100)),
-                deepcopy(action),
+                deepcopy(comm) if self.record_comm else None,
+                deepcopy(comm_data) if self.record_comm else None
             )
         )
 
