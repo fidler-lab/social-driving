@@ -16,8 +16,15 @@
         <link href="https://fonts.googleapis.com/css?family=Roboto+Slab:400,100,300,700" rel="stylesheet" type="text/css" />
         <!-- Core theme CSS (includes Bootstrap)-->
         <link href="css/styles.css" rel="stylesheet" />
-        <!-- Interactive Charts -->
-        <script src="js/Chart.min.js"></script>  
+	<!-- Global site tag (gtag.js) - Google Analytics -->
+	<script async src="https://www.googletagmanager.com/gtag/js?id=G-L5VBBFG27G"></script>
+	<script>
+	    window.dataLayer = window.dataLayer || [];
+	    function gtag(){dataLayer.push(arguments);}
+	    gtag('js', new Date());
+
+	    gtag('config', 'G-L5VBBFG27G');
+	</script>
     </head>
 
     <body>
@@ -223,7 +230,7 @@
 
                 In this experiment we show that policies trained on the synthetic intersection above transfer to real-world intersections found in the nuScenes dataset.
                 <br><br>
-                <div class="row">
+                <div class="row center">
                     <div class="col-md-6">
                         <img class="img-fluid" src="assets/r1_gen.gif"></img>
                     </div>
