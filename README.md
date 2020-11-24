@@ -10,13 +10,12 @@ Preprocessed [nuScenes Maps](https://www.nuscenes.org/) are provided with the in
 ## Citation
 
 ```
-@inproceedings{
-    anonymous2021emergent,
-    title={Emergent Road Rules In Multi-Agent Driving Environments},
-    author={Pal, Avik and Philion, Jonah and Liao, Andrew and Fidler, Sanja},
-    booktitle={Submitted to International Conference on Learning Representations},
-    year={2021},
-    url={https://openreview.net/forum?id=d8Q1mt2Ghw},
-    note={under review}
+@misc{pal2020emergent,
+    title={Emergent Road Rules In Multi-Agent Driving Environments}, 
+    author={Avik Pal and Jonah Philion and Yuan-Hong Liao and Sanja Fidler},
+    year={2020},
+    eprint={2011.10753},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
 }
 ```
