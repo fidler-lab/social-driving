@@ -389,24 +389,36 @@
                 <h4 class="text-left">5. Communication</h4>
 
                 <br>
-                We denote the signals sent by the agents with the colors of the agents. In the left video where there is no perception noise, the agents' signals are not correlated with their actions/heading. In the right hand side video, we do see that agents that turn right, tend to be colored black while the ones turning right are colored red.
+                We denote the signals sent by the agents with the colors of the agents. In the left video where there is no perception noise, the agents' signals are not correlated with their actions/heading. In the right hand side video, we do see that agents that turn right, tend to be colored black while the ones turning left / going straight are colored white.
                 <br><br>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <h6 class="text-center">Lidar Noise = 0%</h6>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 25%</h6>
+                    </div>
+                    <div class="col-md-3">
+                        <h6 class="text-center">Lidar Noise = 50%</h6>
+                    </div>
+                    <div class="col-md-3">
                         <h6 class="text-center">Lidar Noise = 100%</h6>
                     </div>
                 </div>
                 <!-- <br> -->
 
                 <div class="row">
-                    <div class="col-md-6 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./assets/nuscenes_comm_1.mp4" allowfullscreen controls></video>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/comm000.gif"></img>
                     </div>
-                    <div class="col-md-6 embed-responsive embed-responsive-1by1">
-                        <video class="embed-responsive-item" src="./assets/nuscenes_comm_2.mp4" allowfullscreen controls></video>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/comm025.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/comm050.gif"></img>
+                    </div>
+                    <div class="col-md-3">
+                        <img class="img-fluid" src="assets/comm100.gif"></img>
                     </div>
                 </div>
             </span>
