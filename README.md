@@ -39,7 +39,7 @@ pip install git+https://github.com/fidler-lab/social-driving.git
 
 ## Nuscenes Maps
 
-Preprocessed [nuScenes Maps](https://www.nuscenes.org/) are provided with the tagged release of this software. If you use these maps in your research consider citing the [nuScenes Paper](https://arxiv.org/abs/1903.11027).
+Preprocessed [nuScenes Maps](https://www.nuscenes.org/) are provided [here](https://github.com/fidler-lab/social-driving/releases/download/v0.0.1-alpha/data.zip), with the tagged release of this software. If you use these maps in your research consider citing the [nuScenes Paper](https://arxiv.org/abs/1903.11027).
 
 ## Questions/Requests
 
