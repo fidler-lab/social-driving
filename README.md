@@ -8,7 +8,7 @@
 [![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://avikpal.gitbook.io/social-driving/)
 [![License](http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat)](LICENSE)
 [![PyPI version](https://badge.fury.io/py/sdriving.svg)](https://badge.fury.io/py/sdriving)
-[![Website](https://img.shields.io/badge/wepage-up-red.svg)](https://fidler-lab.github.io/social-driving/)
+[![Website](https://img.shields.io/badge/webpage-up-red.svg)](https://fidler-lab.github.io/social-driving/)
 [![arXiv](https://img.shields.io/badge/arXiv-2011.10753-f9f107.svg)](https://arxiv.org/abs/2011.10753)
 [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Ffidler-lab%2Fsocial-driving&count_bg=%23C83D3D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
 
