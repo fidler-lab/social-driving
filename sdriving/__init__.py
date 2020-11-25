@@ -1,3 +1,3 @@
-__version__ = "v0.4.0"
+__version__ = "v0.1.0"
 
 name = "sdriving"
