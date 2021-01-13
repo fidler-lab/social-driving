@@ -10,7 +10,7 @@
 [![PyPI version](https://badge.fury.io/py/sdriving.svg)](https://badge.fury.io/py/sdriving)
 [![Website](https://img.shields.io/badge/webpage-up-red.svg)](https://fidler-lab.github.io/social-driving/)
 [![arXiv](https://img.shields.io/badge/arXiv-2011.10753-f9f107.svg)](https://arxiv.org/abs/2011.10753)
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Ffidler-lab%2Fsocial-driving&count_bg=%23C83D3D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+[![ICLR](https://img.shields.io/badge/ICLR-2021-red)](https://openreview.net/forum?id=d8Q1mt2Ghw)
 
 <img src="assets/header.gif">
 
@@ -50,12 +50,12 @@ Please file an issue if you have any questions or requests about the code or the
 If you found this codebase useful in your research, please consider citing
 
 ```
-@misc{pal2020emergent,
-    title={Emergent Road Rules In Multi-Agent Driving Environments}, 
+@inproceedings{
+    pal2021emergent,
+    title={{E}mergent {R}oad {R}ules In {M}ulti-{A}gent {D}riving {E}nvironments},
     author={Avik Pal and Jonah Philion and Yuan-Hong Liao and Sanja Fidler},
-    year={2020},
-    eprint={2011.10753},
-    archivePrefix={arXiv},
-    primaryClass={cs.LG}
+    booktitle={International Conference on Learning Representations},
+    year={2021},
+    url={https://openreview.net/forum?id=d8Q1mt2Ghw},
 }
 ```
